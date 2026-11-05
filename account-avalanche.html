@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account Avalanche | Accounting Vocabulary Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Accounting vocabulary games. University of New Haven look: navy masthead, gold rule. */
+:root{
+  --navy:#002D74; --navy-dk:#001d4d; --navy-tint:#e8eef8; --gold:#FFC629; --gold-tint:#fff6d9;
+  --ink:#1b2333; --muted:#5a6475; --line:#d6dce6; --bg:#f3f5f9; --card:#ffffff;
+  --good:#1d7a46; --good-bg:#e6f4ec; --bad:#b3261e; --bad-bg:#fdecea; --shown:#6b5a00; --shown-bg:#fff6d9;
+  --head:"Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+  --body:"Source Sans 3", "Segoe UI", Arial, sans-serif;
+  --mono:"IBM Plex Mono", Consolas, monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body)}
+[hidden]{display:none!important}
+button,select,input{font:inherit;color:inherit}
+a{color:var(--navy)}
+.ic{width:20px;height:20px;flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.masthead{background:var(--navy);color:#fff;border-bottom:5px solid var(--gold)}
+.masthead .wrap{padding:16px 16px 20px}
+.back{color:#fff;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;margin-bottom:6px}
+.back:hover,.back:focus{color:var(--gold)}
+.kicker{font:600 13px/1.2 var(--head);letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.masthead h1{font:700 32px/1.15 var(--head);margin:6px 0 4px}
+.masthead .sub{color:#d6e0f2;font-size:15px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 16px}
+
+.toolbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 4px rgba(0,29,77,.06)}
+.toolbar .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-top:10px;padding-bottom:10px}
+.setinfo{font-size:14px;color:var(--muted)}
+.setinfo b{font-family:var(--mono);color:var(--navy);font-weight:600}
+.progress{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
+.bar{width:140px;height:8px;border-radius:4px;background:var(--navy-tint);overflow:hidden;display:inline-block}
+.bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .3s}
+
+/* chapter picker */
+.chpick{position:relative}
+.chpick>summary{list-style:none}
+.chpick>summary::-webkit-details-marker{display:none}
+.chpanel{position:absolute;left:0;top:calc(100% + 6px);z-index:40;width:min(560px,calc(100vw - 32px));background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,29,77,.18);padding:14px}
+.chpre{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:4px}
+.chk{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:14px;line-height:1.3;min-height:44px}
+.chk:hover{background:var(--navy-tint)}
+.chk input{width:18px;height:18px;margin:1px 0 0;accent-color:var(--navy);flex:none}
+.chk b{color:var(--navy);font-family:var(--mono);margin-right:2px}
+
+main{padding:20px 0 48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px;margin:0 0 18px}
+.card h2{font:700 22px/1.2 var(--head);color:var(--navy);margin:0 0 6px}
+.card h3{font:700 18px/1.25 var(--head);color:var(--navy);margin:16px 0 6px}
+.lead{color:var(--muted);margin:0 0 14px;max-width:760px}
+.note{font-size:14px;color:var(--muted)}
+.lbl{font:600 13px/1.2 var(--head);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:15px;line-height:1.2;text-decoration:none}
+.btn:hover{background:var(--navy-tint)}
+.btn.primary{background:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--navy-dk)}
+.btn.gold{background:var(--gold);border-color:#e0a800;color:var(--navy-dk)}
+.btn.gold:hover{background:#ffd457}
+.btn.sm{min-height:36px;padding:5px 12px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn[aria-pressed="true"]{background:var(--navy);color:#fff}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.status{font-size:15px;font-weight:600}
+.status.good{color:var(--good)} .status.bad{color:var(--bad)}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+select{min-height:44px;padding:6px 8px;border:1px solid #aab4c4;border-radius:6px;background:#fff;max-width:100%}
+
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--navy);border-radius:6px;overflow:hidden}
+.seg button{min-height:44px;border:0;background:#fff;color:var(--navy);font-weight:600;cursor:pointer;padding:6px 14px}
+.seg button+button{border-left:1px solid var(--navy)}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+
+.fb{border-radius:6px;padding:10px 14px;font-size:15px;display:flex;gap:10px;align-items:flex-start;margin:8px 0 0}
+.fb .ic{margin-top:2px}
+.fb.good{background:var(--good-bg);color:#14532f}
+.fb.bad{background:var(--bad-bg);color:#7a1a14}
+.fb.info{background:var(--navy-tint);color:var(--navy-dk)}
+.fb.shown{background:var(--shown-bg);color:var(--shown)}
+
+.acct{display:inline-flex;align-items:center;gap:6px;background:var(--navy-tint);color:var(--navy-dk);border:1px solid transparent;border-radius:6px;padding:6px 10px;font-weight:600;font-size:14px;line-height:1.25}
+.tag{font:600 11px/1 var(--head);letter-spacing:.06em;text-transform:uppercase;background:var(--gold-tint);color:var(--shown);border-radius:4px;padding:3px 5px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:96px}
+.kpi small{display:block;font:600 12px/1.3 var(--head);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kpi b{font:600 20px/1.3 var(--mono);color:var(--navy)}
+.split{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.split>.side{flex:1 1 260px;max-width:360px}
+.split>.grow{flex:999 1 560px;min-width:0}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;position:relative}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:0 16px 30px}
+@media (max-width:600px){
+  .masthead h1{font-size:26px}
+  .progress{margin-left:0;width:100%}
+  .card{padding:16px 14px}
+  .split>.side{max-width:none}
+}
+@media print{
+  .toolbar,.masthead .back,.actions,.noprint,footer{display:none!important}
+  .masthead{background:#fff;color:#000;border-bottom:2px solid #000}
+  .masthead .sub,.kicker{color:#000}
+  body{background:#fff}
+  .card{border:0;padding:0}
+}
+
+.field{position:relative;height:420px;border:2px solid var(--navy-dk);border-bottom:0;border-radius:10px 10px 0 0;background:var(--navy);overflow:hidden;display:grid;grid-template-columns:repeat(var(--lanes),minmax(0,1fr))}
+.lane{border-right:1px dashed #3a5a8f}
+.lane:last-of-type{border-right:0}
+.blk{position:absolute;min-height:46px;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--navy-dk);border-radius:8px;padding:6px;text-align:center;font:700 15px/1.12 var(--head);box-shadow:0 4px 0 var(--navy-dk);overflow-wrap:anywhere}
+.blk.act{outline:3px solid var(--gold);outline-offset:2px}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;background:rgba(0,29,77,.82);color:#fff;z-index:2}
+.overlay h2{margin:0;font:700 30px/1.1 var(--head);color:var(--gold)}
+.overlay p{margin:0;max-width:380px}
+.lanebtns{display:grid;grid-template-columns:repeat(var(--lanes),minmax(0,1fr));gap:2px;background:var(--navy-dk);border:2px solid var(--navy-dk);border-radius:0 0 10px 10px;overflow:hidden}
+.lb{min-height:64px;border:0;border-top:4px solid var(--gold);background:var(--navy-dk);color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 16px/1.1 var(--head);padding:4px 2px}
+.lb small{font:600 12px/1 var(--mono);color:var(--gold)}
+.lb:hover:not(:disabled){background:var(--gold);color:var(--navy-dk)}
+.lb:hover:not(:disabled) small{color:var(--navy-dk)}
+.lb:disabled{opacity:.7;cursor:default}
+.kv{display:flex;justify-content:space-between;align-items:center;border-bottom:1px dotted #b9c6dc;padding:6px 0}
+.kv b{font:600 20px/1.2 var(--mono);color:var(--navy)}
+.heart{width:22px;height:22px;fill:var(--navy);margin-left:3px}
+.heart.gone{fill:none;stroke:#8f9bb0;stroke-width:2}
+.review{margin-top:14px}
+.review ul{margin:0;padding-left:18px}
+.review li{margin:0 0 6px}
+@media (max-width:600px){.field{height:360px}.lb{font-size:13px}.blk{font-size:13px}}
+.side .seg{flex-wrap:nowrap}.side .seg button{flex:1;padding:6px 4px}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="platform.js"></script>
+</head>
+<body>
+<header class="masthead"><div class="wrap">
+  <a class="back" href="index.html">← Course page</a>
+  <div class="kicker">Move fast · Accounting Vocabulary Games</div>
+  <h1>Account Avalanche</h1>
+  <div class="sub">Problem Solvers, Inc. · First year of operations, <span data-year></span> · Send each falling account to the right category before it lands</div>
+</div></header>
+<div class="toolbar"><div class="wrap">
+  <span class="setinfo">Round <b data-seed></b></span>
+  <button class="btn gold" id="new-set" type="button">New round</button>
+  <details class="chpick" data-chpick></details>
+  <div class="progress"><span id="prog-text" aria-live="polite"></span><span class="bar" aria-hidden="true" hidden><i id="prog-bar"></i></span></div>
+</div></div>
+<div class="wrap">
+  <main id="app"></main>
+</div>
+<footer>University of New Haven · Accounting practice games · The same round number always gives the same round, so you can share it with a classmate or your instructor.</footer>
+<script>
+/* Generated by tools/make_terms.py from the Chart of Accounts spreadsheet. Do not edit by hand. */
+const ACCOUNTS = [{"n":1000,"name":"Cash","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Currency, coins and money in bank accounts available for use","hint":"Almost every transaction touches me, and I am listed first on the balance sheet."},{"n":1100,"name":"Accounts Receivable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Amounts customers owe the company for services or goods sold on credit","hint":"I grow when Problem Solvers bills a client and shrink when the client pays."},{"n":1110,"name":"Allowance for Doubtful Accounts","ch":[8,9,10,11,12],"el":"asset","contra":"Accounts Receivable","nb":"Credit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Estimate of customer balances the company does not expect to collect","hint":"I sit under Accounts Receivable and reduce it to the amount expected to be collected."},{"n":1150,"name":"Interest Receivable","ch":[4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Interest earned on a loan the company made but not yet collected in cash","hint":"An adjusting entry creates me when interest has been earned but the borrower has not paid yet."},{"n":1200,"name":"Prepaid Rent","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Rent paid in advance that will be used up in future months","hint":"I shrink each month as the months covered by an advance payment for office space pass."},{"n":1210,"name":"Prepaid Insurance","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Insurance coverage paid for in advance that has not been used yet","hint":"Problem Solvers paid cash for me before using me, and I expire a little each month."},{"n":1300,"name":"Supplies","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Items bought for use in the business, not for resale","hint":"Printer paper and folders. When they are used, an adjustment moves part of me to an expense."},{"n":1400,"name":"Inventory","ch":[6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"ca","iss":"","ism":[],"def":"Goods held for sale to customers","hint":"Problem Solvers' how-to guides sit in me until they are sold."},{"n":1500,"name":"Equipment","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Long-lived physical assets such as computers and furniture used in operations","hint":"I am a long-lived tangible asset that wears out, so I am depreciated."},{"n":1520,"name":"Building","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"A structure the company owns and uses in its operations","hint":"I house the business and I am depreciated, but the ground under me is a separate account."},{"n":1540,"name":"Land","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Ground the company owns and uses in its operations","hint":"I am a long-lived tangible asset that is never depreciated."},{"n":1599,"name":"Accumulated Depreciation","ch":[4,5,6,7,8,9,10,11,12],"el":"asset","contra":"Equipment and Building","nb":"Credit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Total depreciation recorded on equipment and buildings since they were acquired","hint":"I am a contra account that grows every year and reduces the book value of equipment and buildings."},{"n":1600,"name":"Logo and Trademark","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Rights to the symbol and name that identify the company's brand","hint":"I am an intangible asset that identifies Problem Solvers' brand on its website and guides."},{"n":1610,"name":"Software","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Computer programs the company owns and uses, recorded as an intangible asset","hint":"I am an intangible asset that runs on Problem Solvers' computers, and I am amortized."},{"n":1620,"name":"Goodwill","ch":[9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Amount paid to acquire a business above the fair value of its identifiable net assets","hint":"I only appear when one company buys another and pays extra, and I am never amortized."},{"n":1630,"name":"Trademarks & Copyrights","ch":[9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Legal rights that protect brand names and creative works such as books","hint":"I protect the names and the words inside the guidebooks Problem Solvers publishes."},{"n":1640,"name":"Patents","ch":[9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Exclusive legal right to use or sell an invention","hint":"I am an intangible asset that gives exclusive rights to an invention."},{"n":1699,"name":"Accumulated Amortization","ch":[4,5,6,7,8,9,10,11,12],"el":"asset","contra":"intangible assets","nb":"Credit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Total amortization recorded on intangible assets since they were acquired","hint":"I am a contra account that reduces the book value of intangibles such as software."},{"n":1700,"name":"Notes Receivable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"asset","contra":"","nb":"Debit","st":"BS","bs":"nca","iss":"","ism":[],"def":"Amounts owed to the company under a written promise to pay, usually with interest","hint":"I am created when Problem Solvers lends money and receives a signed promise in return."},{"n":2000,"name":"Accounts Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Amounts the company owes suppliers for purchases on credit","hint":"I grow when Problem Solvers buys on account and shrink when it pays its suppliers."},{"n":2010,"name":"Deferred Revenue","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Cash received from customers before the services or goods are provided","hint":"A client paid in advance, so Problem Solvers owes the work. Once the work is done, I become revenue."},{"n":2020,"name":"Wages Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Wages employees have earned that the company has not paid yet","hint":"An adjusting entry creates me when employees have worked but payday has not come yet."},{"n":2030,"name":"Utilities Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Utility bills for service already used that have not been paid yet","hint":"The electric bill arrived, but Problem Solvers has not paid it yet."},{"n":2040,"name":"Interest Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Interest owed on borrowed money that has not been paid yet","hint":"I grow with the passage of time on a loan, even before the lender is paid."},{"n":2050,"name":"Sales Tax Payable","ch":[10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Sales tax collected from customers that is owed to the government","hint":"Problem Solvers collects me from customers for the state, so I am never revenue."},{"n":2060,"name":"Income Tax Payable","ch":[3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Income taxes owed to the government that have not been paid yet","hint":"I am what Problem Solvers still owes the IRS at year-end."},{"n":2070,"name":"Dividends Payable","ch":[11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Dividends the board has declared but not yet paid to shareholders","hint":"I exist between the day the board declares a dividend and the day it is paid."},{"n":2100,"name":"Current Portion of Notes Payable","ch":[10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"cl","iss":"","ism":[],"def":"Part of a long-term note that must be repaid within the next year","hint":"I am the slice of a long-term loan that is due within the next twelve months."},{"n":2500,"name":"Notes Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"ncl","iss":"","ism":[],"def":"Amounts borrowed under a written promise to repay, usually with interest","hint":"Problem Solvers signed a written promise to repay the bank, with interest."},{"n":2600,"name":"Bonds Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"ncl","iss":"","ism":[],"def":"Long-term debt sold to many investors, with a stated interest rate and maturity date","hint":"Problem Solvers could sell me to many investors to borrow a large amount for many years."},{"n":2610,"name":"Discount on Bonds Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"Bonds Payable","nb":"Debit","st":"BS","bs":"ncl","iss":"","ism":[],"def":"Amount by which bonds were issued below their face value","hint":"I am a contra account that appears when bonds sell for less than face value."},{"n":2620,"name":"Premium on Bonds Payable","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"liability","contra":"","nb":"Credit","st":"BS","bs":"ncl","iss":"","ism":[],"def":"Amount by which bonds were issued above their face value","hint":"I appear when bonds sell for more than face value, and I add to the bonds' carrying value."},{"n":3000,"name":"Common Stock","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"pic","contra":"","nb":"Credit","st":"BS","bs":"eq","iss":"","ism":[],"def":"Ownership shares issued to investors in exchange for cash or other assets","hint":"Investors received me when they gave Problem Solvers cash to start the business."},{"n":3100,"name":"Retained Earnings","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"re","contra":"","nb":"Credit","st":"BS","bs":"eq","iss":"","ism":[],"def":"Total net income kept in the business rather than paid out as dividends","hint":"Net income adds to me and dividends subtract from me."},{"n":3200,"name":"Dividends","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"dividends","contra":"","nb":"Debit","st":"SRE","bs":"div","iss":"","ism":[],"def":"Distributions of earnings to shareholders","hint":"I am earnings returned to shareholders instead of reinvested, and I am not an expense."},{"n":3300,"name":"Treasury Stock","ch":[11,12],"el":"pic","contra":"shareholders' equity","nb":"Debit","st":"BS","bs":"eq","iss":"","ism":[],"def":"The company's own shares that it has bought back from investors","hint":"I am a contra equity account created when the company buys back its own shares."},{"n":3400,"name":"Preferred Stock","ch":[11,12],"el":"pic","contra":"","nb":"Credit","st":"BS","bs":"eq","iss":"","ism":[],"def":"Shares whose owners receive dividends before common shareholders do","hint":"My owners are paid dividends first, but they usually cannot vote."},{"n":3500,"name":"Additional Paid in Capital","ch":[11,12],"el":"pic","contra":"","nb":"Credit","st":"BS","bs":"eq","iss":"","ism":[],"def":"Amount investors paid for shares above their par value","hint":"I hold the extra amount received when shares sell for more than par value."},{"n":4000,"name":"Service Revenue","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"revenue","contra":"","nb":"Credit","st":"IS","bs":"","iss":"rev","ism":["rev"],"def":"Amounts earned by performing services for customers","hint":"I am what Problem Solvers earns from its consulting work."},{"n":4100,"name":"Sales Revenue","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"revenue","contra":"","nb":"Credit","st":"IS","bs":"","iss":"rev","ism":["rev"],"def":"Amounts earned by selling goods to customers","hint":"I am what Problem Solvers earns from selling its how-to guides."},{"n":4110,"name":"Sales Returns and Allowances","ch":[6,7,8,9,10,11,12],"el":"revenue","contra":"Sales Revenue","nb":"Debit","st":"IS","bs":"","iss":"rev","ism":["rev"],"def":"Reductions in sales for goods customers return or price cuts they are given","hint":"I am a contra revenue account that grows when customers send guides back."},{"n":4200,"name":"Interest Revenue","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"revenue","contra":"","nb":"Credit","st":"IS","bs":"","iss":"rev","ism":["oth"],"def":"Amounts earned by lending money to others","hint":"I am earned on a note receivable as time passes."},{"n":5000,"name":"Cost of Goods Sold","ch":[6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["cogs"],"def":"Cost of the inventory sold to customers during the period","hint":"I am the cost of the guides customers bought, and I am subtracted to find gross profit."},{"n":6000,"name":"Rent Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of using rented space during the period","hint":"I grow as each month covered by an advance rent payment is used up."},{"n":6010,"name":"Bank Fee Expense","ch":[5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Service charges a bank deducts from the company's account","hint":"A bank reconciliation often reveals me on the bank statement."},{"n":6020,"name":"Insurance Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of insurance coverage used up during the period","hint":"I am the part of a prepaid policy that has expired."},{"n":6030,"name":"Supplies Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of supplies used up during the period","hint":"An adjusting entry records me after a count shows how much is left on the shelf."},{"n":6040,"name":"Wages Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of employees' work during the period","hint":"I grow on payday, and at year-end for work done but not paid yet."},{"n":6050,"name":"Utilities Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of electricity, water and heat used during the period","hint":"The monthly electric and water bills create me."},{"n":6060,"name":"Interest Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["oth"],"def":"Cost of borrowing money during the period","hint":"I grow with the passage of time on loans and bonds."},{"n":6070,"name":"Advertising Expense","ch":[1,2,3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of promoting the company's services and products","hint":"Problem Solvers records me when it pays for ads that promote its consulting."},{"n":6080,"name":"Income Tax Expense","ch":[3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"tax","ism":["tax"],"def":"Taxes on the company's income for the period","hint":"I am usually the last expense on the income statement, just before net income."},{"n":6090,"name":"Depreciation Expense","ch":[3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Part of a tangible asset's cost allocated to the current period","hint":"I spread the cost of equipment and buildings over their useful lives."},{"n":6100,"name":"Amortization Expense","ch":[3,4,5,6,7,8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Part of an intangible asset's cost allocated to the current period","hint":"I spread the cost of intangibles such as software over their useful lives."},{"n":6110,"name":"Bad Debt Expense","ch":[8,9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Estimated cost of customer balances that will not be collected","hint":"The allowance method records me when estimating uncollectible accounts."},{"n":6120,"name":"Repairs and Maintenance Expense","ch":[9,10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of ordinary repairs that keep assets in working order","hint":"Routine fixes that do not extend an asset's life are recorded here instead of added to the asset."},{"n":6130,"name":"Legal Expenses","ch":[10,11,12],"el":"expense","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["opx"],"def":"Cost of attorneys' services used during the period","hint":"Lawyers' fees for advice and contracts create me."},{"n":7000,"name":"Gain on Disposal","ch":[9,10,11,12],"el":"gain","contra":"","nb":"Credit","st":"IS","bs":"","iss":"rev","ism":["oth","opx"],"def":"Amount by which the selling price of a long-lived asset is more than its book value","hint":"I appear when old equipment sells for more than its book value."},{"n":7100,"name":"Loss on Disposal","ch":[9,10,11,12],"el":"loss","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["oth","opx"],"def":"Amount by which the book value of a long-lived asset is more than its selling price","hint":"I appear when old equipment sells for less than its book value."},{"n":7200,"name":"Impairment Loss","ch":[9,10,11,12],"el":"loss","contra":"","nb":"Debit","st":"IS","bs":"","iss":"exp","ism":["oth","opx"],"def":"Write-down of a long-lived asset whose value has fallen below its book value","hint":"I am recorded when an asset's expected future benefits fall well below its book value."}];
+const VOCAB = [{"name":"Accounting","ch":[1],"def":"System of analyzing, recording and summarizing business activities to report them to decision makers"},{"name":"Asset","ch":[1],"def":"Resource the business controls that has future benefit"},{"name":"Liability","ch":[1],"def":"Debt, or a creditor's claim to the business's resources"},{"name":"Equity","ch":[1],"def":"Owners' or shareholders' claims to the business's resources"},{"name":"Revenue","ch":[1],"def":"Earnings from doing what you are in business to do"},{"name":"Expense","ch":[1],"def":"Resources used up in pursuit of revenue"},{"name":"Gain","ch":[1],"def":"Earnings from unusual or peripheral business activities"},{"name":"Loss","ch":[1],"def":"Resources used up in unusual or peripheral business activities"},{"name":"Net income","ch":[1],"def":"Revenues and gains minus expenses and losses for the period"},{"name":"Balance sheet","ch":[1],"def":"Statement reporting assets, liabilities and equity at a point in time"},{"name":"Income statement","ch":[1],"def":"Statement reporting revenues and expenses over a period of time"},{"name":"Statement of retained earnings","ch":[1],"def":"Statement showing how net income and dividends changed retained earnings"},{"name":"Statement of cash flows","ch":[1],"def":"Statement reporting cash receipts and payments from operating, investing and financing activities"},{"name":"Creditor","ch":[1],"def":"Lender or supplier that the business owes money to"},{"name":"Separate entity assumption","ch":[1],"def":"Idea that a business's reports include only its own activities, not its owners' personal ones"},{"name":"GAAP","ch":[1],"def":"Rules and guidelines U.S. companies follow when preparing financial statements"},{"name":"Transaction","ch":[2],"def":"Exchange or event with a direct, measurable financial effect on the business"},{"name":"Chart of accounts","ch":[2],"def":"Numbered list of all the account names a company uses"},{"name":"Debit","ch":[2],"def":"Left side of an account"},{"name":"Credit","ch":[2],"def":"Right side of an account"},{"name":"Journal entry","ch":[2],"def":"Record of a transaction that lists the accounts debited and credited"},{"name":"T-account","ch":[2],"def":"Simplified account showing debits on the left and credits on the right"},{"name":"Ledger","ch":[2],"def":"Collection of all the company's accounts and their balances"},{"name":"Normal balance","ch":[2],"def":"The side of an account, debit or credit, that increases it"},{"name":"Current asset","ch":[2],"def":"Asset that will be used up or turned into cash within one year"},{"name":"Current liability","ch":[2],"def":"Obligation that is due within one year"},{"name":"Cost principle","ch":[2],"def":"Rule that assets are first recorded at their original cost"},{"name":"Duality of effects","ch":[2],"def":"Idea that every transaction affects at least two accounts"},{"name":"Accrual basis accounting","ch":[3],"def":"Recording revenues when earned and expenses when incurred, whenever cash changes hands"},{"name":"Cash basis accounting","ch":[3],"def":"Recording revenues and expenses only when cash is received or paid"},{"name":"Revenue recognition principle","ch":[3],"def":"Record revenue when the company delivers the goods or services it promised"},{"name":"Expense recognition principle","ch":[3],"def":"Record expenses in the same period as the revenues they help generate"},{"name":"Time period assumption","ch":[3],"def":"Idea that a business's life can be split into months, quarters and years for reporting"},{"name":"Trial balance","ch":[3],"def":"List of all account balances used to check that total debits equal total credits"},{"name":"Adjusting entries","ch":[4],"def":"End-of-period entries that report revenues and expenses in the correct period"},{"name":"Deferral","ch":[4],"def":"Adjustment for cash received or paid before the related revenue or expense is recorded"},{"name":"Accrual","ch":[4],"def":"Adjustment for revenue or expense recorded before the related cash is received or paid"},{"name":"Contra account","ch":[4],"def":"Account that is subtracted from a related account"},{"name":"Book value","ch":[4],"def":"An asset's cost minus its accumulated depreciation or amortization"},{"name":"Closing entries","ch":[4],"def":"Entries that zero out revenues, expenses and dividends and move the totals to retained earnings"},{"name":"Temporary accounts","ch":[4],"def":"Accounts closed at the end of each period, such as revenues, expenses and dividends"},{"name":"Permanent accounts","ch":[4],"def":"Balance sheet accounts whose balances carry forward to the next period"},{"name":"Internal control","ch":[5],"def":"Actions taken to protect assets, keep records accurate and run operations efficiently"},{"name":"Fraud triangle","ch":[5],"def":"Incentive, opportunity and rationalization, the three conditions behind most fraud"},{"name":"Segregation of duties","ch":[5],"def":"Giving the jobs of approving, recording and handling assets to different people"},{"name":"Bank reconciliation","ch":[5],"def":"Comparing the company's cash records with the bank statement and explaining differences"},{"name":"Outstanding check","ch":[5],"def":"Check the company wrote that has not cleared the bank yet"},{"name":"Deposit in transit","ch":[5],"def":"Deposit the company recorded that does not appear on the bank statement yet"},{"name":"Cash equivalents","ch":[5],"def":"Short-term, highly liquid investments that can quickly be turned into cash"},{"name":"Merchandising company","ch":[6],"def":"Business that buys goods and resells them to customers"},{"name":"Periodic inventory system","ch":[6],"def":"System that updates inventory and cost of goods sold only at period-end, after a count"},{"name":"Perpetual inventory system","ch":[6],"def":"System that updates inventory and cost of goods sold every time goods are bought or sold"},{"name":"Gross profit","ch":[6],"def":"Net sales minus cost of goods sold"},{"name":"Net sales","ch":[6],"def":"Sales revenue minus returns, allowances and discounts"},{"name":"Multi-step income statement","ch":[6],"def":"Income statement that reports gross profit and income from operations as separate subtotals"},{"name":"FIFO","ch":[7],"def":"Cost flow method that assumes the oldest units are sold first"},{"name":"LIFO","ch":[7],"def":"Cost flow method that assumes the newest units are sold first"},{"name":"Weighted average cost","ch":[7],"def":"Method that gives every unit the average cost of the goods available for sale"},{"name":"Specific identification","ch":[7],"def":"Method that tracks the actual cost of each unit sold"},{"name":"Goods available for sale","ch":[7],"def":"Beginning inventory plus purchases for the period"},{"name":"Inventory turnover","ch":[7],"def":"Cost of goods sold divided by average inventory"},{"name":"Allowance method","ch":[8],"def":"Estimating bad debts at period-end and recording them in a contra account"},{"name":"Aging of receivables","ch":[8],"def":"Estimating uncollectible accounts by grouping customer balances by how long they have been due"},{"name":"Write-off","ch":[8],"def":"Removing a specific uncollectible customer balance from the records"},{"name":"Net realizable value","ch":[8],"def":"Amount of receivables the company expects to collect"},{"name":"Direct write-off method","ch":[8],"def":"Recording bad debts only when a specific account is found to be uncollectible"},{"name":"Receivables turnover","ch":[8],"def":"Net credit sales divided by average net receivables"},{"name":"Depreciation","ch":[9],"def":"Allocating the cost of tangible long-lived assets over their useful lives"},{"name":"Straight-line method","ch":[9],"def":"Depreciation method that allocates an equal amount to each year"},{"name":"Useful life","ch":[9],"def":"Expected period an asset will be used by the company"},{"name":"Residual value","ch":[9],"def":"Estimated amount an asset will be worth at the end of its useful life"},{"name":"Amortization","ch":[9],"def":"Allocating the cost of intangible assets over their useful lives"},{"name":"Capitalize","ch":[9],"def":"Record a cost as an asset instead of an expense"},{"name":"Declining-balance method","ch":[9],"def":"Accelerated method that applies a fixed rate to an asset's book value each year"},{"name":"Units-of-production method","ch":[9],"def":"Depreciation method based on how much an asset is used"},{"name":"Accrued liabilities","ch":[10],"def":"Expenses incurred but not paid yet at the end of the period"},{"name":"Face value","ch":[10],"def":"Amount repaid when a bond or note matures"},{"name":"Stated interest rate","ch":[10],"def":"Rate printed on a bond that sets the cash interest paid"},{"name":"Market interest rate","ch":[10],"def":"Rate investors demand for lending money to the company"},{"name":"Contingent liability","ch":[10],"def":"Possible obligation that depends on a future event, such as the outcome of a lawsuit"},{"name":"Maturity date","ch":[10],"def":"Date a bond or note must be repaid"},{"name":"Current ratio","ch":[10],"def":"Current assets divided by current liabilities"},{"name":"Authorized shares","ch":[11],"def":"Maximum number of shares a corporation may issue"},{"name":"Issued shares","ch":[11],"def":"Shares that have been distributed to shareholders"},{"name":"Outstanding shares","ch":[11],"def":"Issued shares currently held by shareholders rather than the company"},{"name":"Par value","ch":[11],"def":"Small legal amount per share printed on the stock certificate"},{"name":"Stock dividend","ch":[11],"def":"Distribution of additional shares to shareholders instead of cash"},{"name":"Stock split","ch":[11],"def":"Increase in the number of shares that lowers the par value per share"},{"name":"Declaration date","ch":[11],"def":"Date the board of directors announces a dividend"},{"name":"Date of record","ch":[11],"def":"Date that determines which shareholders receive a dividend"},{"name":"Earnings per share","ch":[11],"def":"Net income available to common shareholders divided by average shares outstanding"},{"name":"Operating activities","ch":[12],"def":"Cash flows from the day-to-day business of earning revenue"},{"name":"Investing activities","ch":[12],"def":"Cash flows from buying and selling long-lived assets and investments"},{"name":"Financing activities","ch":[12],"def":"Cash flows from borrowing, repaying debt, issuing stock and paying dividends"},{"name":"Indirect method","ch":[12],"def":"Reports operating cash flows by adjusting net income for noncash items and working capital changes"},{"name":"Direct method","ch":[12],"def":"Reports operating cash flows by listing the major cash receipts and payments"},{"name":"Free cash flow","ch":[12],"def":"Operating cash flows minus amounts spent on property and equipment"},{"name":"Horizontal analysis","ch":[13],"def":"Comparing financial statement amounts from one period to the next"},{"name":"Vertical analysis","ch":[13],"def":"Showing each line as a percentage of a base amount, such as total assets or net sales"},{"name":"Liquidity","ch":[13],"def":"Ability to pay current obligations as they come due"},{"name":"Solvency","ch":[13],"def":"Ability to survive over the long run by paying long-term debts"},{"name":"Profitability","ch":[13],"def":"Ability to generate income"},{"name":"Net profit margin","ch":[13],"def":"Net income divided by net sales"},{"name":"Times interest earned","ch":[13],"def":"Income before interest and taxes divided by interest expense"}];
+
+/* Accounting vocabulary games engine: seeded rounds, chapter picker, toolbar, feedback helpers. */
+const Game = (() => {
+  // ---------- seeded random numbers ----------
+  let seed = 0, rnd = Math.random;
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const qs = k => { try { return new URLSearchParams(location.search).get(k); } catch (e) { return null; } };
+  function setParam(k, v) { try { const u = new URL(location.href); u.searchParams.set(k, v); history.replaceState(null, '', u); } catch (e) {} }
+  function readSeed() { const n = parseInt(qs('set'), 10); return (n >= 1000 && n <= 9999) ? n : 1000 + Math.floor(Math.random() * 9000); }
+  function setSeed(s) {
+    seed = s; rnd = mulberry32((s * 2654435761) >>> 0); setParam('set', s);
+    document.querySelectorAll('[data-seed]').forEach(el => { el.textContent = s; });
+  }
+  const random = () => rnd();
+  function int(min, max, step = 1) { const n = Math.floor((max - min) / step) + 1; return min + step * Math.floor(rnd() * n); }
+  function pick(arr) { return arr[Math.floor(rnd() * arr.length)]; }
+  function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  const sample = (arr, n) => shuffle(arr).slice(0, n);
+
+  // ---------- formatting ----------
+  const money = n => (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
+  const num = n => Math.round(n).toLocaleString('en-US');
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const year = new Date().getFullYear();
+  const ICON = {
+    x: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    ok: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>',
+    info: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>'
+  };
+  /** feedback box: kind good | bad | info | shown */
+  const fb = (kind, html) => `<div class="fb ${kind}" role="status">${ICON[kind === 'good' ? 'ok' : kind === 'bad' ? 'x' : 'info']}<div>${html}</div></div>`;
+
+  // ---------- accounting language ----------
+  const EL = {
+    asset: { name: 'Asset', a: 'an asset', plural: 'Assets' },
+    liability: { name: 'Liability', a: 'a liability', plural: 'Liabilities' },
+    pic: { name: 'Paid-in capital', a: 'a paid-in capital account', plural: 'Paid-In Capital' },
+    re: { name: 'Retained earnings', a: 'retained earnings', plural: 'Retained Earnings' },
+    dividends: { name: 'Dividends', a: 'a distribution of earnings to shareholders', plural: 'Dividends' },
+    revenue: { name: 'Revenue', a: 'a revenue', plural: 'Revenue' },
+    expense: { name: 'Expense', a: 'an expense', plural: 'Expenses' },
+    gain: { name: 'Gain', a: 'a gain', plural: 'Gains' },
+    loss: { name: 'Loss', a: 'a loss', plural: 'Losses' }
+  };
+  const ST = { BS: 'balance sheet', IS: 'income statement', SRE: 'statement of retained earnings' };
+  /** "an asset", "a contra asset that reduces Accounts Receivable" */
+  function kind(a) {
+    if (!a.contra) return EL[a.el].a;
+    const base = { asset: 'asset', liability: 'liability', pic: 'equity', revenue: 'revenue' }[a.el] || EL[a.el].name.toLowerCase();
+    return `a contra ${base} account that reduces ${a.contra}`;
+  }
+  /** why an account has its normal balance */
+  function nbWhy(a) {
+    const side = a.nb.toLowerCase();
+    if (a.contra) return `${a.name} is ${kind(a)}, so it works opposite that account and has a normal ${side} balance.`;
+    const r = {
+      asset: 'Assets are on the left side of the equation, so they increase with debits.',
+      liability: 'Liabilities are on the right side of the equation, so they increase with credits.',
+      pic: 'Equity is on the right side of the equation, so it increases with credits.',
+      re: 'Retained Earnings is equity, on the right side of the equation, so it increases with credits.',
+      dividends: 'Dividends reduce Retained Earnings, so they move opposite equity and increase with debits.',
+      revenue: 'Revenue increases Retained Earnings, so it increases with credits, just like equity.',
+      gain: 'Gains increase Retained Earnings, so they increase with credits, just like revenue.',
+      expense: 'Expenses reduce Retained Earnings, so they move opposite equity and increase with debits.',
+      loss: 'Losses reduce Retained Earnings, so they increase with debits, just like expenses.'
+    }[a.el];
+    return `${a.name} has a normal ${side} balance. ${r}`;
+  }
+
+  // ---------- chapters ----------
+  const CHAPTERS = [
+    'Business Decisions and Financial Accounting', 'The Balance Sheet', 'The Income Statement',
+    'Adjustments, Financial Statements, and Financial Results', 'Fraud, Internal Control, and Cash',
+    'Merchandising Operations and the Multi-step Income Statement', 'Inventory and Cost of Goods Sold',
+    'Receivables, Bad Debt Expense, and Interest Revenue', 'Long-Lived Tangible Assets, Intangible Assets, and Goodwill',
+    'Liabilities', "Shareholders' Equity", 'Statement of Cash Flows', 'Measuring and Evaluating Financial Performance'];
+  const MAXCH = CHAPTERS.length;
+  let chapters = new Set([1, 2, 3, 4]);
+  function parseCh(s) {
+    const out = new Set();
+    String(s || '').split(',').forEach(part => {
+      const m = part.trim().match(/^(\d+)(?:\s*[-–]\s*(\d+))?$/); if (!m) return;
+      let a = +m[1], b = m[2] ? +m[2] : a; if (a > b) [a, b] = [b, a];
+      for (let i = Math.max(1, a); i <= Math.min(MAXCH, b); i++) out.add(i);
+    });
+    return out;
+  }
+  function fmtCh(set) {
+    const xs = [...set].sort((a, b) => a - b), parts = [];
+    for (let i = 0; i < xs.length; i++) { let j = i; while (j + 1 < xs.length && xs[j + 1] === xs[j] + 1) j++; parts.push(i === j ? `${xs[i]}` : `${xs[i]}-${xs[j]}`); i = j; }
+    return parts.join(',');
+  }
+  const chLabel = set => set.size === MAXCH ? 'All chapters' : (set.size === 1 ? 'Chapter ' : 'Chapters ') + fmtCh(set).replace(/-/g, '–').replace(/,/g, ', ');
+  function readChapters() {
+    let s = parseCh(qs('ch'));
+    if (!s.size) { try { s = parseCh(localStorage.getItem('acctgames:ch')); } catch (e) {} }
+    return s.size ? s : new Set([1, 2, 3, 4]);
+  }
+  function saveChapters(set) {
+    chapters = new Set(set); setParam('ch', fmtCh(chapters));
+    try { localStorage.setItem('acctgames:ch', fmtCh(chapters)); } catch (e) {}
+    document.querySelectorAll('[data-chlabel]').forEach(el => { el.textContent = chLabel(chapters); });
+  }
+  const inCh = t => t.ch.some(c => chapters.has(c));
+  const accounts = () => ACCOUNTS.filter(inCh);
+  const vocab = () => VOCAB.filter(inCh);
+  const maxCh = () => Math.max(...chapters);
+  const acct = name => ACCOUNTS.find(a => a.name === name);
+
+  /** chapter picker inside a <details data-chpick> */
+  function picker(root, onApply) {
+    const presets = [['1-4', 'Ch 1–4'], ['5-8', 'Ch 5–8'], ['9-13', 'Ch 9–13'], [`1-${MAXCH}`, 'All']];
+    root.innerHTML = `<summary class="btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M7 12h10M10 19h4"/></svg><span data-chlabel>${chLabel(chapters)}</span></summary>
+      <div class="chpanel" role="group" aria-label="Choose chapters">
+        <div class="chpre">${presets.map(([v, l]) => `<button type="button" class="btn sm" data-pre="${v}">${l}</button>`).join('')}<button type="button" class="btn sm" data-pre="">Clear</button></div>
+        <div class="chgrid">${CHAPTERS.map((t, i) => `<label class="chk" title="${esc(t)}"><input type="checkbox" value="${i + 1}"><span><b>${i + 1}</b> ${esc(t)}</span></label>`).join('')}</div>
+        <div class="actions"><button type="button" class="btn primary" data-apply>Use these chapters</button><span class="status" aria-live="polite"></span></div>
+      </div>`;
+    const boxes = [...root.querySelectorAll('input[type=checkbox]')];
+    const sync = () => boxes.forEach(b => { b.checked = chapters.has(+b.value); });
+    root.addEventListener('toggle', () => { if (root.open) sync(); });
+    root.addEventListener('click', e => {
+      const p = e.target.closest('[data-pre]');
+      if (p) { const s = parseCh(p.dataset.pre); boxes.forEach(b => { b.checked = s.has(+b.value); }); }
+      if (e.target.closest('[data-apply]')) {
+        const s = new Set(boxes.filter(b => b.checked).map(b => +b.value));
+        const st = root.querySelector('.status');
+        if (!s.size) { st.textContent = 'Pick at least one chapter.'; st.className = 'status bad'; return; }
+        st.textContent = ''; saveChapters(s); root.open = false; onApply();
+      }
+    });
+    sync();
+  }
+
+  // ---------- toolbar status ----------
+  function progress(text, frac) {
+    const t = document.getElementById('prog-text'); if (t) t.textContent = text || '';
+    const b = document.getElementById('prog-bar'); if (b) { b.parentElement.hidden = frac == null; b.style.width = Math.max(0, Math.min(1, frac || 0)) * 100 + '%'; }
+  }
+  function best(key, val, lowerIsBetter) {
+    const k = 'acctgames:best:' + key; let cur = null;
+    try { cur = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+    if (val != null && (cur == null || (lowerIsBetter ? val < cur : val > cur))) { cur = val; try { localStorage.setItem(k, JSON.stringify(val)); } catch (e) {} }
+    return cur;
+  }
+  /** message when the chosen chapters do not have enough material */
+  function tooFew(mount, what, need) {
+    mount.innerHTML = `<div class="card">${fb('info', `The chapters you picked have fewer than ${need} ${what} for this game. Add more chapters with the <b>${chLabel(chapters)}</b> button above.`)}</div>`;
+    progress('', null);
+  }
+
+  // ---------- startup ----------
+  let render = () => {};
+  function run(s) { setSeed(s); window.Platform && Platform.newRound(); render(); }
+  function replay() { run(seed); }
+  function newRound() { let s; do { s = 1000 + Math.floor(Math.random() * 9000); } while (s === seed); run(s); }
+  function init(fn) {
+    render = fn; chapters = readChapters(); saveChapters(chapters);
+    document.querySelectorAll('[data-year]').forEach(e => { e.textContent = year; });
+    const pk = document.querySelector('[data-chpick]'); if (pk) picker(pk, () => run(seed));
+    // close the chapter panel when clicking elsewhere
+    document.addEventListener('click', e => { if (pk && pk.open && !pk.contains(e.target)) pk.open = false; });
+    const ns = document.getElementById('new-set'); if (ns) ns.addEventListener('click', newRound);
+    run(readSeed());
+  }
+
+  return {
+    init, newRound, replay, random, int, pick, shuffle, sample, money, num, esc, fb, ICON, EL, ST, kind, nbWhy,
+    accounts, vocab, acct, maxCh, chLabel, fmtCh, parseCh, progress, best, tooFew, year, CHAPTERS,
+    get chapters() { return new Set(chapters); }, get seed() { return seed; }
+  };
+})();
+
+</script>
+<script>
+/* Account Avalanche: send each falling account to the right category before it lands. */
+(() => {
+  const app = document.getElementById('app');
+  const H = 420, BLK = 52;
+  const CATS = [
+    { k: 'asset', name: 'Asset', els: ['asset'] }, { k: 'liability', name: 'Liability', els: ['liability'] },
+    { k: 'equity', name: 'Equity', els: ['pic', 're', 'dividends'] }, { k: 'revenue', name: 'Revenue', els: ['revenue'] },
+    { k: 'expense', name: 'Expense', els: ['expense'] }, { k: 'gain', name: 'Gain', els: ['gain'] }, { k: 'loss', name: 'Loss', els: ['loss'] }];
+  const SPEED = { untimed: 45, normal: 38, fast: 64 };
+  let mode = 'untimed';
+  try { mode = localStorage.getItem('acctgames:av:mode') || 'untimed'; } catch (e) {}
+  let deck, cats, next, live, score, lives, level, streakN, misses, state, raf, last, spawnT, msg;
+
+  const catOf = a => cats.find(c => c.els.includes(a.el));
+  function why(a, picked) {
+    const c = catOf(a);
+    let s = `${a.name} is ${Game.kind(a)}: ${a.def.charAt(0).toLowerCase() + a.def.slice(1)}.`;
+    if (a.el === 'dividends') s = 'Dividends belong with equity: they reduce retained earnings. They are never an expense.';
+    if (a.el === 'liability' && /Revenue/.test(a.name)) s += ' The work has not been done yet, so it is owed: a liability.';
+    if (a.contra) s += ` Contra accounts belong with the account they reduce, so it goes in ${c.name}.`;
+    return (picked ? `<b>${Game.esc(a.name)} is not ${/^[AEIOU]/.test(picked.name) ? 'an' : 'a'} ${picked.name.toLowerCase()}.</b> ` : `<b>${Game.esc(a.name)} landed.</b> `) + Game.esc(s);
+  }
+
+  function build() {
+    const pool = Game.accounts();
+    if (pool.length < 8) return Game.tooFew(app, 'accounts', 8);
+    cats = CATS.filter(c => pool.some(a => c.els.includes(a.el)));
+    deck = Game.shuffle(pool).slice(0, Math.min(30, pool.length)).map(a => ({ a, lane: Game.int(0, cats.length - 1) }));
+    next = 0; okN = 0; live = []; score = 0; lives = 3; level = 1; streakN = 0; misses = []; state = 'ready'; msg = '';
+    cancelAnimationFrame(raf);
+    paint();
+  }
+
+  function paint() {
+    app.innerHTML = `<div class="split">
+      <section class="grow">
+        <div class="field" id="field" style="--lanes:${cats.length}" aria-label="Playfield">
+          ${cats.map(() => '<div class="lane" aria-hidden="true"></div>').join('')}
+          ${state === 'ready' ? `<div class="overlay"><h2>Ready?</h2><p>${deck.length} accounts will fall. Send the gold-outlined one to its category.</p><button class="btn gold" type="button" data-act="start">Start</button></div>` : ''}
+          ${state === 'paused' ? '<div class="overlay"><h2>Paused</h2><button class="btn gold" type="button" data-act="resume">Resume</button></div>' : ''}
+          ${state === 'over' ? `<div class="overlay"><h2>${lives > 0 ? 'Round complete' : 'Game over'}</h2><p>Score <b>${Game.num(score)}</b> · Best ${Game.num(Game.best('av-' + mode, score))}</p><button class="btn gold" type="button" data-act="new">New round</button> <button class="btn" type="button" data-act="again">Replay this round</button></div>` : ''}
+        </div>
+        <div class="lanebtns" style="--lanes:${cats.length}" role="group" aria-label="Categories">
+          ${cats.map((c, j) => `<button type="button" class="lb" data-cat="${j}"${state !== 'play' ? ' disabled' : ''}><small>${j + 1}</small>${c.name}</button>`).join('')}
+        </div>
+        <div id="msg" aria-live="polite">${msg}</div>
+        ${state === 'over' && misses.length ? `<div class="card review"><h2>Review these</h2><ul>${misses.map(m => `<li>${why(m.a)}</li>`).join('')}</ul></div>` : ''}
+      </section>
+      <aside class="side card">
+        <div class="kv"><span class="lbl">Score</span><b id="score">${Game.num(score)}</b></div>
+        <div class="kv"><span class="lbl">Level</span><b id="level">${level}</b></div>
+        <div class="kv"><span class="lbl">Lives</span><span id="lives" role="img" aria-label="${lives} of 3 lives left">${[0, 1, 2].map(j => `<svg class="heart${j < lives ? '' : ' gone'}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.5-9.3-9A5 5 0 0 1 12 6a5 5 0 0 1 9.3 6C19 16.5 12 21 12 21z"/></svg>`).join('')}</span></div>
+        <div style="margin-top:14px"><span class="lbl">Speed</span>
+          <div class="seg" role="group" aria-label="Speed" style="display:flex;margin-top:6px">${['untimed', 'normal', 'fast'].map(m => `<button type="button" data-mode="${m}" aria-pressed="${mode === m}">${m[0].toUpperCase() + m.slice(1)}</button>`).join('')}</div>
+          <p class="note">${mode === 'untimed' ? 'Untimed: one account at a time, and it waits for you. Only wrong answers cost a life.' : 'Accounts that land cost a life. Speed rises every 8 correct answers.'}</p></div>
+        ${state === 'play' ? '<button class="btn" type="button" data-act="pause">Pause</button>' : ''}
+        <p class="note">Click a category, or press 1–${cats.length} on the keyboard.</p>
+      </aside></div>`;
+    Game.progress(`${Math.min(next, deck.length)} of ${deck.length} dropped`, next / deck.length);
+    drawBlocks();
+  }
+
+  function drawBlocks() {
+    const f = document.getElementById('field'); if (!f) return;
+    f.querySelectorAll('.blk').forEach(b => b.remove());
+    const act = active();
+    live.forEach(b => {
+      const el = document.createElement('div');
+      el.className = 'blk' + (b === act ? ' act' : '');
+      el.style.left = `calc(${(b.lane / cats.length) * 100}% + 6px)`; el.style.width = `calc(${100 / cats.length}% - 12px)`;
+      el.style.top = b.y + 'px'; el.textContent = b.a.name; b.el = el; f.appendChild(el);
+    });
+    if (act) f.setAttribute('aria-label', `Playfield. Current account: ${act.a.name}`);
+  }
+  const active = () => live.reduce((m, b) => (!m || b.y > m.y ? b : m), null);
+  function spawn() { if (next < deck.length) { live.push({ ...deck[next], y: -BLK }); next++; Game.progress(`${next} of ${deck.length} dropped`, next / deck.length); drawBlocks(); } }
+
+  function tick(t) {
+    if (state !== 'play') return;
+    const dt = Math.min(0.05, (t - (last || t)) / 1000); last = t;
+    const v = SPEED[mode] + (mode === 'untimed' ? 0 : (level - 1) * 9);
+    const floor = H - BLK - 6, stop = mode === 'untimed' ? H * 0.62 : floor;
+    let landed = null;
+    live.forEach(b => { b.y = Math.min(b.y + v * dt, stop); if (b.el) b.el.style.top = b.y + 'px'; if (mode !== 'untimed' && b.y >= floor) landed = b; });
+    if (landed) { live = live.filter(b => b !== landed); lose(landed, null); }
+    spawnT -= dt;
+    const gap = mode === 'fast' ? 2.2 : 3.4;
+    if (mode === 'untimed') { if (!live.length) spawn(); }
+    else if (spawnT <= 0 || !live.length) { if (live.length < 3) spawn(); spawnT = Math.max(1.2, gap - (level - 1) * 0.3); }
+    if (next >= deck.length && !live.length) return finish();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function lose(b, picked) {
+    lives--; streakN = 0; misses.push(b);
+    msg = Game.fb('bad', why(b.a, picked));
+    if (lives <= 0) return finish();
+    paintSoft();
+  }
+  function paintSoft() {
+    const m = document.getElementById('msg'); if (m) m.innerHTML = msg;
+    const s = document.getElementById('score'); if (s) s.textContent = Game.num(score);
+    const l = document.getElementById('level'); if (l) l.textContent = level;
+    const lv = document.getElementById('lives');
+    if (lv) { lv.setAttribute('aria-label', `${lives} of 3 lives left`); lv.querySelectorAll('.heart').forEach((h, j) => h.classList.toggle('gone', j >= lives)); }
+    drawBlocks();
+  }
+  let okN = 0; function finish() { state = 'over'; window.Platform && Platform.report(okN, deck.length, { points: score }); cancelAnimationFrame(raf); paint(); }
+
+  function choose(j) {
+    if (state !== 'play') return;
+    const b = active(); if (!b) return;
+    const c = cats[j]; live = live.filter(x => x !== b);
+    if (catOf(b.a) === c) {
+      streakN++; okN++; score += 100 * level; if (streakN % 8 === 0) level++;
+      msg = Game.fb('good', `<b>${Game.esc(b.a.name)} → ${c.name}.</b>`);
+      paintSoft();
+    } else lose(b, c);
+  }
+
+  function start() { state = 'play'; last = 0; spawnT = 0; paint(); if (!live.length) spawn(); raf = requestAnimationFrame(tick); }
+  app.addEventListener('click', e => {
+    const c = e.target.closest('[data-cat]'); if (c) return choose(+c.dataset.cat);
+    const m = e.target.closest('[data-mode]');
+    if (m) { mode = m.dataset.mode; try { localStorage.setItem('acctgames:av:mode', mode); } catch (x) {} return Game.replay(); }
+    const a = e.target.closest('[data-act]'); if (!a) return;
+    const act = a.dataset.act;
+    if (act === 'start' || act === 'resume') start();
+    if (act === 'pause') { state = 'paused'; cancelAnimationFrame(raf); paint(); }
+    if (act === 'new') Game.newRound();
+    if (act === 'again') Game.replay();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input,select,details')) return;
+    const j = parseInt(e.key, 10); if (j >= 1 && cats && j <= cats.length) { e.preventDefault(); choose(j - 1); }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') { state = 'paused'; cancelAnimationFrame(raf); paint(); } });
+
+  Game.init(build);
+})();
+
+</script>
+</body>
+</html>

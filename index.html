@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InterACCtive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --navy:#002D74; --navy-dk:#001d4d; --navy-tint:#e8eef8; --gold:#FFC629; --gold-tint:#fff6d9;
+  --ink:#1b2333; --muted:#5a6475; --line:#d6dce6; --bg:#f3f5f9; --card:#ffffff;
+  --good:#1d7a46; --good-bg:#e6f4ec; --bad:#b3261e; --bad-bg:#fdecea;
+  --head:"Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+  --body:"Source Sans 3", "Segoe UI", Arial, sans-serif;
+  --mono:"IBM Plex Mono", Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body)}
+[hidden]{display:none!important}
+button,select,input{font:inherit;color:inherit}
+a{color:var(--navy)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.masthead{background:var(--navy);color:#fff;border-bottom:5px solid var(--gold)}
+.masthead .wrap{padding:18px 16px 20px}
+.kicker{font:600 13px/1.2 var(--head);letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.masthead h1{font:700 30px/1.15 var(--head);margin:6px 0 4px}
+.masthead .sub{color:#d6e0f2;font-size:15px}
+.toolbar{background:#fff;border-bottom:1px solid var(--line)}
+.toolbar .wrap{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding-top:10px;padding-bottom:10px;font-size:15px;color:var(--muted)}
+.toolbar b{color:var(--navy)}
+.toolbar .btn{margin-left:auto}
+main{padding:18px 0 48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px;margin:0 0 18px}
+.card h2{font:700 22px/1.2 var(--head);color:var(--navy);margin:0 0 6px}
+.card h3{font:700 18px/1.25 var(--head);color:var(--navy);margin:16px 0 6px}
+.lead{color:var(--muted);margin:0 0 14px;max-width:720px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:6px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:15px;line-height:1.2;text-decoration:none}
+.btn:hover{background:var(--navy-tint)}
+.btn.primary{background:var(--navy);color:#fff}.btn.primary:hover{background:var(--navy-dk)}
+.btn.gold{background:var(--gold);border-color:#e0a800;color:var(--navy-dk)}.btn.gold:hover{background:#ffd457}
+.btn.sm{padding:4px 10px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.form{display:grid;gap:12px;max-width:420px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label{display:grid;gap:4px;font-weight:600;font-size:15px}
+input,select{padding:7px 9px;border:1px solid #aab4c4;border-radius:6px;background:#fff;font-weight:400}
+input:focus,select:focus,.btn:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.seg{display:inline-flex;border:1px solid var(--navy);border-radius:7px;overflow:hidden;margin-bottom:16px}
+.seg button{border:0;background:#fff;color:var(--navy);padding:8px 16px;font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:4px 0 16px;overflow-x:auto}
+.tab{border:0;background:none;padding:9px 14px;font:600 16px/1.2 var(--head);color:var(--muted);border-bottom:4px solid transparent;margin-bottom:-2px;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--navy);border-bottom-color:var(--gold)}
+.msg{border-radius:6px;padding:8px 12px;margin:10px 0 0;font-size:15px}
+.msg.good{background:var(--good-bg);color:#14532f}.msg.bad{background:var(--bad-bg);color:#7a1a14}.msg.info{background:var(--navy-tint);color:var(--navy-dk)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%}
+th{font:600 13px/1.2 var(--head);text-transform:uppercase;letter-spacing:.04em;color:var(--navy);text-align:left;padding:8px;border-bottom:2px solid var(--navy);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right;font-family:var(--mono);font-size:14px;white-space:nowrap}
+td input[type=number]{width:72px}td input.ch{width:92px}
+.muted{color:var(--muted)}.small{font-size:14px}
+.code{font:600 30px/1 var(--mono);letter-spacing:.12em;color:var(--navy);background:var(--gold-tint);border:1px dashed #c9a400;border-radius:8px;padding:10px 16px;display:inline-block}
+.coursehead{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between}
+.tag{display:inline-block;border-radius:999px;padding:1px 9px;font-size:13px;font-weight:600;background:var(--navy-tint);color:var(--navy)}
+.tag.graded{background:var(--gold-tint);color:#6b5a00}
+.empty{color:var(--muted);font-style:italic}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:0 16px 30px}
+@media (max-width:600px){.masthead h1{font-size:25px}.card{padding:16px 14px}}
+.linkbtn{border:0;background:none;color:var(--navy);text-decoration:underline;cursor:pointer;padding:0;font-size:15px}
+.authlinks{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px}
+label.check{display:flex;gap:8px;align-items:center;font-weight:400}
+summary{cursor:pointer;font:700 18px/1.25 var(--head);color:var(--navy)}
+details .lead{margin-top:10px}
+.tag.auto{background:var(--bad-bg);color:#7a1a14}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
+<script src="platform.js"></script>
+</head>
+<body>
+<header class="masthead"><div class="wrap">
+  <div class="kicker">Financial Accounting Labs and Games</div>
+  <h1>InterACCtive</h1>
+  <div class="sub">Your classes, assigned labs and games, and your results</div>
+</div></header>
+<div class="toolbar" id="toolbar" hidden><div class="wrap">
+  <span>Signed in as <b id="who"></b> · <span id="role"></span></span>
+  <a id="adminlink" href="#admin" hidden></a>
+  <button class="btn sm" id="signout" type="button">Sign out</button>
+</div></div>
+<div class="wrap"><main id="app"><div class="card"><p class="muted">Loading…</p></div></main></div>
+<footer>Games save to your class only when you open them from this page.</footer>
+
+<script>
+(() => {
+  const cfg = window.PLATFORM_CONFIG;
+  const sb = window.supabase.createClient(cfg.url, cfg.key);
+  const app = document.getElementById('app');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const msg = (kind, text) => `<div class="msg ${kind}" role="status">${text}</div>`;
+  const fmtDate = d => d ? new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  const toLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+  const pct = (s, t) => t ? Math.round(1000 * s / t) / 10 : 0;   // one decimal, so a percent can be turned back into points
+  const CH_OK = /^[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*$/;
+  const MIN_PASSWORD = 8;
+  let me = null, catalog = [], state = { course: null, tab: 'assign' };
+
+  // The API returns at most 1000 rows per request, so a large class needs several.
+  async function fetchAll(query) {
+    const out = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await query().range(from, from + 999);
+      if (error) throw error;
+      out.push(...data);
+      if (data.length < 1000) return out;
+    }
+  }
+
+  // ---------- data ----------
+  async function loadMe() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return null;
+    const { data } = await sb.from('profiles').select('id,full_name,email,role,is_admin').eq('id', session.user.id).maybeSingle();
+    return data;
+  }
+  async function loadCatalog() {
+    const { data } = await sb.from('activities').select('id,slug,title,url,scored,server_graded,chapter,description,sort_order').order('sort_order');
+    catalog = data || [];
+  }
+  // Labs take ?course=&lab=. Games take ?course=&act=&ch=. Game urls are relative to this page.
+  function activityLink(a, courseId, chapters) {
+    const u = new URL(a.url, location.href);
+    u.searchParams.set('course', courseId);
+    if (a.server_graded) u.searchParams.set('lab', a.slug);
+    else { u.searchParams.set('act', a.slug); u.searchParams.set('ch', chapters); }
+    return u.href;
+  }
+
+  // ---------- sign in, sign up, forgot password ----------
+  // Email steps use the one-time code typed on this page. Links in emails are never used,
+  // because university mail scanners open them and use them up.
+  const CODE_FIELD = `<label>Code from the email<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required></label>`;
+  const readCode = f => String(f.get('code') || '').replace(/\s/g, '');
+
+  function authView(mode = 'in', note = '', email = '') {
+    document.getElementById('toolbar').hidden = true;
+    const showSeg = mode === 'in' || mode === 'up';
+    const fields = {
+      in: `<label>Email<input name="email" type="email" autocomplete="email" value="${esc(email)}" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>`,
+      up: `<label>Full name<input name="name" autocomplete="name" required></label>
+        <label>Email<input name="email" type="email" autocomplete="email" value="${esc(email)}" required></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" minlength="${MIN_PASSWORD}" required></label>`,
+      confirm: `<p class="lead">Enter the code we sent to <b>${esc(email)}</b> to confirm your email. It can take a minute to arrive, so check your junk folder too.</p>${CODE_FIELD}`,
+      forgot: `<p class="lead">Enter your email and we'll send you a code to reset your password.</p>
+        <label>Email<input name="email" type="email" autocomplete="email" value="${esc(email)}" required></label>`,
+      recover: `<p class="lead">Enter the code we sent to <b>${esc(email)}</b>. It can take a minute to arrive, so check your junk folder too.</p>${CODE_FIELD}`,
+      newpass: `<p class="lead">Choose a new password for <b>${esc(email)}</b>.</p>
+        <label>New password<input name="password" type="password" autocomplete="new-password" minlength="${MIN_PASSWORD}" required></label>`
+    }[mode];
+    const submit = { in: 'Sign in', up: 'Create account', confirm: 'Confirm email', forgot: 'Send code', recover: 'Check code', newpass: 'Save password' }[mode];
+    const links = {
+      in: '<button class="linkbtn" type="button" data-go="forgot">Forgot your password?</button>',
+      confirm: '<button class="linkbtn" type="button" data-resend>Send a new code</button><button class="linkbtn" type="button" data-go="in">Back to sign in</button>',
+      forgot: '<button class="linkbtn" type="button" data-go="in">Back to sign in</button>',
+      recover: '<button class="linkbtn" type="button" data-resend>Send a new code</button><button class="linkbtn" type="button" data-go="in">Back to sign in</button>'
+    }[mode] || '';
+    app.innerHTML = `<div class="card">
+      ${showSeg ? `<div class="seg" role="group" aria-label="Choose"><button type="button" data-go="in" aria-pressed="${mode === 'in'}">Sign in</button><button type="button" data-go="up" aria-pressed="${mode === 'up'}">Create account</button></div>` : ''}
+      <form class="form" id="authf" novalidate>${fields}
+        <div><button class="btn primary" type="submit">${submit}</button></div>
+      </form><div class="authlinks">${links}</div><div id="authmsg">${note}</div></div>`;
+    const out = document.getElementById('authmsg'), form = document.getElementById('authf');
+    const say = (kind, text) => { out.innerHTML = msg(kind, esc(text)); };
+    app.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
+      const typed = form.elements.email ? form.elements.email.value.trim() : email;
+      authView(b.dataset.go, '', typed);
+    }));
+    const resend = app.querySelector('[data-resend]');
+    if (resend) resend.addEventListener('click', async () => {
+      say('info', 'Sending…');
+      const { error } = mode === 'confirm' ? await sb.auth.resend({ type: 'signup', email }) : await sb.auth.resetPasswordForEmail(email);
+      if (error) say('bad', error.message); else say('good', 'We sent a new code. Use the newest one.');
+    });
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = new FormData(form), typedEmail = String(f.get('email') || '').trim(), password = String(f.get('password') || '');
+      if ('email' in form.elements && !typedEmail) { say('bad', 'Enter your email.'); return; }
+      if ((mode === 'up' || mode === 'newpass') && password.length < MIN_PASSWORD) { say('bad', `Use a password of at least ${MIN_PASSWORD} characters.`); return; }
+      if (mode === 'in' && !password) { say('bad', 'Enter your password.'); return; }
+      if ((mode === 'confirm' || mode === 'recover') && !readCode(f)) { say('bad', 'Enter the code from the email.'); return; }
+      const name = String(f.get('name') || '').trim();
+      if (mode === 'up' && !name) { say('bad', 'Enter your full name.'); return; }
+      say('info', 'Working…');
+      try { await ({ in: doSignIn, up: doSignUp, confirm: doConfirm, forgot: doForgot, recover: doRecover, newpass: doNewPassword }[mode])(); }
+      catch (err) { say('bad', err.message || 'Something went wrong. Try again.'); }
+
+      async function doSignIn() {
+        const { error } = await sb.auth.signInWithPassword({ email: typedEmail, password });
+        if (error && error.code === 'email_not_confirmed') {
+          authView('confirm', msg('info', esc('This email is not confirmed yet. Use the code from your sign-up email, or send a new one.')), typedEmail);
+          return;
+        }
+        if (error) throw error;
+        start();
+      }
+      async function doSignUp() {
+        // Everyone starts as a student. The database sets the role, so it is not sent from here.
+        const { data, error } = await sb.auth.signUp({ email: typedEmail, password, options: { data: { full_name: name } } });
+        if (error) throw error;
+        if (data.session) { start(); return; }
+        authView('confirm', '', typedEmail);
+      }
+      async function doConfirm() {
+        const { error } = await sb.auth.verifyOtp({ email, token: readCode(f), type: 'signup' });
+        if (error) throw new Error("That code didn't work. Check it, or send a new one.");
+        start();
+      }
+      async function doForgot() {
+        const { error } = await sb.auth.resetPasswordForEmail(typedEmail);
+        if (error) throw error;
+        authView('recover', '', typedEmail);
+      }
+      async function doRecover() {
+        const { error } = await sb.auth.verifyOtp({ email, token: readCode(f), type: 'recovery' });
+        if (error) throw new Error("That code didn't work. Check it, or send a new one.");
+        authView('newpass', '', email);
+      }
+      async function doNewPassword() {
+        const { error } = await sb.auth.updateUser({ password });
+        if (error) throw error;
+        start();
+      }
+    });
+    const first = form.querySelector('input'); if (first && !showSeg) first.focus();
+  }
+
+  // ---------- request instructor access (anyone who is not yet an instructor) ----------
+  async function requestCard() {
+    const { data: rows, error } = await sb.from('instructor_requests').select('status,note,created_at,reviewed_at').eq('user_id', me.id).order('created_at', { ascending: false }).limit(1);
+    if (error) return `<div class="card">${msg('bad', esc(error.message))}</div>`;
+    const r = rows && rows[0];
+    if (r && r.status === 'pending') {
+      return `<div class="card" id="reqcard"><h2>Instructor access</h2>${msg('info', `Your request from ${esc(fmtDate(r.created_at))} is waiting for review.`)}</div>`;
+    }
+    const rejected = r && r.status === 'rejected'
+      ? msg('bad', `Your request was not approved${r.reviewed_at ? ' on ' + esc(fmtDate(r.reviewed_at)) : ''}.${r.note ? ' Note: ' + esc(r.note) : ''} You can send a new request.`) : '';
+    return `<div class="card" id="reqcard"><details${rejected ? ' open' : ''}><summary>Are you an instructor? Request instructor access</summary>
+      <p class="lead">Instructor accounts are approved by hand. Sign up with your university email address (ending in .edu) and link to your page on your university's website.</p>
+      ${rejected}
+      <form class="form" id="reqf">
+        <label>Full name<input name="name" autocomplete="name" value="${esc(me.full_name || '')}" required></label>
+        <label>Link to your university directory page<input name="url" type="url" maxlength="500" placeholder="https://www.yourschool.edu/faculty/your-name" required></label>
+        <div><button class="btn primary" type="submit">Request instructor access</button></div>
+      </form><div id="reqmsg"></div></details></div>`;
+  }
+  function wireRequest() {
+    const form = document.getElementById('reqf');
+    if (!form) return;
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = new FormData(form), out = document.getElementById('reqmsg');
+      const name = String(f.get('name') || '').trim(), url = String(f.get('url') || '').trim();
+      if (!name || !url) { out.innerHTML = msg('bad', 'Enter your full name and the link.'); return; }
+      out.innerHTML = msg('info', 'Sending…');
+      const { error } = await sb.rpc('request_instructor_access', { p_full_name: name, p_directory_url: url });
+      if (error) { out.innerHTML = msg('bad', esc(error.message)); return; }
+      studentView();
+    });
+  }
+
+  // ---------- student ----------
+  async function studentView(note = '') {
+    const { data: rows, error } = await sb.from('enrollments').select('course_id, courses(id,name,term)').eq('student_id', me.id);
+    if (error) { app.innerHTML = `<div class="card">${msg('bad', esc(error.message))}</div>`; return; }
+    const courses = (rows || []).map(r => r.courses).filter(Boolean);
+    const ids = courses.map(c => c.id);
+    const [asg, att, labRows, reqCard] = await Promise.all([
+      ids.length ? fetchAll(() => sb.from('course_activities').select('course_id,activity_id,mode,due_at,max_attempts,chapters').in('course_id', ids).order('activity_id')) : [],
+      ids.length ? fetchAll(() => sb.from('attempts').select('id,course_id,activity_id,score,total').eq('student_id', me.id).in('course_id', ids).order('id')) : [],
+      Promise.all(ids.map(async id => {
+        const { data, error } = await sb.rpc('my_lab_attempts', { p_course: id });
+        if (error) throw error;
+        return data.map(r => ({ ...r, course_id: id }));
+      })).then(r => r.flat()),
+      requestCard()
+    ]);
+    const byId = Object.fromEntries(catalog.map(a => [a.id, a]));
+    const now = Date.now();
+    const row = (c, x) => {
+      const mine = att.filter(t => t.course_id === c.id && t.activity_id === x.activity_id);
+      const graded = x.a.scored && x.mode === 'graded';
+      // A lab attempt counts as used from the moment it starts, the same way the grading server counts it.
+      const lab = x.a.server_graded ? labRows.find(r => r.course_id === c.id && r.activity_id === x.activity_id) : null;
+      const used = lab ? Number(lab.used) : mine.length;
+      const late = graded && x.due_at && now > new Date(x.due_at).getTime();
+      const left = late ? 0 : graded && x.max_attempts ? Math.max(0, x.max_attempts - used) : null;
+      const top = mine.length ? mine.reduce((p, t) => pct(t.score, t.total) > pct(p.score, p.total) ? t : p) : null;
+      const inProgress = !!(lab && lab.in_progress);
+      const closed = late ? 'Past due' : inProgress ? 'In progress' : left === 0 ? 'No attempts left' : '';
+      return `<tr><td><b>${esc(x.a.title)}</b>${x.a.server_graded ? '' : `<span class="small muted"> · Chapters ${esc(x.chapters)}</span>`}<div class="small muted">${esc(x.a.description || '')}</div></td>
+        <td><span class="tag ${graded ? 'graded' : ''}">${x.a.scored ? (graded ? 'Graded' : 'Practice') : 'Class game'}</span></td>
+        <td class="small">${x.due_at ? esc(fmtDate(x.due_at)) : '—'}</td>
+        <td class="n">${x.a.scored ? used : '—'}</td>
+        <td class="n">${x.a.scored ? (left === null ? 'No limit' : left) : '—'}</td>
+        <td class="n">${top ? `${pct(top.score, top.total)}%<div class="small muted">${top.score} of ${top.total}</div>` : '—'}</td>
+        <td><a class="btn gold sm" href="${esc(activityLink(x.a, c.id, x.chapters))}" target="_blank" rel="noopener">Open</a>${closed ? `<div class="small muted">${closed}</div>` : ''}</td></tr>`;
+    };
+    app.innerHTML = `<div class="card"><h2>Join a class</h2><p class="lead">Enter the 6-character code from your instructor.</p>
+        <form class="row" id="joinf"><label>Join code<input name="code" maxlength="6" autocomplete="off" style="text-transform:uppercase;width:140px" required></label><button class="btn primary" type="submit">Join</button></form><div id="joinmsg">${note}</div></div>
+      ${courses.map(c => {
+        const list = asg.filter(x => x.course_id === c.id).map(x => ({ ...x, a: byId[x.activity_id] })).filter(x => x.a).sort((p, q) => p.a.sort_order - q.a.sort_order);
+        return `<div class="card"><h2>${esc(c.name)}</h2><p class="lead">${esc(c.term || '')}</p>
+          ${list.length ? `<div class="scroll"><table><thead><tr><th>Activity</th><th>Type</th><th>Due</th><th class="n">Used</th><th class="n">Left</th><th class="n">Score</th><th></th></tr></thead><tbody>
+          ${list.map(x => row(c, x)).join('')}</tbody></table></div>` : '<p class="empty">Nothing assigned yet.</p>'}</div>`;
+      }).join('')}${reqCard}`;
+    document.getElementById('joinf').addEventListener('submit', async e => {
+      e.preventDefault();
+      const code = String(new FormData(e.target).get('code') || '').trim();
+      const { error } = await sb.rpc('join_course', { code });
+      if (error) { document.getElementById('joinmsg').innerHTML = msg('bad', esc(error.message)); return; }
+      studentView(msg('good', 'You joined the class.'));
+    });
+    wireRequest();
+  }
+
+  // ---------- instructor ----------
+  async function instructorView(note = '') {
+    const { data: courses, error } = await sb.from('courses').select('id,name,term,join_code,show_answers,created_at').eq('instructor_id', me.id).order('created_at');
+    if (error) { app.innerHTML = `<div class="card">${msg('bad', esc(error.message))}</div>`; return; }
+    if (!state.course || !courses.some(c => c.id === state.course)) state.course = courses.length ? courses.at(-1).id : null;
+    const c = courses.find(x => x.id === state.course);
+    app.innerHTML = `<div class="card"><h2>Create a class</h2>
+        <form class="row" id="newc"><label>Class name<input name="name" placeholder="ACCT 1101 Section 01" required></label><label>Term<input name="term" placeholder="Spring 2027"></label>
+        <label class="check"><input type="checkbox" name="show"> Show answers after each lab step</label>
+        <button class="btn primary" type="submit">Create</button></form>${note}</div>
+      ${c ? `<div class="card"><div class="coursehead"><div>
+          ${courses.length > 1 ? `<label>Class<select id="pickc">${courses.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.term ? ' · ' + esc(x.term) : ''}</option>`).join('')}</select></label>` : `<h2>${esc(c.name)}</h2><p class="lead">${esc(c.term || '')}</p>`}
+          <label class="check" style="margin-top:8px"><input type="checkbox" id="showans"${c.show_answers ? ' checked' : ''}> Show answers after each lab step</label>
+        </div><div><div class="small muted">Students join with this code</div><span class="code">${esc(c.join_code)}</span></div></div>
+        <div class="tabs" role="tablist">${[['assign', 'Assignments'], ['roster', 'Students'], ['grades', 'Gradebook']].map(([k, n]) => `<button class="tab" role="tab" type="button" data-tab="${k}" aria-selected="${state.tab === k}">${n}</button>`).join('')}</div>
+        <div id="pane"><p class="muted">Loading…</p></div></div>` : '<div class="card"><p class="empty">Create your first class above.</p></div>'}`;
+    document.getElementById('newc').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = new FormData(e.target), name = String(f.get('name') || '').trim();
+      if (!name) return;
+      const { data, error } = await sb.from('courses').insert({ instructor_id: me.id, name, term: String(f.get('term') || '').trim() || null, show_answers: f.get('show') === 'on' }).select('id').single();
+      if (error) { instructorView(msg('bad', esc(error.message))); return; }
+      state.course = data.id; state.tab = 'assign'; instructorView(msg('good', 'Class created. Assign activities below, then share the join code.'));
+    });
+    if (!c) return;
+    const pk = document.getElementById('pickc'); if (pk) pk.addEventListener('change', () => { state.course = pk.value; instructorView(); });
+    document.getElementById('showans').addEventListener('change', async e => {
+      const { error } = await sb.from('courses').update({ show_answers: e.target.checked }).eq('id', c.id);
+      instructorView(error ? msg('bad', esc(error.message)) : msg('good', `Show answers is now ${e.target.checked ? 'on' : 'off'} for ${esc(c.name)}.`));
+    });
+    app.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; instructorView(); }));
+    ({ assign: assignPane, roster: rosterPane, grades: gradesPane })[state.tab](c).catch(e => {
+      document.getElementById('pane').innerHTML = msg('bad', esc(e.message));
+    });
+  }
+
+  async function assignPane(c, note = '') {
+    const pane = document.getElementById('pane');
+    const { data: asg, error } = await sb.from('course_activities').select('*').eq('course_id', c.id);
+    if (error) throw error;
+    const has = Object.fromEntries(asg.map(x => [x.activity_id, x]));
+    pane.innerHTML = `<p class="lead">Check an activity to assign it, set its options, and click <b>Save</b>. Graded activities stop accepting work after the due date or the attempt limit. A graded lab still open at the due date is scored on the steps submitted so far.</p>
+      <div class="scroll"><table><thead><tr><th>Assign</th><th>Activity</th><th>Mode</th><th>Chapters</th><th>Due</th><th>Attempts</th><th></th></tr></thead><tbody>
+      ${catalog.map(a => { const x = has[a.id] || {}; const ch = x.chapters || (a.chapter ? String(a.chapter) : '1-4'); return `<tr data-a="${a.id}">
+        <td><input type="checkbox" name="on" aria-label="Assign ${esc(a.title)}"${has[a.id] ? ' checked' : ''}></td>
+        <td><b>${esc(a.title)}</b><div class="small muted">${esc(a.description || '')}</div></td>
+        <td>${a.scored ? `<select name="mode" aria-label="Mode for ${esc(a.title)}"><option value="practice"${x.mode !== 'graded' ? ' selected' : ''}>Practice</option><option value="graded"${x.mode === 'graded' ? ' selected' : ''}>Graded</option></select>` : '<span class="tag">Class game</span>'}</td>
+        <td>${a.server_graded ? `<input type="hidden" name="ch" value="${esc(ch)}"><span class="muted">—</span>` : `<input class="ch" name="ch" value="${esc(ch)}" aria-label="Chapters for ${esc(a.title)}" placeholder="1-4">`}</td>
+        <td><input type="datetime-local" name="due" value="${toLocalInput(x.due_at)}" aria-label="Due date for ${esc(a.title)}"></td>
+        <td><input type="number" name="max" min="1" value="${x.max_attempts || ''}" placeholder="Any" aria-label="Attempt limit for ${esc(a.title)}"></td>
+        <td style="white-space:nowrap"><button class="btn sm primary" type="button" data-save>Save</button> ${has[a.id] ? `<a class="btn sm" href="${esc(activityLink(a, c.id, x.chapters))}" target="_blank" rel="noopener">Preview</a>` : ''}</td></tr>`; }).join('')}
+      </tbody></table></div><div id="amsg">${note}</div>`;
+    pane.querySelectorAll('[data-save]').forEach(b => b.addEventListener('click', async () => {
+      const tr = b.closest('tr'), aid = tr.dataset.a, a = catalog.find(x => x.id === aid);
+      const v = n => tr.querySelector(`[name="${n}"]`);
+      let error;
+      if (!v('on').checked) ({ error } = await sb.from('course_activities').delete().eq('course_id', c.id).eq('activity_id', aid));
+      else {
+        const ch = v('ch').value.replace(/\s/g, '');
+        if (!CH_OK.test(ch)) { document.getElementById('amsg').innerHTML = msg('bad', `Chapters for ${esc(a.title)} must look like 1-4 or 2,5,7-9.`); return; }
+        ({ error } = await sb.from('course_activities').upsert({
+          course_id: c.id, activity_id: aid, mode: v('mode') ? v('mode').value : 'practice', chapters: ch,
+          due_at: v('due').value ? new Date(v('due').value).toISOString() : null,
+          max_attempts: v('max').value ? Math.max(1, parseInt(v('max').value, 10)) : null
+        }, { onConflict: 'course_id,activity_id' }));
+      }
+      assignPane(c, error ? msg('bad', esc(error.message)) : msg('good', `${esc(a.title)} ${v('on').checked ? 'saved' : 'removed'}.`));
+    }));
+  }
+
+  async function roster(c) {
+    const data = await fetchAll(() => sb.from('enrollments').select('student_id,joined_at,profiles(full_name,email)').eq('course_id', c.id).order('student_id'));
+    return data.map(r => ({ id: r.student_id, joined: r.joined_at, name: (r.profiles && r.profiles.full_name) || '', email: (r.profiles && r.profiles.email) || '' }))
+      .sort((p, q) => p.name.localeCompare(q.name));
+  }
+
+  async function rosterPane(c, note = '') {
+    const pane = document.getElementById('pane'), people = await roster(c);
+    pane.innerHTML = people.length ? `<div class="scroll"><table><thead><tr><th>Student</th><th>Email</th><th>Joined</th><th></th></tr></thead><tbody>
+      ${people.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.email)}</td><td class="small">${esc(fmtDate(p.joined))}</td><td><button class="btn sm" type="button" data-rm="${p.id}">Remove</button></td></tr>`).join('')}
+      </tbody></table></div>${note}` : `<p class="empty">No students yet. Share the code <b>${esc(c.join_code)}</b>.</p>${note}`;
+    pane.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Remove this student from the class? Their saved attempts stay in the database.')) return;
+      const { error } = await sb.from('enrollments').delete().eq('course_id', c.id).eq('student_id', b.dataset.rm);
+      rosterPane(c, error ? msg('bad', esc(error.message)) : msg('good', 'Student removed.'));
+    }));
+  }
+
+  async function gradesPane(c) {
+    const pane = document.getElementById('pane');
+    const [people, asg, att, labs] = await Promise.all([
+      roster(c),
+      fetchAll(() => sb.from('course_activities').select('activity_id,mode').eq('course_id', c.id).order('activity_id')),
+      fetchAll(() => sb.from('attempts').select('id,student_id,activity_id,score,total').eq('course_id', c.id).order('id')),
+      fetchAll(() => sb.from('lab_attempts').select('id,student_id,activity_id,started_at,finished_at,auto_closed,steps').eq('course_id', c.id).order('id'))
+    ]);
+    const acts = catalog.filter(a => a.scored && asg.some(x => x.activity_id === a.id));
+    if (!people.length || !acts.length) { pane.innerHTML = `<p class="empty">${!acts.length ? 'Assign a scored activity first.' : 'No students yet.'}</p>`; return; }
+    const cell = (sid, aid) => {
+      const done = att.filter(t => t.student_id === sid && t.activity_id === aid);
+      const mine = labs.filter(l => l.student_id === sid && l.activity_id === aid);
+      return {
+        best: done.length ? Math.max(...done.map(t => pct(t.score, t.total))) : null,
+        n: done.length,
+        open: mine.find(l => !l.finished_at),
+        autoClosed: mine.some(l => l.auto_closed)
+      };
+    };
+    const cellHtml = b => {
+      const score = b.best === null ? (b.open ? '' : '—') : `${b.best}% <span class="small muted">(${b.n})</span>`;
+      const closed = b.autoClosed ? '<div><span class="tag auto">Closed at due date</span></div>' : '';
+      const open = b.open ? `<div><span class="tag">In progress · ${Object.keys(b.open.steps || {}).length} steps</span></div>` : '';
+      return score + closed + open;
+    };
+    pane.innerHTML = `<p class="lead">Best finished score on each activity, as a percent. The small number is how many attempts finished. <b>In progress</b> means a lab attempt is still open. <b>Closed at due date</b> means an attempt was still open at the due date and was scored on the steps submitted.</p>
+      <div class="scroll"><table><thead><tr><th>Student</th>${acts.map(a => `<th class="n">${esc(a.title)}</th>`).join('')}</tr></thead><tbody>
+      ${people.map(p => `<tr><td>${esc(p.name)}<div class="small muted">${esc(p.email)}</div></td>${acts.map(a => `<td class="n">${cellHtml(cell(p.id, a.id))}</td>`).join('')}</tr>`).join('')}
+      </tbody></table></div>
+      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download CSV for Canvas</button><span class="small muted">Graded activities only, out of 100 points. Blank means no finished attempt.</span></div><div id="csvmsg"></div>`;
+    document.getElementById('csv').addEventListener('click', () => {
+      const gradedActs = acts.filter(a => asg.some(x => x.activity_id === a.id && x.mode === 'graded'));
+      if (!gradedActs.length) { document.getElementById('csvmsg').innerHTML = msg('bad', 'No activity in this class is set to Graded.'); return; }
+      // A leading = + - or @ would run as a formula in a spreadsheet, and students type their own names.
+      const text = v => (/^[=+\-@\t\r]/.test(String(v)) ? "'" : '') + String(v);
+      const quote = v => `"${String(v).replace(/"/g, '""')}"`;
+      const lines = [
+        ['Student', 'ID', 'SIS User ID', 'SIS Login ID', 'Section', ...gradedActs.map(a => text(a.title))],
+        ['Points Possible', '', '', '', '', ...gradedActs.map(() => 100)],
+        ...people.map(p => [text(p.name), '', '', text(p.email), text(c.name), ...gradedActs.map(a => { const b = cell(p.id, a.id).best; return b === null ? '' : b; })])
+      ].map(r => r.map(quote).join(','));
+      const url = URL.createObjectURL(new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/csv' }));
+      const link = document.createElement('a'); link.href = url; link.download = `${c.name.replace(/[^\w -]/g, '')} grades.csv`;
+      document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+  }
+
+  // ---------- admin ----------
+  async function adminView(note = '') {
+    const { data: reqs, error } = await sb.from('instructor_requests').select('id,full_name,email,directory_url,created_at').eq('status', 'pending').order('created_at');
+    if (error) { app.innerHTML = `<div class="card">${msg('bad', esc(error.message))}</div>`; return; }
+    app.innerHTML = `<div class="card"><h2>Pending instructor requests</h2>
+      <p class="lead">Open the directory link and check that the person is listed there before you approve.</p>
+      ${reqs.length ? `<div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Directory page</th><th>Requested</th><th>Note (optional)</th><th></th></tr></thead><tbody>
+      ${reqs.map(r => `<tr data-r="${esc(r.id)}"><td>${esc(r.full_name || '')}</td><td>${esc(r.email)}</td>
+        <td>${/^https:\/\//i.test(r.directory_url) ? `<a href="${esc(r.directory_url)}" target="_blank" rel="noopener noreferrer">${esc(r.directory_url)}</a>` : esc(r.directory_url)}</td>
+        <td class="small">${esc(fmtDate(r.created_at))}</td>
+        <td><input name="note" maxlength="1000" aria-label="Note for ${esc(r.full_name || r.email)}"></td>
+        <td style="white-space:nowrap"><button class="btn sm primary" type="button" data-review="1">Approve</button> <button class="btn sm" type="button" data-review="0">Reject</button></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="empty">No pending requests.</p>'}${note}</div>`;
+    app.querySelectorAll('[data-review]').forEach(b => b.addEventListener('click', async () => {
+      const tr = b.closest('tr'), approve = b.dataset.review === '1';
+      tr.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      const { error } = await sb.rpc('review_instructor_request', { p_request: tr.dataset.r, p_approve: approve, p_note: tr.querySelector('[name="note"]').value.trim() || null });
+      adminView(error ? msg('bad', esc(error.message)) : msg('good', approve ? 'Request approved. That account is now an instructor.' : 'Request rejected.'));
+    }));
+  }
+
+  // ---------- startup ----------
+  function homeView() {
+    const admin = !!(me.is_admin && location.hash === '#admin');
+    const link = document.getElementById('adminlink');
+    link.hidden = !me.is_admin;
+    link.textContent = admin ? 'Back to my classes' : 'Instructor requests';
+    link.href = admin ? '#' : '#admin';
+    if (admin) return adminView();
+    return me.role === 'instructor' ? instructorView() : studentView();
+  }
+  async function start() {
+    me = await loadMe();
+    if (!me) return authView();
+    await loadCatalog();
+    document.getElementById('toolbar').hidden = false;
+    document.getElementById('who').textContent = me.full_name || me.email;
+    document.getElementById('role').textContent = (me.role === 'instructor' ? 'Instructor' : 'Student') + (me.is_admin ? ' · Admin' : '');
+    return homeView();
+  }
+  const fail = e => { app.innerHTML = `<div class="card">${msg('bad', 'Could not reach the course server. ' + esc(e.message))}</div>`; };
+  window.addEventListener('hashchange', () => { if (me) Promise.resolve(homeView()).catch(fail); });
+  document.getElementById('signout').addEventListener('click', async () => { await sb.auth.signOut(); me = null; history.replaceState(null, '', location.pathname); start().catch(fail); });
+  start().catch(fail);
+})();
+</script>
+</body>
+</html>
