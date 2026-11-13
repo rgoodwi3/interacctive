@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cost-Volume-Profit Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M3 Lab 7: Cost-Volume-Profit Analysis. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-cvp), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-cvp.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => (n < 0 ? "−" : "") + "$" + fmt(n);
+const cents = n => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,%\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^−/, "-");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+const r2 = x => Math.round(x * 100) / 100;
+const units = n => fmt(n) + " units";
+const ADOPT = [["adopt", "Adopt"], ["reject", "Reject"]];
+const MIXN = ["Standard", "Deluxe", "Pocket"];
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  for (let t = 0; t < 50000; t++) {
+    const price = R(24, 60), vc = R(8, price - 10), cm = price - vc, fixed = R(60, 400) * 1000;
+    if (fixed % cm === 0) continue; // breakeven units need rounding up
+    const be = Math.ceil(fixed / cm), q = Math.ceil(be * R(120, 180) / 100 / 100) * 100;
+    const target = R(20, 150) * 1000;
+    if ((fixed + target) % cm === 0) continue;
+    // What if? (a) price cut with more volume (b) better paper: higher variable cost, more volume (c) ad campaign
+    const cut = pick([5, 10, 15]), upA = R(2, 8) * 5, dv = R(2, 8) / 4, upB = R(1, 4) * 5, ad = R(5, 40) * 1000, upC = R(1, 5) * 5;
+    const oi = cm * q - fixed;
+    const p2 = price * (100 - cut) / 100, qa = q * (100 + upA) / 100, qb = q * (100 + upB) / 100, qc = q * (100 + upC) / 100;
+    const oiA = r2((p2 - vc) * qa - fixed), oiB = r2((cm - dv) * qb - fixed), oiC = r2(cm * qc - fixed - ad);
+    const d = [oiA, oiB, oiC].map(x => x > oi);
+    if ([oiA, oiB, oiC].some(x => Math.abs(x - oi) < 500) || d.every(x => x) || d.every(x => !x)) continue;
+    // Sales mix: three guidebooks in a fixed ratio; the weighted-average CM is whole cents and breakeven is a whole number of mixes
+    const ratio = pick([[3, 2, 1], [5, 3, 2], [4, 3, 1], [2, 2, 1], [6, 3, 1], [5, 4, 1]]), sum = ratio[0] + ratio[1] + ratio[2];
+    const mp = [R(20, 40), R(45, 80), R(10, 18)], mv = mp.map(p => Math.round(p * R(35, 65) / 100));
+    const pkg = ratio.reduce((a, x, i) => a + x * (mp[i] - mv[i]), 0);
+    if ((pkg * 100) % sum !== 0) continue;
+    const n = R(150, 900), mixFixed = n * pkg;
+    const pct = R(1, 5) * 5;
+    return { price, vc, fixed, q, target, cut, upA, dv, upB, ad, upC, ratio, mp, mv, mixFixed, pct };
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const cm = P.price - P.vc, cmr = r2(cm / P.price * 100), tcm = cm * P.q, oi = tcm - P.fixed;
+  const beu = Math.ceil(P.fixed / cm), be$ = beu * P.price, be$alt = Math.round(P.fixed / (cm / P.price));
+  const tu = Math.ceil((P.fixed + P.target) / cm), t$ = tu * P.price, t$alt = Math.round((P.fixed + P.target) / (cm / P.price));
+  const p2 = P.price * (100 - P.cut) / 100, qa = P.q * (100 + P.upA) / 100, qb = P.q * (100 + P.upB) / 100, qc = P.q * (100 + P.upC) / 100;
+  const oiA = r2((p2 - P.vc) * qa - P.fixed), oiB = r2((cm - P.dv) * qb - P.fixed), oiC = r2(cm * qc - P.fixed - P.ad);
+  const sum = P.ratio[0] + P.ratio[1] + P.ratio[2], mcm = P.mp.map((p, i) => p - P.mv[i]), pkg = P.ratio.reduce((a, x, i) => a + x * mcm[i], 0);
+  const wacm = r2(pkg / sum), mbe = Math.round(P.mixFixed * sum / pkg), mbeP = P.ratio.map(x => mbe * x / sum);
+  const mosU = P.q - beu, mos$ = mosU * P.price, mos$alt = Math.round(P.q * P.price - P.fixed / (cm / P.price)), mosP = r2(mosU / P.q * 100);
+  const dol = r2(tcm / oi), chg = r2(tcm / oi * P.pct), chgAlt = r2(dol * P.pct);
+  return { cm, cmr, tcm, oi, beu, be$, be$alt, tu, t$, t$alt, p2, qa, qb, qc, oiA, oiB, oiC, sum, mcm, pkg, wacm, mbe, mbeP, mosU, mos$, mos$alt, mosP, dol, chg, chgAlt };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, wrong, work, dec: 2 }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+function buildParts(P) {
+  const S = solve(P), parts = [], ratioTxt = P.ratio.join(":");
+  parts.push({ id: "cm", phase: "cvp", tick: "1", title: "Contribution margin",
+    desc: "This year Problem Solvers sold " + units(P.q) + " of its Standard guidebook. Find the contribution margin per unit, the contribution margin ratio as a percent (2 decimals), total contribution margin and operating income.",
+    hint: "CM per unit = price − variable cost per unit. CM ratio = CM per unit ÷ price. Total CM = CM per unit × units sold. Operating income = total CM − fixed costs.",
+    why: "Each unit sold contributes its CM toward fixed costs; once fixed costs are covered, every extra unit's CM is profit.",
+    fields: [
+      num("cmu", "Contribution margin per unit", S.cm, v => v === P.price ? "That is the price. Subtract the variable cost per unit." : near(v, r2(S.cm - P.fixed / P.q)) ? "Don't subtract fixed cost per unit. CM per unit = price − variable cost per unit." : v === P.vc ? "That is the variable cost per unit." : "CM per unit = selling price − variable cost per unit.", money(P.price) + " − " + money(P.vc) + " = " + money(S.cm)),
+      num("cmr", "Contribution margin ratio (%)", S.cmr, v => near(v, S.cmr / 100) || near(v, r2(S.cm / P.price)) ? "Enter the ratio as a percent: " + fmt(r2(S.cm / P.price)) + " is " + fmt(S.cmr) + "%." : near(v, r2(S.cm / P.vc * 100)) ? "Divide CM per unit by the price, not by variable cost." : near(v, r2(P.vc / P.price * 100)) ? "That is the variable cost ratio. CM ratio = 100% − variable cost ratio." : "CM ratio = CM per unit ÷ selling price, as a percent.", money(S.cm) + " ÷ " + money(P.price) + " = " + fmt(S.cmr) + "%", { post: "%" }),
+      num("tcm", "Total contribution margin", S.tcm, (v, n) => v === P.price * P.q ? "That is sales revenue. Total CM = CM per unit × units sold." : n.cmu != null && v === n.cmu * P.q && n.cmu !== S.cm ? "Your multiplication is right, but your CM per unit is not. Fix it first." : "Total CM = CM per unit × " + units(P.q) + ".", money(S.cm) + " × " + fmt(P.q) + " = " + money(S.tcm)),
+      num("oi", "Operating income", S.oi, (v, n) => n.tcm != null && v === n.tcm - P.fixed && n.tcm !== S.tcm ? "Your subtraction is right, but your total CM is not. Fix it first." : v === P.price * P.q - P.fixed ? "Subtract variable costs too: operating income = total CM − fixed costs." : "Operating income = total contribution margin − fixed costs.", money(S.tcm) + " − " + money(P.fixed) + " = " + money(S.oi))],
+    walk: [{ keys: ["cmu", "cmr"], text: "CM per unit, then as a share of price.", formula: money(S.cm) + " ÷ " + money(P.price) + " = " + fmt(S.cmr) + "%" }, { keys: ["tcm", "oi"], text: "Multiply by units sold, then subtract fixed costs.", formula: money(S.tcm) + " − " + money(P.fixed) + " = " + money(S.oi) }] });
+
+  parts.push({ id: "be", phase: "cvp", tick: "2", title: "Breakeven point",
+    desc: "Find the breakeven point in units (round up to a whole guidebook) and in sales dollars.",
+    hint: "Breakeven units = fixed costs ÷ CM per unit, rounded up. Breakeven sales dollars = breakeven units × price (or fixed costs ÷ CM ratio).",
+    why: "At breakeven, total contribution margin just covers fixed costs. Rounding down would leave a small loss, so breakeven units are rounded up.",
+    fields: [
+      num("beu", "Breakeven point in units", S.beu, v => v === S.beu - 1 ? "Round up. At " + units(S.beu - 1) + " the company still has a small loss." : v === Math.ceil(P.fixed / P.price) || v === Math.floor(P.fixed / P.price) ? "Divide fixed costs by CM per unit, not by price." : Math.abs(v - S.be$alt) <= 1 || v === S.be$ ? "That is breakeven in dollars. Divide fixed costs by CM per unit for units." : "Breakeven units = " + money(P.fixed) + " ÷ " + money(S.cm) + ", rounded up.", money(P.fixed) + " ÷ " + money(S.cm) + " = " + fmt(r2(P.fixed / S.cm)) + " → " + units(S.beu), { dec: 0 }),
+      num("be$", "Breakeven point in sales dollars", S.be$, v => v === S.beu || v === Math.ceil(P.fixed / S.cm) ? "That is breakeven in units. Multiply by the price." : Math.abs(v - P.fixed * S.cm / P.price) <= 1 ? "Divide fixed costs by the CM ratio; don't multiply." : Math.abs(v - S.beu * S.cm) <= 1 ? "Use the price, not CM per unit: breakeven sales = units × price." : "Breakeven sales = breakeven units × price, or fixed costs ÷ CM ratio.", units(S.beu) + " × " + money(P.price) + " = " + money(S.be$), { alt: [S.be$alt], tol: 1 })],
+    walk: [{ keys: ["beu"], text: "Divide fixed costs by CM per unit and round up.", formula: money(P.fixed) + " ÷ " + money(S.cm) + " → " + units(S.beu) }, { keys: ["be$"], text: "Multiply by the price.", formula: units(S.beu) + " × " + money(P.price) + " = " + money(S.be$) }] });
+
+  parts.push({ id: "target", phase: "cvp", tick: "3", title: "Target profit",
+    desc: "Management wants operating income of " + money(P.target) + ". How many guidebooks must Problem Solvers sell (round up), and what sales revenue is that?",
+    hint: "Units for a target = (fixed costs + target operating income) ÷ CM per unit, rounded up.",
+    why: "A target profit works like an extra fixed cost: contribution margin has to cover both.",
+    fields: [
+      num("tu", "Units needed for the target", S.tu, v => v === S.tu - 1 ? "Round up, or you fall just short of the target." : v === Math.ceil(P.target / S.cm) ? "Include fixed costs: (fixed costs + target) ÷ CM per unit." : v === Math.ceil((P.fixed + P.target) / P.price) ? "Divide by CM per unit, not price." : "Units = (" + money(P.fixed) + " + " + money(P.target) + ") ÷ " + money(S.cm) + ", rounded up.", "(" + money(P.fixed) + " + " + money(P.target) + ") ÷ " + money(S.cm) + " → " + units(S.tu), { dec: 0 }),
+      num("t$", "Sales revenue needed for the target", S.t$, v => v === S.tu ? "That is units. Multiply by the price." : Math.abs(v - Math.round(P.target / (S.cm / P.price))) <= 1 ? "Include fixed costs too." : "Sales = units needed × price, or (fixed costs + target) ÷ CM ratio.", units(S.tu) + " × " + money(P.price) + " = " + money(S.t$), { alt: [S.t$alt], tol: 1 })],
+    walk: [{ keys: ["tu", "t$"], text: "Add the target to fixed costs and divide by CM per unit.", formula: "(" + money(P.fixed) + " + " + money(P.target) + ") ÷ " + money(S.cm) + " → " + units(S.tu) + " × " + money(P.price) + " = " + money(S.t$) }] });
+
+  const dec = x => x > S.oi ? "adopt" : "reject";
+  const scen = [
+    ["A", "Cut the price " + P.cut + "% to " + cents(S.p2) + "; volume rises " + P.upA + "% to " + units(S.qa) + ".", S.oiA, "(" + cents(S.p2) + " − " + money(P.vc) + ") × " + fmt(S.qa) + " − " + money(P.fixed), [r2((S.p2 - P.vc) * P.q - P.fixed), r2(S.cm * S.qa - P.fixed), r2(S.p2 * S.qa - P.fixed)]],
+    ["B", "Switch to better paper: variable cost rises " + cents(P.dv) + " per guidebook; volume rises " + P.upB + "% to " + units(S.qb) + ".", S.oiB, "(" + money(S.cm) + " − " + cents(P.dv) + ") × " + fmt(S.qb) + " − " + money(P.fixed), [r2((S.cm - P.dv) * P.q - P.fixed), r2(S.cm * S.qb - P.fixed), r2((S.cm + P.dv) * S.qb - P.fixed)]],
+    ["C", "Run an ad campaign costing " + money(P.ad) + "; volume rises " + P.upC + "% to " + units(S.qc) + ".", S.oiC, money(S.cm) + " × " + fmt(S.qc) + " − " + money(P.fixed) + " − " + money(P.ad), [r2(S.cm * S.qc - P.fixed), r2(S.cm * S.qc - P.fixed + P.ad), r2(S.cm * P.q - P.fixed - P.ad)]]];
+  parts.push({ id: "whatif", phase: "cvp", tick: "4", title: "What if?",
+    desc: "Starting from this year's operating income of " + money(S.oi) + ", consider each proposal on its own. Find the new operating income and decide whether to adopt it.",
+    hint: "New operating income = new CM per unit × new volume − new fixed costs. Adopt a proposal only if it raises operating income.",
+    why: "CVP lets managers test a change before making it. A price cut or new cost can pay off only if the extra volume adds more contribution margin than it costs.",
+    fields: scen.flatMap(([k, txt, ans, work, tr]) => [
+      num("oi" + k, "Proposal " + k + ": " + txt + " New operating income", ans, v => near(v, tr[0]) ? "Use the new volume too." : near(v, tr[1]) ? (k === "C" ? "Subtract the ad campaign's cost; it adds to fixed costs." : k === "A" ? "Use the new, lower price." : "Use the new, higher variable cost.") : near(v, tr[2]) ? (k === "A" ? "Subtract variable costs: use CM per unit, not price." : k === "B" ? "A higher variable cost lowers CM per unit." : "Use the new volume.") : near(v, r2(ans - S.oi)) ? "That is the change in operating income. Give the new total." : "New operating income = new CM per unit × new volume − new fixed costs.", work + " = " + cents(ans)),
+      sel("d" + k, "Proposal " + k + ": adopt or reject?", ADOPT, dec(ans), v => dec(ans) === "adopt" ? "Operating income rises from " + money(S.oi) + " to " + cents(ans) + ", so adopt it." : "Operating income falls from " + money(S.oi) + " to " + cents(ans) + ", so reject it.", (dec(ans) === "adopt" ? "Adopt: " : "Reject: ") + cents(ans) + " vs. " + money(S.oi))]),
+    walk: scen.map(([k, txt, ans, work]) => ({ keys: ["oi" + k, "d" + k], text: "Proposal " + k + ": " + txt, formula: work + " = " + cents(ans) + (ans > S.oi ? " > " : " < ") + money(S.oi) })) });
+
+  const pkgWork = P.ratio.map((x, i) => x + " × " + money(S.mcm[i])).join(" + ") + " = " + money(S.pkg) + " per mix of " + S.sum + "; ÷ " + S.sum + " = " + cents(S.wacm);
+  parts.push({ id: "mix", phase: "mix", tick: "5", title: "Sales mix",
+    desc: "Next year Problem Solvers plans to sell three guidebooks in a " + ratioTxt + " ratio (Standard : Deluxe : Pocket), with fixed costs of " + money(P.mixFixed) + ". Find the weighted-average CM per unit (to the cent), the breakeven point in total units, and breakeven units for each guidebook.",
+    hint: "Weighted-average CM per unit = Σ (each product's CM × its units in the mix) ÷ total units in the mix. Breakeven total units = fixed costs ÷ weighted-average CM; split by the mix.",
+    why: "With more than one product, breakeven depends on the mix. Selling more of the high-CM guidebook lowers breakeven; selling more of the low-CM one raises it.",
+    fields: [
+      num("wacm", "Weighted-average contribution margin per unit", S.wacm, v => near(v, r2((S.mcm[0] + S.mcm[1] + S.mcm[2]) / 3)) ? "That is a simple average. Weight each CM by its share of the mix (" + ratioTxt + ")." : near(v, S.pkg) ? "That is the CM of one full mix of " + S.sum + " guidebooks. Divide by " + S.sum + "." : "Weighted-average CM = Σ (CM × units in the mix) ÷ " + S.sum + ".", pkgWork),
+      num("mbe", "Breakeven point, total units", S.mbe, v => v === Math.ceil(P.mixFixed / ((S.mcm[0] + S.mcm[1] + S.mcm[2]) / 3)) ? "That uses a simple average CM. Use the weighted average." : v === P.mixFixed / S.pkg ? "That is the number of full mixes. Multiply by " + S.sum + " guidebooks per mix." : "Breakeven total units = " + money(P.mixFixed) + " ÷ " + cents(S.wacm) + ".", money(P.mixFixed) + " ÷ " + cents(S.wacm) + " = " + units(S.mbe), { dec: 0 }),
+      ...MIXN.map((nm, i) => num("mb" + i, "Breakeven units: " + nm, S.mbeP[i], (v, n) => v === Math.round(S.mbe / 3) ? "Split by the " + ratioTxt + " mix, not equally." : n.mbe != null && near(v, n.mbe * P.ratio[i] / S.sum) && n.mbe !== S.mbe ? "Your split is right, but your total breakeven units are not. Fix the total first." : "Breakeven units for " + nm + " = total × " + P.ratio[i] + "/" + S.sum + ".", fmt(S.mbe) + " × " + P.ratio[i] + "/" + S.sum + " = " + units(S.mbeP[i]), { dec: 0 }))],
+    walk: [{ keys: ["wacm"], text: "Weight each guidebook's CM by its share of the mix.", formula: pkgWork }, { keys: ["mbe", "mb0", "mb1", "mb2"], text: "Divide fixed costs by the weighted-average CM, then split by the mix.", formula: money(P.mixFixed) + " ÷ " + cents(S.wacm) + " = " + units(S.mbe) + " → " + S.mbeP.map(fmt).join(" / ") }] });
+
+  parts.push({ id: "safety", phase: "risk", tick: "6", title: "Margin of safety and operating leverage",
+    desc: "Back to this year's Standard guidebook (" + units(P.q) + " sold). Find the margin of safety in units, dollars and percent (2 decimals), the degree of operating leverage (2 decimals), and the percent change in operating income if sales rise " + P.pct + "%.",
+    hint: "Margin of safety = actual sales − breakeven sales (in units or dollars); as a percent, divide by actual sales. Degree of operating leverage = total CM ÷ operating income. % change in operating income = DOL × % change in sales.",
+    why: "The margin of safety shows how far sales can fall before a loss. Operating leverage shows how sharply income moves when sales change; high fixed costs mean high leverage.",
+    fields: [
+      num("mosU", "Margin of safety in units", S.mosU, v => v === P.q - S.beu + 1 ? "Use the breakeven units rounded up (" + units(S.beu) + ")." : v === S.beu ? "That is breakeven. Margin of safety = units sold − breakeven units." : "Margin of safety in units = " + units(P.q) + " − " + units(S.beu) + ".", fmt(P.q) + " − " + fmt(S.beu) + " = " + units(S.mosU), { dec: 0 }),
+      num("mos$", "Margin of safety in sales dollars", S.mos$, v => Math.abs(v - S.mosU * S.cm) <= 1 ? "Use the price, not CM per unit." : Math.abs(v - S.be$) <= 1 ? "That is breakeven sales. Subtract it from actual sales." : "Margin of safety in dollars = actual sales − breakeven sales.", money(P.q * P.price) + " − " + money(S.be$) + " = " + money(S.mos$), { alt: [S.mos$alt], tol: 1 }),
+      num("mosP", "Margin of safety as a percent of sales (%)", S.mosP, v => near(v, S.mosP / 100) ? "Enter it as a percent." : near(v, r2(S.mosU / S.beu * 100)) ? "Divide by actual sales, not breakeven sales." : "Margin of safety % = margin of safety ÷ actual sales.", fmt(S.mosU) + " ÷ " + fmt(P.q) + " = " + fmt(S.mosP) + "%", { post: "%", alt: [r2((P.q * P.price - P.fixed / (S.cm / P.price)) / (P.q * P.price) * 100)] }),
+      num("dol", "Degree of operating leverage", S.dol, v => near(v, r2(S.oi / S.tcm)) ? "Flip it: DOL = total CM ÷ operating income." : near(v, r2(P.fixed / S.oi)) ? "Use total contribution margin in the numerator, not fixed costs." : "DOL = total contribution margin ÷ operating income.", money(S.tcm) + " ÷ " + money(S.oi) + " = " + fmt(S.dol)),
+      num("chg", "% change in operating income if sales rise " + P.pct + "% (%)", S.chg, (v, n) => near(v, P.pct) ? "Operating income changes by DOL times as much as sales: " + fmt(S.dol) + " × " + P.pct + "%." : n.dol != null && near(v, r2(n.dol * P.pct)) && !near(n.dol, S.dol) ? "Your multiplication is right, but your DOL is not. Fix it first." : "% change in operating income = DOL × % change in sales.", fmt(S.dol) + " × " + P.pct + "% = " + fmt(S.chg) + "%", { post: "%", alt: [S.chgAlt] })],
+    walk: [{ keys: ["mosU", "mos$", "mosP"], text: "Compare actual sales with breakeven.", formula: fmt(P.q) + " − " + fmt(S.beu) + " = " + units(S.mosU) + "; " + fmt(S.mosP) + "% of sales" },
+      { keys: ["dol", "chg"], text: "Divide total CM by operating income, then multiply by the change in sales.", formula: fmt(S.dol) + " × " + P.pct + "% = " + fmt(S.chg) + "%" }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+// Amounts match to the cent (units exactly). Where two roundings are both reasonable, the field lists the other in alt.
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      const ok = x => f.dec === 0 ? v === x : f.tol ? Math.abs(v - x) <= f.tol : near(v, x);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or 12.5." };
+      else res[f.id] = ok(f.ans) || (f.alt || []).some(ok) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> sells “how to” guidebooks. This lab uses cost-volume-profit analysis to plan prices, volume and profit. Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  if (c.part.id === "mix") {
+    return { title: "Next year's sales mix", html: '<div class="scroll"><table class="dtab"><thead><tr><th scope="col">Guidebook</th><th scope="col" class="r">Price</th><th scope="col" class="r">Variable cost</th><th scope="col" class="r">Units in mix</th></tr></thead><tbody>' +
+      MIXN.map((n, i) => '<tr><td>' + n + '</td><td class="r">' + money(P.mp[i]) + '</td><td class="r">' + money(P.mv[i]) + '</td><td class="r">' + P.ratio[i] + '</td></tr>').join("") +
+      '</tbody></table></div><div class="facts"><div class="fact"><span class="k">Fixed costs</span><span><b class="num">' + money(P.mixFixed) + '</b> next year</span></div></div>' };
+  }
+  return { title: "Standard guidebook, " + YEAR, html: '<div class="scroll"><table class="dtab"><tbody>' + row("Selling price per guidebook", money(P.price)) + row("Variable cost per guidebook", money(P.vc)) + row("Fixed costs for the year", money(P.fixed)) + row("Guidebooks sold this year", fmt(P.q)) + '</tbody></table></div><p class="note">Variable cost includes production and selling costs that change with each guidebook sold.</p>' };
+}
+
+MAFrame.start({
+  slug: "ma-cvp", key: "ma-cvp1", module: "M3", title: "Cost-Volume-Profit Lab",
+  phases: [["cvp", "Cost-volume-profit"], ["mix", "Sales mix"], ["risk", "Risk"]],
+  dataTitle: "Data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
