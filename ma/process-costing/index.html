@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Process Costing Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M2 Lab 4: Process Costing (weighted average). Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-process-costing), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-process-costing.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => "$" + fmt(n);
+const cents = n => "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const units = n => fmt(n) + " units";
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "").replace(/units?$/i, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+const ACCTS = [["rm", "Raw Materials Inventory"], ["wipP", "Work in Process–Printing"], ["wipB", "Work in Process–Binding"], ["fg", "Finished Goods Inventory"],
+  ["wp", "Wages Payable"], ["moh", "Manufacturing Overhead"], ["ap", "Accounts Payable"], ["cogs", "Cost of Goods Sold"]];
+const ACCT = Object.fromEntries(ACCTS);
+const PCTS = [20, 25, 40, 50, 60, 75, 80];
+
+// ---------- Problem generator ----------
+// Units come in hundreds and every cost per equivalent unit is whole cents, so costs assigned are whole dollars
+// and reconcile exactly. Costs per equivalent unit are chosen first (in cents); the beginning and current costs
+// are split so they add up to them.
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  for (let t = 0; t < 50000; t++) {
+    // Printing: paper at the start, conversion evenly
+    const bw = R(2, 10) * 100, started = R(30, 90) * 100, ew = R(2, 12) * 100, pb = pick(PCTS), pe = pick(PCTS);
+    const to = bw + started - ew;
+    if (to < 1500) continue;
+    const eum = to + ew, euc = to + ew * pe / 100;
+    if (euc % 100) continue;
+    const mC = R(150, 450), cC = R(200, 600); // cents per EU
+    const mTot = mC * eum / 100, cTot = cC * euc / 100;
+    const bm = Math.round(bw * mC / 100 * (1 + R(-6, 6) / 100) / 10) * 10, bc = Math.round(bw * pb / 100 * cC / 100 * (1 + R(-8, 8) / 100) / 10) * 10;
+    const cm = mTot - bm, cc = cTot - bc;
+    if (bm <= 0 || bc <= 0 || cm <= 0 || cc <= 0) continue;
+    const dl = Math.round(cc * R(40, 60) / 1000) * 10, oh = cc - dl;
+    // Binding: transferred in from Printing, covers at the end, conversion evenly
+    const bwB = R(2, 8) * 100, ewB = R(2, 10) * 100, pbB = pick(PCTS), peB = pick(PCTS);
+    const doneB = bwB + to - ewB;
+    if (doneB < 1000) continue;
+    const eucB = doneB + ewB * peB / 100;
+    if (eucB % 100) continue;
+    const tiC = mC + cC + R(-6, 6), coverC = R(40, 120), cBC = R(100, 350);
+    const printTO = to * (mC + cC) / 100;
+    const tiTot = tiC * (bwB + to) / 100, bti = tiTot - printTO;
+    if (bti < bwB * tiC / 100 * 0.9 || bti > bwB * tiC / 100 * 1.1) continue;
+    const covers = coverC * doneB / 100, cTotB = cBC * eucB / 100;
+    const bcB = Math.round(bwB * pbB / 100 * cBC / 100 * (1 + R(-8, 8) / 100) / 10) * 10, ccB = cTotB - bcB;
+    if (bcB <= 0 || ccB <= 0) continue;
+    return { bw, started, ew, pb, pe, bm, bc, cm, cc, dl, oh, bwB, ewB, pbB, peB, bti, bcB, covers, ccB };
+  }
+  throw new Error("Could not generate a problem set");
+}
+// Every answer, worked out from the data.
+function solve(P) {
+  const to = P.bw + P.started - P.ew, eum = to + P.ew, euc = to + P.ew * P.pe / 100;
+  const mr = (P.bm + P.cm) / eum, cr = (P.bc + P.cc) / euc;
+  const tot = P.bm + P.cm + P.bc + P.cc, toCost = Math.round(to * (mr + cr)), ewCost = tot - toCost;
+  const doneB = P.bwB + to - P.ewB, euti = P.bwB + to, eumB = doneB, eucB = doneB + P.ewB * P.peB / 100;
+  const tiTot = P.bti + toCost, tir = tiTot / euti, mrB = P.covers / eumB, crB = (P.bcB + P.ccB) / eucB, perB = Math.round((tir + mrB + crB) * 100) / 100;
+  return { to, eum, euc, mr, cr, tot, toCost, ewCost, doneB, euti, eumB, eucB, tiTot, tir, mrB, crB, perB, fg: Math.round(doneB * perB) };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, kind, wrong, work, extra) { return Object.assign({ id, label, kind: kind || "$", ans, wrong, work }, extra || {}); }
+function entry(id, tick, title, desc, lines, walk) {
+  const fields = [], pub = [];
+  lines.forEach((l, k) => {
+    fields.push({ id: "a" + k, label: (l.side === "Dr" ? "Debit" : "Credit") + " account, line " + (k + 1), kind: "sel", opts: ACCTS, ans: l.a, work: l.why });
+    fields.push({ id: "v" + k, label: (l.side === "Dr" ? "Debit" : "Credit") + " amount, line " + (k + 1), kind: "$", ans: l.amt, work: l.amtWhy });
+    pub.push({ side: l.side, a: "a" + k, v: "v" + k });
+  });
+  return { id, phase: "je", tick, layout: "je", title, desc, lines: pub, je: lines, fields, walk };
+}
+function buildParts(P) {
+  const S = solve(P), ewc = P.ew * P.pe / 100, ewcB = P.ewB * P.peB / 100;
+  const parts = [];
+  parts.push({ id: "units", phase: "print", tick: "1", title: "Physical units in Printing",
+    desc: "Account for every guidebook that passed through Printing this year. The units to account for must equal the units accounted for.",
+    hint: "Units to account for = beginning WIP + units started. Completed and transferred out = units to account for − ending WIP.",
+    why: "The physical flow comes first: every unit in beginning WIP or started this year is either finished and sent on, or still in ending WIP.",
+    fields: [
+      num("toa", "Units to account for", P.bw + P.started, "u", v => v === P.started ? "Add beginning work in process: units to account for = beginning WIP + units started." : v === P.started - P.bw ? "Add beginning WIP to the units started, don't subtract it." : "Units to account for = beginning WIP + units started.", units(P.bw) + " + " + units(P.started) + " = " + units(P.bw + P.started)),
+      num("to", "Units completed and transferred out to Binding", S.to, "u", v => v === P.started - P.ew ? "The units in beginning WIP were finished this year too. Start from beginning WIP + units started." : v === P.bw + P.started ? "Subtract the units still in ending WIP. They haven't been transferred out." : v === P.started ? "Not every unit started was finished, and beginning WIP was finished too. Use units to account for − ending WIP." : "Completed and transferred out = units to account for − ending WIP.", units(P.bw + P.started) + " − " + units(P.ew) + " = " + units(S.to)),
+      num("ew", "Units in ending work in process", P.ew, "u", v => v === P.bw ? "That is beginning WIP. Use the units still in process at year-end." : "Use the units still in process at the end of the year, from the data.", units(P.ew)),
+      num("acc", "Units accounted for", S.to + P.ew, "u", (v, n) => n.to != null && n.ew != null && v === n.to + n.ew && (n.to !== S.to || n.ew !== P.ew) ? "Your addition is right, but a line above is not. Fix it first." : "Units accounted for = completed and transferred out + ending WIP. It must equal units to account for.", units(S.to) + " + " + units(P.ew) + " = " + units(S.to + P.ew))],
+    walk: [{ keys: ["toa"], text: "Everything in beginning WIP plus everything started must be accounted for.", formula: units(P.bw) + " + " + units(P.started) + " = " + units(P.bw + P.started) },
+      { keys: ["to", "ew", "acc"], text: "Units not still in ending WIP were finished and sent to Binding.", formula: units(P.bw + P.started) + " − " + units(P.ew) + " = " + units(S.to) + "; " + units(S.to) + " + " + units(P.ew) + " = " + units(S.to + P.ew) }] });
+
+  parts.push({ id: "eu", phase: "print", tick: "2", title: "Equivalent units in Printing",
+    desc: "Printing completed and transferred out " + units(S.to) + " (given). Paper is added at the start of Printing; conversion happens evenly. The " + units(P.ew) + " in ending WIP are " + P.pe + "% complete for conversion. Use the weighted-average method.",
+    hint: "Equivalent units = units completed + ending WIP × its percentage complete for that input. Paper is added at the start, so ending WIP is 100% complete for materials.",
+    why: "Equivalent units turn partly finished units into the number of whole units that work equals, so costs can be spread fairly between finished units and ending WIP.",
+    fields: [
+      num("eum", "Equivalent units for materials (paper)", S.eum, "u", v => v === S.to + ewc ? "Paper is added at the start, so the units in ending WIP already have all their paper. Count them at 100% for materials." : v === S.to ? "Include ending WIP. Those units already have their paper." : v === S.eum - P.bw ? "Under weighted average, don't subtract beginning WIP. Use units completed + ending WIP." : "Materials EU = units completed + ending WIP × 100%.", units(S.to) + " + " + units(P.ew) + " × 100% = " + units(S.eum)),
+      num("euc", "Equivalent units for conversion", S.euc, "u", v => v === S.to + P.ew ? "Ending WIP is only " + P.pe + "% done for conversion. Count " + units(P.ew) + " × " + P.pe + "%." : v === S.to + P.ew * P.pb / 100 ? "Use ending WIP's percentage complete (" + P.pe + "%), not beginning WIP's." : v === S.to ? "Include the conversion done on ending WIP: " + units(P.ew) + " × " + P.pe + "%." : "Conversion EU = units completed + ending WIP × " + P.pe + "%.", units(S.to) + " + " + units(P.ew) + " × " + P.pe + "% = " + units(S.euc))],
+    walk: [{ keys: ["eum"], text: "Paper goes in at the start, so ending WIP counts in full for materials.", formula: units(S.to) + " + " + units(P.ew) + " = " + units(S.eum) },
+      { keys: ["euc"], text: "Ending WIP counts only as far as it is converted.", formula: units(S.to) + " + " + units(P.ew) + " × " + P.pe + "% = " + units(S.euc) }] });
+
+  parts.push({ id: "rate", phase: "print", tick: "3", title: "Cost per equivalent unit in Printing",
+    desc: "Equivalent units: " + units(S.eum) + " for materials and " + units(S.euc) + " for conversion (given). Under weighted average, the cost per equivalent unit includes beginning WIP cost and the cost added this year. Round to the cent.",
+    hint: "Cost per EU = (beginning WIP cost + cost added this year) ÷ equivalent units, for each input.",
+    why: "Weighted average pools the cost already in beginning WIP with this year's cost, so every equivalent unit carries the same cost.",
+    fields: [
+      num("mr", "Cost per equivalent unit, materials", S.mr, "$", v => near(v, Math.round(P.cm / S.eum * 100) / 100) ? "Weighted average includes beginning WIP: (beginning materials cost + materials added) ÷ materials EU." : near(v, Math.round((P.bm + P.cm) / S.to * 100) / 100) ? "Divide by equivalent units for materials, not units completed." : near(v, Math.round((P.bm + P.cm) / S.euc * 100) / 100) ? "Divide materials cost by the materials equivalent units." : "Materials cost per EU = (" + money(P.bm) + " + " + money(P.cm) + ") ÷ " + units(S.eum) + ", to the cent.", "(" + money(P.bm) + " + " + money(P.cm) + ") ÷ " + fmt(S.eum) + " = " + cents(S.mr), { dec: 2 }),
+      num("cr", "Cost per equivalent unit, conversion", S.cr, "$", v => near(v, Math.round(P.cc / S.euc * 100) / 100) ? "Weighted average includes beginning WIP: (beginning conversion cost + conversion added) ÷ conversion EU." : near(v, Math.round((P.bc + P.cc) / S.to * 100) / 100) ? "Divide by equivalent units for conversion, not units completed." : near(v, Math.round((P.bc + P.cc) / S.eum * 100) / 100) ? "Divide conversion cost by the conversion equivalent units." : "Conversion cost per EU = (" + money(P.bc) + " + " + money(P.cc) + ") ÷ " + units(S.euc) + ", to the cent.", "(" + money(P.bc) + " + " + money(P.cc) + ") ÷ " + fmt(S.euc) + " = " + cents(S.cr), { dec: 2 })],
+    walk: [{ keys: ["mr"], text: "Pool beginning and current materials cost, then divide by materials EU.", formula: "(" + money(P.bm) + " + " + money(P.cm) + ") ÷ " + fmt(S.eum) + " = " + cents(S.mr) },
+      { keys: ["cr"], text: "Do the same for conversion.", formula: "(" + money(P.bc) + " + " + money(P.cc) + ") ÷ " + fmt(S.euc) + " = " + cents(S.cr) }] });
+
+  const ewWork = units(P.ew) + " × " + cents(S.mr) + " + " + fmt(ewc) + " EU × " + cents(S.cr) + " = " + money(S.ewCost);
+  parts.push({ id: "assign", phase: "print", tick: "4", title: "Assign Printing's costs",
+    desc: "Cost per equivalent unit: " + cents(S.mr) + " for materials and " + cents(S.cr) + " for conversion (given). Assign the costs to the units transferred out and to ending WIP.",
+    hint: "Transferred out = units completed × (materials + conversion cost per EU). Ending WIP = its materials EU × materials cost + its conversion EU × conversion cost.",
+    why: "Costs accounted for must equal costs to account for: beginning WIP cost plus the cost added this year.",
+    fields: [
+      num("toc", "Cost of units transferred out to Binding", S.toCost, "$", v => v === Math.round(S.to * S.mr) ? "Completed units carry conversion cost too. Use materials + conversion cost per EU." : v === Math.round(S.to * S.cr) ? "Completed units carry materials cost too. Use materials + conversion cost per EU." : v === Math.round((S.to + P.ew) * (S.mr + S.cr)) ? "Ending WIP stays in Printing. Use only the units completed." : "Transferred out = " + units(S.to) + " × (" + cents(S.mr) + " + " + cents(S.cr) + ").", units(S.to) + " × " + cents(S.mr + S.cr) + " = " + money(S.toCost)),
+      num("ewc", "Cost of ending work in process", S.ewCost, "$", v => v === Math.round(P.ew * (S.mr + S.cr)) ? "Ending WIP is only " + P.pe + "% complete for conversion. Use " + fmt(ewc) + " conversion EU." : v === Math.round(P.ew * S.mr) ? "Ending WIP has some conversion cost too: " + fmt(ewc) + " EU × " + cents(S.cr) + "." : v === Math.round(ewc * (S.mr + S.cr)) ? "Ending WIP has all its paper. Use " + units(P.ew) + " for materials." : "Ending WIP = materials EU × materials cost per EU + conversion EU × conversion cost per EU.", ewWork),
+      num("tca", "Total costs accounted for", S.tot, "$", (v, n) => n.toc != null && n.ewc != null && v === n.toc + n.ewc && (n.toc !== S.toCost || n.ewc !== S.ewCost) ? "Your addition is right, but a cost above is not; when both are right, the total equals the costs to account for." : v === P.cm + P.cc ? "Include beginning WIP cost. Total accounted for = transferred out + ending WIP = beginning + current costs." : "Total costs accounted for = transferred out + ending WIP. It equals beginning WIP cost + costs added.", money(S.toCost) + " + " + money(S.ewCost) + " = " + money(S.tot))],
+    walk: [{ keys: ["toc"], text: "Every completed unit carries a full materials and conversion cost.", formula: units(S.to) + " × " + cents(S.mr + S.cr) + " = " + money(S.toCost) },
+      { keys: ["ewc"], text: "Ending WIP carries its equivalent units of each.", formula: ewWork },
+      { keys: ["tca"], text: "The two add up to the costs to account for.", formula: money(S.toCost) + " + " + money(S.ewCost) + " = " + money(S.tot) + " = " + money(P.bm + P.bc) + " + " + money(P.cm + P.cc) }] });
+
+  const perWork = cents(S.tir) + " + " + cents(S.mrB) + " + " + cents(S.crB) + " = " + cents(S.perB);
+  parts.push({ id: "bind", phase: "bind", tick: "5", title: "Binding department",
+    desc: "Binding received " + units(S.to) + " from Printing with a transferred-in cost of " + money(S.toCost) + " (given). Covers are added at the end of Binding; conversion happens evenly. Ending WIP in Binding is " + P.peB + "% complete for conversion. Use the weighted-average method; round costs per EU to the cent.",
+    hint: "Transferred-in units are 100% complete for transferred-in cost. Covers go on at the end, so ending WIP has none. Cost to Finished Goods = units completed × total cost per EU.",
+    why: "Each department adds its own costs to the cost it receives. Binding's transferred-in cost is treated like a material added at the start of Binding.",
+    fields: [
+      num("ti", "Transferred-in costs to account for (beginning WIP + from Printing)", S.tiTot, "$", v => v === S.toCost ? "Add the transferred-in cost already in Binding's beginning WIP." : v === P.bti ? "Add the cost transferred in from Printing this year." : "Transferred-in costs = beginning WIP transferred-in cost + cost received from Printing.", money(P.bti) + " + " + money(S.toCost) + " = " + money(S.tiTot)),
+      num("euti", "Equivalent units, transferred in", S.euti, "u", v => v === S.doneB ? "The units in ending WIP came from Printing too. Every unit is 100% complete for transferred-in cost." : v === S.to ? "Include Binding's beginning WIP. Transferred-in EU = units completed + ending WIP." : "Transferred-in EU = units completed in Binding + ending WIP × 100%.", units(S.doneB) + " + " + units(P.ewB) + " = " + units(S.euti)),
+      num("eumB", "Equivalent units, materials (covers)", S.eumB, "u", v => v === S.doneB + P.ewB ? "Covers are added at the end, so ending WIP has no covers yet. Count only units completed." : v === S.doneB + ewcB ? "Covers go on at the end, not evenly. Ending WIP has 0% of its covers." : "Covers EU = units completed in Binding (ending WIP has none).", units(S.doneB) + " + " + units(P.ewB) + " × 0% = " + units(S.eumB)),
+      num("eucB", "Equivalent units, conversion", S.eucB, "u", v => v === S.doneB + P.ewB ? "Ending WIP is only " + P.peB + "% done for conversion. Count " + units(P.ewB) + " × " + P.peB + "%." : v === S.doneB + P.ewB * P.pbB / 100 ? "Use ending WIP's percentage complete (" + P.peB + "%), not beginning WIP's." : v === S.doneB ? "Include the conversion done on ending WIP." : "Conversion EU = units completed + ending WIP × " + P.peB + "%.", units(S.doneB) + " + " + units(P.ewB) + " × " + P.peB + "% = " + units(S.eucB)),
+      num("per", "Total cost per equivalent unit (transferred in + covers + conversion)", S.perB, "$", v => near(v, Math.round((S.tir + S.crB) * 100) / 100) ? "Add the cost per EU for covers too." : near(v, Math.round((S.toCost / S.euti + S.mrB + P.ccB / S.eucB) * 100) / 100) ? "Weighted average includes Binding's beginning WIP costs in each numerator." : "Total cost per EU = transferred-in cost per EU + covers cost per EU + conversion cost per EU.", perWork, { dec: 2 }),
+      num("fg", "Cost transferred to Finished Goods", S.fg, "$", (v, n) => n.per != null && v === Math.round(S.doneB * n.per) && !near(n.per, S.perB) ? "Your multiplication is right, but your total cost per EU is not. Fix it first." : v === Math.round((S.doneB + P.ewB) * S.perB) ? "Only completed units go to Finished Goods. Leave out ending WIP." : "Cost to Finished Goods = " + units(S.doneB) + " completed × total cost per EU.", units(S.doneB) + " × " + cents(S.perB) + " = " + money(S.fg))],
+    walk: [{ keys: ["ti"], text: "Pool the transferred-in cost in beginning WIP with the cost received from Printing.", formula: money(P.bti) + " + " + money(S.toCost) + " = " + money(S.tiTot) },
+      { keys: ["euti", "eumB", "eucB"], text: "Units completed in Binding = beginning WIP + received − ending WIP = " + units(S.doneB) + ". Ending WIP counts 100% for transferred-in cost, 0% for covers, " + P.peB + "% for conversion." },
+      { keys: ["per"], text: "Add the three costs per EU.", formula: money(S.tiTot) + " ÷ " + fmt(S.euti) + " + " + money(P.covers) + " ÷ " + fmt(S.eumB) + " + " + money(P.bcB + P.ccB) + " ÷ " + fmt(S.eucB) + " → " + perWork },
+      { keys: ["fg"], text: "Completed units go to Finished Goods at the full cost per EU.", formula: units(S.doneB) + " × " + cents(S.perB) + " = " + money(S.fg) }] });
+
+  const L = (side, a, amt, why, amtWhy, traps) => ({ side, a, amt, why, amtWhy, traps: traps || [] });
+  parts.push(entry("je1", "6a", "Entry (a): paper to Printing",
+    "Record the paper (raw materials) put into production in Printing this year.",
+    [L("Dr", "wipP", P.cm, "Materials put into Printing are debited to Work in Process–Printing.", "The paper added in Printing this year.", [{ val: P.bm + P.cm, msg: "Record only the paper added this year. Beginning WIP's paper was recorded last year." }]),
+     L("Cr", "rm", P.cm, "Paper leaves Raw Materials Inventory when it goes into production.", "The same amount.", [{ val: P.bm + P.cm, msg: "Record only the paper added this year." }])],
+    [{ keys: ["a0", "v0", "a1", "v1"], text: "Paper moves from Raw Materials into Printing's Work in Process.", formula: money(P.cm) }]));
+  parts.push(entry("je2", "6b", "Entry (b): conversion costs in Printing",
+    "Record Printing's conversion costs for the year: direct labor (owed to employees) and manufacturing overhead applied.",
+    [L("Dr", "wipP", P.cc, "Conversion costs are added to Work in Process–Printing.", "Direct labor + applied overhead.", [{ val: P.bc + P.cc, msg: "Record only the conversion cost added this year." }, { val: P.dl, msg: "Debit Work in Process for all conversion cost: labor and overhead." }]),
+     L("Cr", "wp", P.dl, "Direct labor owed to employees is credited to Wages Payable.", "Printing's direct labor.", [{ val: P.cc, msg: "Wages Payable gets only the labor; overhead applied is credited to Manufacturing Overhead." }]),
+     L("Cr", "moh", P.oh, "Applying overhead credits Manufacturing Overhead.", "Printing's applied overhead.", [{ val: P.cc, msg: "Manufacturing Overhead gets only the overhead applied; labor is credited to Wages Payable." }])],
+    [{ keys: ["a0", "v0", "a1", "v1", "a2", "v2"], text: "Labor and applied overhead are added to Printing's Work in Process.", formula: money(P.dl) + " + " + money(P.oh) + " = " + money(P.cc) }]));
+  parts.push(entry("je3", "6c", "Entry (c): Printing to Binding",
+    "Record the cost of the units Printing completed and transferred to Binding.",
+    [L("Dr", "wipB", S.toCost, "Units moving on to Binding are debited to Work in Process–Binding.", "Printing's cost of units transferred out.", [{ val: S.tot, msg: "Only completed units move to Binding. Ending WIP stays in Printing." }]),
+     L("Cr", "wipP", S.toCost, "Completed units leave Work in Process–Printing.", "The same amount.", [{ val: S.tot, msg: "Only completed units move to Binding. Ending WIP stays in Printing." }])],
+    [{ keys: ["a0", "v0", "a1", "v1"], text: "The transferred-out cost moves from Printing's WIP to Binding's WIP.", formula: money(S.toCost) }]));
+  parts.push(entry("je4", "6d", "Entry (d): Binding to Finished Goods",
+    "Record the cost of the guidebooks Binding completed and transferred to Finished Goods.",
+    [L("Dr", "fg", S.fg, "Finished guidebooks are debited to Finished Goods Inventory.", "Binding's cost transferred to Finished Goods.", [{ val: S.tiTot, msg: "That is only the transferred-in cost. Use Binding's full cost of units completed." }]),
+     L("Cr", "wipB", S.fg, "Completed guidebooks leave Work in Process–Binding.", "The same amount.")],
+    [{ keys: ["a0", "v0", "a1", "v1"], text: "Binding's completed units move to Finished Goods.", formula: money(S.fg) }]));
+  return parts;
+}
+
+// ---------- Grading ----------
+function amountMsg(v) { return v === null ? "Enter an amount." : "Enter a number only, like 2400 or 2,400."; }
+function gradeField(f, raw, nums) {
+  if (f.kind === "sel") {
+    const v = typeof raw === "string" ? raw : "";
+    if (!v || !f.opts.some(o => o[0] === v)) return { ok: false, msg: "Choose an answer." };
+    return v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+  }
+  const v = parse(raw);
+  if (v === null || isNaN(v)) return { ok: false, msg: amountMsg(v) };
+  if (f.dec ? near(v, f.ans) : v === f.ans) return { ok: true, msg: "Correct." };
+  return { ok: false, msg: f.wrong(v, nums) };
+}
+// A journal entry: the lines on each side can be in any order. A line whose account matches a right line is
+// paired with it; the rest are paired in order. Each account and each amount is a point.
+function gradeEntry(p, vals) {
+  const res = {}; let all = true;
+  ["Dr", "Cr"].forEach(side => {
+    const idx = p.je.map((l, k) => l.side === side ? k : -1).filter(k => k >= 0);
+    const acct = k => { const v = vals["a" + k]; return typeof v === "string" && ACCT[v] ? v : ""; };
+    const used = new Set(), pair = {};
+    idx.forEach(k => { const a = acct(k); const m = idx.find(c => !used.has(c) && p.je[c].a === a); if (a && m != null) { pair[k] = m; used.add(m); } });
+    idx.forEach(k => { if (pair[k] == null) { const m = idx.find(c => !used.has(c)); pair[k] = m; used.add(m); } });
+    idx.forEach(k => {
+      const L = p.je[pair[k]], a = acct(k), v = parse(vals["v" + k]);
+      if (!a) res["a" + k] = { ok: false, msg: "Choose an account." };
+      else if (a === L.a) res["a" + k] = { ok: true, msg: "Correct." };
+      else res["a" + k] = { ok: false, msg: (side === "Dr" ? "Not a debit to " : "Not a credit to ") + ACCT[a] + ". " + L.why };
+      if (v === null || isNaN(v)) res["v" + k] = { ok: false, msg: amountMsg(v) };
+      else if (v === L.amt) res["v" + k] = { ok: true, msg: "Correct." };
+      else { const t = L.traps.find(x => x.val === v); res["v" + k] = { ok: false, msg: t ? t.msg : L.amtWhy }; }
+      if (!res["a" + k].ok || !res["v" + k].ok) all = false;
+    });
+  });
+  return { res, all };
+}
+function grade(p, vals) {
+  if (p.layout === "je") return gradeEntry(p, vals);
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => { res[f.id] = gradeField(f, vals[f.id], nums); if (!res[f.id].ok) all = false; });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> prints its guidebooks in two departments: <b>Printing</b> (paper added at the start) and then <b>Binding</b> (covers added at the end). Weighted-average process costing, year " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  const grp = n => '<tr class="grp"><td colspan="2">' + n + '</td></tr>';
+  let h = '<div class="scroll"><table class="dtab"><caption><div class="cap-firm">Printing department</div><div class="cap-date">For the year ended December 31, ' + YEAR + '</div></caption><tbody>' +
+    grp("Units") + row("Beginning work in process (" + P.pb + "% complete for conversion)", units(P.bw)) + row("Units started this year", units(P.started)) + row("Ending work in process (" + P.pe + "% complete for conversion)", units(P.ew)) +
+    grp("Costs") + row("Beginning WIP: paper (materials)", money(P.bm)) + row("Beginning WIP: conversion", money(P.bc)) + row("Paper added this year", money(P.cm)) + row("Direct labor this year", money(P.dl)) + row("Overhead applied this year", money(P.oh)) +
+    '</tbody></table></div><p class="note">Paper is added at the start of Printing. Conversion (labor and overhead) happens evenly.</p>';
+  const idx = c.parts.findIndex(p => p.id === "bind");
+  if (c.cur >= idx) {
+    const recv = c.ans("units", "to");
+    h += '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-firm">Binding department</div></caption><tbody>' +
+      grp("Units") + row("Beginning work in process (" + P.pbB + "% complete for conversion)", units(P.bwB)) + row("Received from Printing", recv != null ? units(recv) : "From Part 1") + row("Ending work in process (" + P.peB + "% complete for conversion)", units(P.ewB)) +
+      grp("Costs") + row("Beginning WIP: transferred-in cost", money(P.bti)) + row("Beginning WIP: conversion", money(P.bcB)) + row("Covers added this year", money(P.covers)) + row("Conversion added this year", money(P.ccB)) +
+      '</tbody></table></div><p class="note">Covers are added at the end of Binding. Conversion happens evenly.</p>';
+  }
+  return { title: "Production data", sub: "Weighted-average method", html: h };
+}
+
+MAFrame.start({
+  slug: "ma-process-costing", key: "ma-proc1", module: "M2", title: "Process Costing Lab",
+  phases: [["print", "Printing"], ["bind", "Binding"], ["je", "Journal entries"]],
+  dataTitle: "Production data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
