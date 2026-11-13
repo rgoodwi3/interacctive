@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Job Order Costing Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M2 Lab 3: Job Order Costing. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-job-order-costing), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-job-order-costing.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => "$" + fmt(n);
+const cents = n => "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// An amount as typed: commas, $ and spaces are fine; anything else is not a number.
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+const ACCTS = [["rm", "Raw Materials Inventory"], ["wip", "Work in Process Inventory"], ["fg", "Finished Goods Inventory"], ["moh", "Manufacturing Overhead"],
+  ["wp", "Wages Payable"], ["ad", "Accumulated Depreciation–Factory"], ["up", "Utilities Payable"], ["cogs", "Cost of Goods Sold"]];
+const ACCT = Object.fromEntries(ACCTS);
+const STATUS = [["wip", "Work in process"], ["fg", "Finished goods"], ["sold", "Sold"]];
+const CLIENTS = ["Harbor Bank", "Elm City Clinic", "Shoreline Realty", "Westville Tech", "Long Wharf Hotel", "West River Schools", "Green Street Law", "Atlas Logistics"];
+const DISTRACT = [["Rent on the sales office", "rent on the sales office is a selling expense"], ["Sales staff salaries", "sales staff salaries are a selling expense"], ["Salary of the company president", "the president's salary is an administrative expense"]];
+const BASE = { dlh: { name: "direct labor hours", unit: "direct labor hour", short: "DLH" }, mh: { name: "machine hours", unit: "machine hour", short: "MH" } };
+
+// ---------- Problem generator ----------
+// Three custom jobs, no beginning inventories. Amounts are chosen so the rate is whole quarters of a dollar,
+// applied overhead is whole dollars, the delivered job's unit cost is whole cents, and overhead is under- or
+// overapplied by 2% to 9%.
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const shuffle = xs => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } return a; };
+  for (let t = 0; t < 20000; t++) {
+    const base = r() < 0.5 ? "dlh" : "mh", other = base === "dlh" ? "mh" : "dlh";
+    const rate = R(40, 96) / 4, wage = R(18, 30), first = R(201, 480);
+    const order = shuffle([0, 1, 2]), st = ["wip", "fg", "sold"];
+    const clients = shuffle(CLIENTS).slice(0, 3);
+    const jobs = [0, 1, 2].map(i => ({ no: first + i, client: clients[i], dm: R(150, 600) * 100, dlh: R(60, 200) * 20, mh: R(50, 220) * 20, units: R(4, 40) * 50, status: st[order[i]] }));
+    const B = jobs.reduce((a, j) => a + j[base], 0), Bo = jobs.reduce((a, j) => a + j[other], 0);
+    const d1 = R(-8, 8), d2 = R(-6, 6);
+    if (Math.abs(d1) < 2) continue;
+    const EB = Math.round(B * (1 + d1 / 100) / 100) * 100, EBo = Math.round(Bo * (1 + d2 / 100) / 100) * 100;
+    const emoh = rate * EB;
+    const app = jobs.map(j => rate * j[base]), tot = jobs.map((j, i) => j.dm + j.dlh * wage + app[i]);
+    if (new Set(tot).size < 3) continue;
+    const s = jobs.findIndex(j => j.status === "sold");
+    const u = [1000, 500, 400, 250, 200].find(x => tot[s] * 100 % x === 0) || 100;
+    jobs[s].units = u;
+    const A = app.reduce((a, x) => a + x, 0);
+    const diff = Math.round(A * R(2, 9) / 1000) * 10, sign = r() < 0.5 ? 1 : -1;
+    if (diff < 500) continue;
+    const actual = A + sign * diff;
+    const im = R(15, 60) * 100, il = R(40, 140) * 100, dep = R(60, 200) * 100, util = R(20, 80) * 100, ins = actual - im - il - dep - util;
+    if (ins < 1500 || ins > 30000) continue;
+    const dx = DISTRACT[R(0, DISTRACT.length - 1)];
+    return { base, rate, wage, jobs, EB, EBo, emoh, estDLH: base === "dlh" ? EB : EBo, estMH: base === "mh" ? EB : EBo,
+      im, il, dep, util, ins, dname: dx[0], dwhy: dx[1], damt: R(30, 90) * 100 };
+  }
+  throw new Error("Could not generate a problem set");
+}
+// Every answer, worked out from the data.
+function solve(P) {
+  const b = P.base, J = P.jobs;
+  const dm = J.map(j => j.dm), dl = J.map(j => j.dlh * P.wage), oh = J.map(j => P.rate * j[b]), tot = J.map((j, i) => dm[i] + dl[i] + oh[i]);
+  const idx = st => J.findIndex(j => j.status === st), w = idx("wip"), f = idx("fg"), s = idx("sold");
+  const actual = P.im + P.il + P.dep + P.util + P.ins, applied = oh.reduce((a, x) => a + x, 0), diff = Math.abs(actual - applied), under = actual > applied;
+  const B = J.reduce((a, j) => a + j[b], 0);
+  return { dm, dl, oh, tot, w, f, s, uc: tot[s] / J[s].units, actual, applied, diff, under, B,
+    dmT: dm.reduce((a, x) => a + x, 0), dlT: dl.reduce((a, x) => a + x, 0), done: tot[f] + tot[s], cogs: tot[s], adj: tot[s] + (under ? diff : -diff) };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, kind, wrong, work, extra) { return Object.assign({ id, label, kind: kind || "$", ans, wrong, work }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+// A journal entry part: its lines (side, account, amount, why) become an account field and an amount field each.
+function entry(id, tick, title, desc, lines, walk) {
+  const fields = [], pub = [];
+  lines.forEach((l, k) => {
+    fields.push({ id: "a" + k, label: (l.side === "Dr" ? "Debit" : "Credit") + " account, line " + (k + 1), kind: "sel", opts: ACCTS, ans: l.a, work: l.why });
+    fields.push({ id: "v" + k, label: (l.side === "Dr" ? "Debit" : "Credit") + " amount, line " + (k + 1), kind: "$", ans: l.amt, work: l.amtWhy });
+    pub.push({ side: l.side, a: "a" + k, v: "v" + k });
+  });
+  return { id, phase: "je", tick, layout: "je", title, desc, lines: pub, je: lines, fields, walk };
+}
+function buildParts(P) {
+  const S = solve(P), J = P.jobs, b = BASE[P.base], o = BASE[P.base === "dlh" ? "mh" : "dlh"];
+  const jn = i => "Job " + J[i].no;
+  const actRate = S.actual / S.B;
+  const rateWork = money(P.emoh) + " ÷ " + fmt(P.EB) + " estimated " + b.name + " = " + cents(P.rate) + " per " + b.unit;
+  const parts = [];
+  parts.push({ id: "rate", phase: "rate", tick: "1", title: "Predetermined overhead rate",
+    desc: "Before the year began, Problem Solvers estimated its manufacturing overhead and its activity for the year. The print shop applies overhead to jobs on the basis of " + b.name + ". Compute the predetermined overhead rate to the cent.",
+    hint: "Predetermined overhead rate = estimated manufacturing overhead ÷ estimated " + b.name + ".",
+    why: "The rate is set before the year from estimates, so jobs can be costed as they are worked on instead of waiting for the year's actual overhead.",
+    fields: [num("rate", "Predetermined overhead rate (per " + b.unit + ")", P.rate, "$", v =>
+      near(v, Math.round(actRate * 100) / 100) || near(v, actRate) ? "That uses actual overhead and actual hours. A predetermined rate is set before the year from estimated amounts: estimated overhead ÷ estimated " + b.name + "." :
+      near(v, Math.round(P.EB / P.emoh * 100) / 100) ? "You divided the hours by the overhead. Rate = estimated overhead ÷ estimated " + b.name + "." :
+      near(v, Math.round(P.emoh / P.EBo * 100) / 100) ? "Problem Solvers applies overhead on " + b.name + ", not " + o.name + "." :
+      near(v, Math.round(P.emoh / S.B * 100) / 100) || near(v, Math.round(S.actual / P.EB * 100) / 100) ? "Use estimated amounts for both: estimated overhead ÷ estimated " + b.name + "." :
+      "Predetermined overhead rate = estimated manufacturing overhead ÷ estimated " + b.name + ", rounded to the cent.", rateWork, { dec: 2 })],
+    walk: [{ keys: ["rate"], text: "Divide the estimated overhead by the estimated amount of the allocation base, " + b.name + ".", formula: rateWork }] });
+
+  const jobFields = [];
+  J.forEach((j, i) => {
+    jobFields.push(num("dm" + i, jn(i) + " direct materials", S.dm[i], "$", v => v === j.dm + P.im ? "Only materials requisitioned for this job are direct materials. Indirect materials go to Manufacturing Overhead." : "Direct materials = the materials requisitioned for " + jn(i) + ".", money(j.dm) + " requisitioned", { row: i, col: "dm" }));
+    jobFields.push(num("dl" + i, jn(i) + " direct labor", S.dl[i], "$", v =>
+      v === j.dlh * P.rate ? "That uses the overhead rate. Direct labor = direct labor hours × the " + money(P.wage) + " wage rate." :
+      v === j.mh * P.wage ? "Direct labor uses direct labor hours, not machine hours." :
+      v === j.dlh ? "That is the number of hours. Multiply by the " + money(P.wage) + " wage rate." :
+      "Direct labor = " + fmt(j.dlh) + " direct labor hours × " + money(P.wage) + " per hour.", fmt(j.dlh) + " DLH × " + money(P.wage) + " = " + money(S.dl[i]), { row: i, col: "dl" }));
+    jobFields.push(num("oh" + i, jn(i) + " applied overhead", S.oh[i], "$", v =>
+      v === P.rate * j[P.base === "dlh" ? "mh" : "dlh"] ? "Apply overhead on " + b.name + ", the base the rate was built on, not " + o.name + "." :
+      Math.abs(v - j[P.base] * actRate) <= 1 ? "That uses the actual overhead rate. Jobs are charged with the predetermined rate, " + cents(P.rate) + " per " + b.unit + "." :
+      v === S.dl[i] ? "That is direct labor. Applied overhead = " + b.name + " used × the predetermined rate." :
+      "Applied overhead = " + fmt(j[P.base]) + " " + b.name + " × " + cents(P.rate) + ".", fmt(j[P.base]) + " " + b.short + " × " + cents(P.rate) + " = " + money(S.oh[i]), { row: i, col: "oh" }));
+    jobFields.push(num("tot" + i, jn(i) + " total cost", S.tot[i], "$", (v, n) =>
+      n["dm" + i] != null && n["dl" + i] != null && n["oh" + i] != null && v === n["dm" + i] + n["dl" + i] + n["oh" + i] ? "Your addition is right, but a cost on this job's row is not. Fix the amount marked ✗ first." :
+      v === S.dm[i] + S.dl[i] ? "Add applied overhead too. A job's cost is direct materials + direct labor + applied overhead." :
+      "Total job cost = direct materials + direct labor + applied overhead.", money(S.dm[i]) + " + " + money(S.dl[i]) + " + " + money(S.oh[i]) + " = " + money(S.tot[i]), { row: i, col: "tot" }));
+  });
+  const s = S.s, js = J[s];
+  jobFields.push(num("uc", "Unit cost of " + jn(s) + " (" + fmt(js.units) + " guidebooks)", S.uc, "$", (v, n) =>
+    n["tot" + s] != null && near(v, n["tot" + s] / js.units) && !near(n["tot" + s], S.tot[s]) ? "Your division is right, but " + jn(s) + "'s total cost is not. Fix the total first." :
+    J.some((j, i) => i !== s && near(v, S.tot[i] / js.units)) ? "Use " + jn(s) + "'s own total cost." :
+    near(v, S.tot[s] / J.reduce((a, j) => a + j.units, 0)) ? "Divide by the guidebooks in " + jn(s) + " only." :
+    "Unit cost = " + jn(s) + "'s total cost ÷ " + fmt(js.units) + " guidebooks, to the cent.", money(S.tot[s]) + " ÷ " + fmt(js.units) + " = " + cents(S.uc), { dec: 2 }));
+  parts.push({ id: "jobs", phase: "jobs", tick: "2", layout: "table", title: "Job cost sheets",
+    desc: "Fill in each job's cost sheet. The predetermined overhead rate is " + cents(P.rate) + " per " + b.unit + " (given). Direct labor costs " + money(P.wage) + " per direct labor hour.",
+    itemLabel: "Job", items: J.map(j => ({ text: "Job " + j.no + " · " + j.client })), cols: [{ key: "dm", label: "Direct materials" }, { key: "dl", label: "Direct labor" }, { key: "oh", label: "Applied overhead" }, { key: "tot", label: "Total cost" }],
+    hint: "Direct labor = direct labor hours × wage rate. Applied overhead = " + b.name + " × predetermined rate. Total = DM + DL + applied overhead.",
+    why: "Each job's cost sheet collects its own direct materials, direct labor and a share of overhead. The total follows the job into Finished Goods and then Cost of Goods Sold.",
+    fields: jobFields,
+    walk: J.map((j, i) => ({ keys: ["dm" + i, "dl" + i, "oh" + i, "tot" + i], text: jn(i) + ": materials from its requisitions, labor at the wage rate, overhead at the predetermined rate.",
+      formula: money(S.dm[i]) + " + " + fmt(j.dlh) + " × " + money(P.wage) + " + " + fmt(j[P.base]) + " × " + cents(P.rate) + " = " + money(S.tot[i]) })).concat([{ keys: ["uc"], text: "Spread " + jn(s) + "'s cost over its guidebooks.", formula: money(S.tot[s]) + " ÷ " + fmt(js.units) + " = " + cents(S.uc) }]) });
+
+  const stWhy = { wip: "This job was not finished at December 31, so its cost stays in Work in Process.", fg: "This job was finished but not yet delivered, so its cost sits in Finished Goods.", sold: "This job was delivered to its client, so its cost has moved to Cost of Goods Sold." };
+  const stF = J.map((j, i) => sel("st" + i, jn(i) + " status at December 31", STATUS, j.status, () => stWhy[j.status], stWhy[j.status], { row: i, col: "st" }));
+  parts.push({ id: "status", phase: "jobs", tick: "3", layout: "table", title: "Where the jobs are at year-end",
+    desc: "Use the job status notes in the data to decide where each job's cost is at December 31, then total each account. The job totals from Part 2 are given.",
+    itemLabel: "Job", amountLabel: "Total cost (given)", items: J.map((j, i) => ({ text: "Job " + j.no + " · " + j.client, amount: S.tot[i] })), cols: [{ key: "st", label: "Status at December 31" }],
+    why: "Job order costing follows each job: unfinished jobs make up Work in Process, finished but undelivered jobs make up Finished Goods, and delivered jobs become Cost of Goods Sold.",
+    fields: stF.concat([
+      num("ewip", "Ending Work in Process Inventory", S.tot[S.w], "$", v => v === S.tot[S.f] ? "That is the finished job. Work in Process holds only the job still being printed." : v === S.tot[S.w] + S.tot[S.f] ? "Only the unfinished job is in Work in Process. The finished job has moved to Finished Goods." : "Ending Work in Process = the cost of the job not yet finished.", jn(S.w) + " is unfinished: " + money(S.tot[S.w])),
+      num("efg", "Ending Finished Goods Inventory", S.tot[S.f], "$", v => v === S.tot[S.s] ? "That job was delivered, so it is sold. Finished Goods holds the finished job not yet delivered." : v === S.tot[S.f] + S.tot[S.s] ? "The delivered job has left Finished Goods. Count only the job waiting to be delivered." : "Ending Finished Goods = the cost of the finished job not yet delivered.", jn(S.f) + " is finished, not delivered: " + money(S.tot[S.f])),
+      num("ucogs", "Cost of Goods Sold, before adjusting for overhead", S.cogs, "$", v => v === S.tot[S.f] + S.tot[S.s] ? "Only the delivered job is sold. The other finished job is still in Finished Goods." : v === S.tot.reduce((a, x) => a + x, 0) ? "Only the delivered job's cost is Cost of Goods Sold." : "Cost of Goods Sold = the cost of the job delivered to its client.", jn(S.s) + " was delivered: " + money(S.cogs))]),
+    walk: [{ keys: ["st0", "st1", "st2"], text: "Not finished: Work in Process. Finished, not delivered: Finished Goods. Delivered: Sold." },
+      { keys: ["ewip", "efg", "ucogs"], text: "Each account holds the cost of the job that is there.", formula: "WIP " + money(S.tot[S.w]) + " · FG " + money(S.tot[S.f]) + " · COGS " + money(S.cogs) }] });
+
+  const actWork = [P.im, P.il, P.dep, P.util, P.ins].map(money).join(" + ") + " = " + money(S.actual) + " (the " + P.dname.toLowerCase() + " is not overhead)";
+  const appWork = S.oh.map(money).join(" + ") + " = " + money(S.applied);
+  const UNDER = [["under", "Underapplied"], ["over", "Overapplied"]];
+  parts.push({ id: "ohvar", phase: "oh", tick: "4", title: "Actual vs. applied overhead",
+    desc: "Compare the overhead the print shop actually incurred during the year with the overhead it applied to the three jobs. The data lists the year's actual costs; not every one of them is manufacturing overhead.",
+    hint: "Actual overhead = the indirect production costs actually incurred. Applied overhead = the overhead charged to the jobs in Part 2. If actual is more than applied, overhead is underapplied.",
+    why: "Because the rate comes from estimates, applied overhead almost never equals actual overhead. The difference is closed to Cost of Goods Sold at year-end.",
+    fields: [
+      num("act", "Total actual manufacturing overhead", S.actual, "$", v => v === S.actual + P.damt ? "Leave out the " + P.dname.toLowerCase() + ": " + P.dwhy + ", not manufacturing overhead." : v === S.actual - P.im ? "Include the indirect materials. They are part of actual overhead." : v === S.actual - P.il ? "Include the indirect labor. It is part of actual overhead." : v === P.emoh ? "That is estimated overhead. Add up the overhead costs actually incurred." : "Add the actual indirect production costs: indirect materials, indirect labor, factory depreciation, utilities and insurance.", actWork),
+      num("app", "Total overhead applied to jobs", S.applied, "$", v => v === P.emoh ? "That is estimated overhead. Applied overhead is what the jobs were charged: the three jobs' applied overhead added together." : v === S.actual ? "That is actual overhead. Applied overhead is what the jobs were charged in Part 2." : v === P.rate * P.EB ? "Apply the rate to the hours the jobs actually used, not the estimate." : "Applied overhead = the applied overhead on the three job cost sheets, added together.", appWork),
+      num("diff", "Difference between actual and applied overhead", S.diff, "$", (v, n) => v === -S.diff || v === S.applied - S.actual ? "Enter the difference as a positive amount and choose underapplied or overapplied below." : n.act != null && n.app != null && v === Math.abs(n.act - n.app) && (n.act !== S.actual || n.app !== S.applied) ? "Your subtraction is right, but actual or applied overhead is not. Fix the amount marked ✗ first." : "Difference = actual overhead − applied overhead, as a positive amount.", money(S.actual) + " − " + money(S.applied) + " = " + (S.under ? "" : "−") + money(S.diff)),
+      sel("dir", "Was overhead underapplied or overapplied?", UNDER, S.under ? "under" : "over", () => S.under ? "Actual overhead was more than the overhead applied to jobs, so too little was applied: underapplied." : "Applied overhead was more than actual overhead, so too much was applied: overapplied.", S.under ? "Actual > applied: underapplied" : "Applied > actual: overapplied")],
+    walk: [{ keys: ["act"], text: "Add the indirect production costs. Selling and administrative costs are not overhead.", formula: actWork },
+      { keys: ["app"], text: "Add the overhead applied on the three job cost sheets.", formula: appWork },
+      { keys: ["diff", "dir"], text: S.under ? "Actual is more than applied, so overhead was underapplied." : "Applied is more than actual, so overhead was overapplied.", formula: money(S.actual) + " − " + money(S.applied) }] });
+
+  const L = (side, a, amt, why, amtWhy, traps) => ({ side, a, amt, why, amtWhy, traps: traps || [] });
+  parts.push(entry("je1", "5a", "Entry (a): materials requisitioned",
+    "Record the materials requisitioned from the storeroom during the year: the direct materials for the three jobs and the indirect materials for general print shop use (see the data).",
+    [L("Dr", "wip", S.dmT, "Direct materials requisitioned for jobs are debited to Work in Process.", "Direct materials = the three jobs' requisitions added together.", [{ val: S.dmT + P.im, msg: "That includes the indirect materials. Only direct materials go to Work in Process." }]),
+     L("Dr", "moh", P.im, "Indirect materials can't be traced to a job, so they are debited to Manufacturing Overhead.", "Indirect materials requisitioned for general use."),
+     L("Cr", "rm", S.dmT + P.im, "Materials leave Raw Materials Inventory when they are requisitioned.", "Credit Raw Materials for everything requisitioned: direct + indirect.", [{ val: S.dmT, msg: "Raw Materials gives up the indirect materials too. Credit the total requisitioned." }])],
+    [{ keys: ["a0", "v0", "a1", "v1", "a2", "v2"], text: "Direct materials go to the jobs (WIP); indirect materials go to Manufacturing Overhead; Raw Materials goes down by the total.", formula: money(S.dmT) + " + " + money(P.im) + " = " + money(S.dmT + P.im) }]));
+  parts.push(entry("je2", "5b", "Entry (b): factory labor",
+    "Record the factory labor for the year: direct labor on the three jobs and indirect labor in the print shop, all owed to employees at the time it is recorded.",
+    [L("Dr", "wip", S.dlT, "Direct labor on jobs is debited to Work in Process.", "Direct labor = the three jobs' direct labor added together.", [{ val: S.dlT + P.il, msg: "That includes indirect labor. Only direct labor goes to Work in Process." }]),
+     L("Dr", "moh", P.il, "Indirect labor can't be traced to a job, so it is debited to Manufacturing Overhead.", "Indirect labor for the year."),
+     L("Cr", "wp", S.dlT + P.il, "Wages owed to employees are credited to Wages Payable.", "Credit Wages Payable for all factory labor: direct + indirect.", [{ val: S.dlT, msg: "Employees are owed the indirect labor too. Credit the total." }])],
+    [{ keys: ["a0", "v0", "a1", "v1", "a2", "v2"], text: "Direct labor goes to the jobs (WIP); indirect labor goes to Manufacturing Overhead; Wages Payable goes up by the total.", formula: money(S.dlT) + " + " + money(P.il) + " = " + money(S.dlT + P.il) }]));
+  parts.push(entry("je3", "5c", "Entry (c): apply overhead",
+    "Record the manufacturing overhead applied to the three jobs during the year.",
+    [L("Dr", "wip", S.applied, "Applied overhead is added to the jobs in Work in Process.", "Applied overhead = the three jobs' applied overhead added together.", [{ val: S.actual, msg: "Jobs are charged applied overhead, not actual overhead." }, { val: P.emoh, msg: "That is estimated overhead. Use the overhead applied to the jobs." }]),
+     L("Cr", "moh", S.applied, "Applying overhead credits Manufacturing Overhead.", "The same applied amount.", [{ val: S.actual, msg: "Credit the overhead applied, not the actual overhead." }])],
+    [{ keys: ["a0", "v0", "a1", "v1"], text: "Applying overhead moves it from Manufacturing Overhead into the jobs.", formula: appWork }]));
+  parts.push(entry("je4", "5d", "Entry (d): jobs completed",
+    "Record the cost of the jobs completed during the year.",
+    [L("Dr", "fg", S.done, "Completed jobs move into Finished Goods Inventory.", "Add the total cost of the two finished jobs.", [{ val: S.tot.reduce((a, x) => a + x, 0), msg: "The unfinished job stays in Work in Process. Add only the two finished jobs." }, { val: S.cogs, msg: "Both finished jobs were completed, including the one not yet delivered." }]),
+     L("Cr", "wip", S.done, "Completed jobs leave Work in Process.", "The same total.", [{ val: S.tot.reduce((a, x) => a + x, 0), msg: "The unfinished job stays in Work in Process. Add only the two finished jobs." }])],
+    [{ keys: ["a0", "v0", "a1", "v1"], text: "The two finished jobs move from Work in Process to Finished Goods.", formula: money(S.tot[S.f]) + " + " + money(S.tot[S.s]) + " = " + money(S.done) }]));
+  parts.push(entry("je5", "5e", "Entry (e): cost of the job delivered",
+    "Record the cost of the job delivered to its client. (The sale itself is recorded separately and isn't part of this lab.)",
+    [L("Dr", "cogs", S.cogs, "The cost of a delivered job becomes Cost of Goods Sold.", "The delivered job's total cost.", [{ val: S.done, msg: "Only the delivered job is sold. The other finished job stays in Finished Goods." }]),
+     L("Cr", "fg", S.cogs, "The delivered job leaves Finished Goods Inventory.", "The same amount.")],
+    [{ keys: ["a0", "v0", "a1", "v1"], text: "The delivered job's cost moves from Finished Goods to Cost of Goods Sold.", formula: jn(S.s) + ": " + money(S.cogs) }]));
+  const cl = S.under
+    ? [L("Dr", "cogs", S.diff, "Underapplied overhead was cost not yet charged to jobs, so closing it adds to Cost of Goods Sold.", "The underapplied amount from Part 4.", [{ val: S.actual, msg: "Close only the difference between actual and applied overhead." }, { val: S.applied, msg: "Close only the difference between actual and applied overhead." }]),
+       L("Cr", "moh", S.diff, "Underapplied overhead leaves a debit balance in Manufacturing Overhead; a credit closes it.", "The same amount.")]
+    : [L("Dr", "moh", S.diff, "Overapplied overhead leaves a credit balance in Manufacturing Overhead; a debit closes it.", "The overapplied amount from Part 4.", [{ val: S.actual, msg: "Close only the difference between actual and applied overhead." }, { val: S.applied, msg: "Close only the difference between actual and applied overhead." }]),
+       L("Cr", "cogs", S.diff, "Overapplied overhead charged jobs too much, so closing it reduces Cost of Goods Sold.", "The same amount.")];
+  parts.push(entry("je6", "5f", "Entry (f): close the overhead balance",
+    "Close the year-end balance in Manufacturing Overhead to Cost of Goods Sold.", cl,
+    [{ keys: ["a0", "v0", "a1", "v1"], text: S.under ? "Manufacturing Overhead has a debit balance (underapplied). Credit it to close it and debit Cost of Goods Sold." : "Manufacturing Overhead has a credit balance (overapplied). Debit it to close it and credit Cost of Goods Sold.", formula: money(S.diff) }]));
+
+  parts.push({ id: "adj", phase: "adj", tick: "6", title: "Adjusted cost of goods sold",
+    desc: "Cost of goods sold before the adjustment was " + money(S.cogs) + ", and overhead was " + (S.under ? "underapplied" : "overapplied") + " by " + money(S.diff) + " (both given). Find cost of goods sold after closing the overhead balance.",
+    why: "Closing the balance to Cost of Goods Sold corrects the year's cost of goods sold to the overhead actually incurred.",
+    fields: [num("adjc", "Adjusted cost of goods sold", S.adj, "$", v => v === S.cogs + (S.under ? -S.diff : S.diff) ? (S.under ? "Underapplied overhead is cost the jobs didn't get charged, so closing it increases cost of goods sold. Add it." : "Overapplied overhead charged the jobs too much, so closing it decreases cost of goods sold. Subtract it.") : v === S.cogs ? "Adjust cost of goods sold for the " + (S.under ? "underapplied" : "overapplied") + " overhead." : "Adjusted cost of goods sold = cost of goods sold " + (S.under ? "+ underapplied" : "− overapplied") + " overhead.", money(S.cogs) + (S.under ? " + " : " − ") + money(S.diff) + " = " + money(S.adj))],
+    walk: [{ keys: ["adjc"], text: S.under ? "Underapplied overhead is added to cost of goods sold." : "Overapplied overhead is subtracted from cost of goods sold.", formula: money(S.cogs) + (S.under ? " + " : " − ") + money(S.diff) + " = " + money(S.adj) }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function amountMsg(v) { return v === null ? "Enter an amount." : "Enter a number only, like 2400 or 2,400."; }
+function gradeField(f, raw, nums) {
+  if (f.kind === "sel") {
+    const v = typeof raw === "string" ? raw : "";
+    if (!v || !f.opts.some(o => o[0] === v)) return { ok: false, msg: "Choose an answer." };
+    return v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+  }
+  const v = parse(raw);
+  if (v === null || isNaN(v)) return { ok: false, msg: amountMsg(v) };
+  if (f.dec ? near(v, f.ans) : v === f.ans) return { ok: true, msg: "Correct." };
+  return { ok: false, msg: f.wrong(v, nums) };
+}
+// A journal entry: the lines on each side can be in any order. A line whose account matches a right line is
+// paired with it; the rest are paired in order. Each account and each amount is a point.
+function gradeEntry(p, vals) {
+  const res = {}; let all = true;
+  ["Dr", "Cr"].forEach(side => {
+    const idx = p.je.map((l, k) => l.side === side ? k : -1).filter(k => k >= 0);
+    const acct = k => { const v = vals["a" + k]; return typeof v === "string" && ACCT[v] ? v : ""; };
+    const used = new Set(), pair = {};
+    idx.forEach(k => { const a = acct(k); const m = idx.find(c => !used.has(c) && p.je[c].a === a); if (a && m != null) { pair[k] = m; used.add(m); } });
+    idx.forEach(k => { if (pair[k] == null) { const m = idx.find(c => !used.has(c)); pair[k] = m; used.add(m); } });
+    idx.forEach(k => {
+      const L = p.je[pair[k]], a = acct(k), v = parse(vals["v" + k]);
+      if (!a) res["a" + k] = { ok: false, msg: "Choose an account." };
+      else if (a === L.a) res["a" + k] = { ok: true, msg: "Correct." };
+      else res["a" + k] = { ok: false, msg: (side === "Dr" ? "Not a debit to " : "Not a credit to ") + ACCT[a] + ". " + L.why };
+      if (v === null || isNaN(v)) res["v" + k] = { ok: false, msg: amountMsg(v) };
+      else if (v === L.amt) res["v" + k] = { ok: true, msg: "Correct." };
+      else { const t = L.traps.find(x => x.val === v); res["v" + k] = { ok: false, msg: t ? t.msg : L.amtWhy }; }
+      if (!res["a" + k].ok || !res["v" + k].ok) all = false;
+    });
+  });
+  return { res, all };
+}
+function grade(p, vals) {
+  if (p.layout === "je") return gradeEntry(p, vals);
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => { res[f.id] = gradeField(f, vals[f.id], nums); if (!res[f.id].ok) all = false; });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> prints custom guidebook orders for corporate clients in its print shop. Each order is a job with its own cost sheet. Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, b = BASE[P.base];
+  const row = (k, v, cls) => '<tr><td>' + k + '</td><td class="r ' + (cls || "") + '">' + v + '</td></tr>';
+  const NOTE = { wip: "was still being printed at December 31.", fg: "was finished in December and is waiting to be delivered.", sold: "was finished and delivered to the client during the year." };
+  let h = '<div class="facts"><div class="fact"><span class="k">Overhead base</span><span>Overhead is applied on <b>' + b.name + '</b>.</span></div>' +
+    '<div class="fact"><span class="k">Wage rate</span><span>Direct labor costs <b class="num">' + money(P.wage) + '</b> per direct labor hour.</span></div></div>';
+  h += '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">Estimates for ' + YEAR + '</div><div class="cap-date">Made before the year began</div></caption><tbody>' +
+    row("Estimated manufacturing overhead", money(P.emoh)) + row("Estimated direct labor hours", fmt(P.estDLH)) + row("Estimated machine hours", fmt(P.estMH)) + '</tbody></table></div>';
+  h += '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">The three jobs</div><div class="cap-date">For the year ended December 31, ' + YEAR + '</div></caption>' +
+    '<thead><tr><th scope="col">Job</th><th scope="col" class="r">Direct materials requisitioned</th><th scope="col" class="r">Direct labor hours</th><th scope="col" class="r">Machine hours</th><th scope="col" class="r">Guidebooks</th></tr></thead><tbody>' +
+    P.jobs.map(j => '<tr><td>' + j.no + ' · ' + esc(j.client) + '</td><td class="r">' + money(j.dm) + '</td><td class="r">' + fmt(j.dlh) + '</td><td class="r">' + fmt(j.mh) + '</td><td class="r">' + fmt(j.units) + '</td></tr>').join("") + '</tbody></table></div>';
+  h += '<div class="facts">' + P.jobs.map(j => '<div class="fact"><span class="k">Job ' + j.no + '</span><span>' + NOTE[j.status] + '</span></div>').join("") + '</div>';
+  h += '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">Actual costs for the year</div><div class="cap-date">Not all of these are manufacturing overhead</div></caption><tbody>' +
+    row("Indirect materials requisitioned", money(P.im)) + row("Indirect labor", money(P.il)) + row("Depreciation on print shop equipment", money(P.dep)) + row("Print shop utilities", money(P.util)) + row("Print shop insurance", money(P.ins)) + row(esc(P.dname), money(P.damt)) + '</tbody></table></div>';
+  const tot = [0, 1, 2].map(i => c.ans("jobs", "tot" + i));
+  if (tot.every(x => x != null)) {
+    h += '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">Job cost sheets (Part 2)</div></caption><thead><tr><th scope="col">Job</th><th scope="col" class="r">DM</th><th scope="col" class="r">DL</th><th scope="col" class="r">Overhead</th><th scope="col" class="r">Total</th></tr></thead><tbody>' +
+      P.jobs.map((j, i) => '<tr><td>' + j.no + '</td>' + ["dm", "dl", "oh", "tot"].map(k => '<td class="r">' + money(c.ans("jobs", k + i)) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+  }
+  const act = c.ans("ohvar", "act"), app = c.ans("ohvar", "app"), dir = c.ans("ohvar", "dir"), diff = c.ans("ohvar", "diff");
+  if (act != null && app != null && dir != null && diff != null) h += '<div class="facts"><div class="fact"><span class="k">Overhead</span><span>Actual ' + money(act) + ' · applied ' + money(app) + ' · <b>' + (dir === "under" ? "underapplied" : "overapplied") + ' ' + money(diff) + '</b></span></div></div>';
+  return { title: "Print shop data", sub: "Problem Solvers, Inc.", html: h };
+}
+
+MAFrame.start({
+  slug: "ma-job-order-costing", key: "ma-joc1", module: "M2", title: "Job Order Costing Lab",
+  phases: [["rate", "Rate"], ["jobs", "Job costs"], ["oh", "Overhead"], ["je", "Journal entries"], ["adj", "Adjust"]],
+  dataTitle: "Print shop data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>

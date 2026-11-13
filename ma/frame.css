@@ -221,6 +221,22 @@ table.stab{width:100%;border-collapse:collapse;font-size:14.5px}
 .stab tr.fbrow td{padding:0 8px 8px}
 .stab tr.has-fb>td{border-bottom:0}
 
+/* Journal entry (layout "je") */
+table.jtab{width:100%;border-collapse:collapse;font-size:14.5px}
+.jtab th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong);text-align:left}
+.jtab th.r{text-align:right}
+.jtab td{padding:5px 8px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.jtab td.amt{width:160px}
+.jtab tr.cr td.acct{padding-left:40px}
+.jtab tr.fbrow td{padding:0 8px 8px}
+.jtab tr.has-fb>td{border-bottom:0}
+.jtab select{width:100%;background:var(--field);border:1px solid var(--rule-strong);border-radius:6px;padding:6px 8px;min-height:36px;font-size:14.5px}
+.inbox.ok,select.ok{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.inbox.no,select.no{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.inbox.shown,select.shown{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.field .inbox.ok,.field .inbox.no,.field .inbox.shown,.field select.ok,.field select.no,.field select.shown{box-shadow:none;border-color:var(--rule-strong)}
+.ctab td.num-in{min-width:120px}
+
 /* Walk me through it */
 .walk{margin-top:12px;border:1px solid var(--gold);background:var(--gold-soft);border-radius:8px;padding:10px 12px}
 .walk .wtitle{font-family:var(--f-display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--gold-ink)}

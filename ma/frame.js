@@ -14,8 +14,10 @@
  *     biz() -> html, data(ctx) -> {title?, sub?, html}
  *   })
  *
- * A part: {id, phase, tick, title, desc, layout: "list" | "table" | "sched", fields: [...], why?, hint?, walk?}
- *   table: cols [{key,label}], items [{text, amount?}]; each field has row (item index) and col (column key).
+ * A part: {id, phase, tick, title, desc, layout: "list" | "table" | "sched" | "je", fields: [...], why?, hint?, walk?}
+ *   table: cols [{key,label}], items [{text, amount?}]; each field has row (item index) and col (column key);
+ *          fields without a row are listed below the table.
+ *   je: lines [{side: "Dr"|"Cr", a: account field id, v: amount field id}] (a journal entry).
  *   sched: sched {title: [lines], lines: [{t: "head"|"line"|"sub"|"total"|"given", label, ind, f (field id), col: 1|2, v}]}
  * A field: {id, label, kind ("sel", "$", "n", "pct"), opts [[value,text]], ans, work, wrong(v, nums)}.
  * Every field is worth 1 point in graded mode. Nothing here grades: practice mode calls L.grade, graded mode
@@ -457,13 +459,13 @@ function control(p, f, s, lock, label) {
       f.opts.map(o => '<option value="' + esc(o[0]) + '"' + (val === o[0] ? " selected" : "") + '>' + esc(o[1]) + '</option>').join("") + '</select>';
   }
   const pre = f.pre != null ? f.pre : f.kind === "$" ? "$" : "", post = f.post != null ? f.post : f.kind === "pct" ? "%" : "";
-  return '<div class="inbox">' + (pre ? '<span class="pre" aria-hidden="true">' + esc(pre) + '</span>' : '') + '<input data-f="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(label) + '" value="' + esc(val) + '"' + (lock ? " disabled" : "") + '>' + (post ? '<span class="post" aria-hidden="true">' + esc(post) + '</span>' : '') + '</div>';
+  return '<div class="inbox' + cls(s, f) + '">' + (pre ? '<span class="pre" aria-hidden="true">' + esc(pre) + '</span>' : '') + '<input data-f="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(label) + '" value="' + esc(val) + '"' + (lock ? " disabled" : "") + '>' + (post ? '<span class="post" aria-hidden="true">' + esc(post) + '</span>' : '') + '</div>';
 }
 function msgHTML(r) { return '<div class="fmsg ' + (r.ok ? "ok" : "no") + '"><span aria-hidden="true">' + (r.ok ? "✓" : "✗") + '</span><span>' + esc(r.msg) + '</span></div>'; }
 function showWork(s, f) { return f.work != null && (s.revealed && s.shown[f.id] || !!(s.fb && s.fb.all && s.fb.res[f.id] && s.fb.res[f.id].ok)); }
-function listHTML(p, s, lock) {
+function listHTML(p, s, lock, fields) {
   let h = '<div class="fields">';
-  p.fields.forEach(f => {
+  (fields || p.fields).forEach(f => {
     const r = s.fb && s.fb.res[f.id];
     h += '<div class="field' + cls(s, f) + '" data-wrap="' + esc(f.id) + '"><div class="frow' + (isSel(f) ? " sel" : "") + '"><label class="flabel">' + esc(f.label) + (f.sub ? '<small>' + esc(f.sub) + '</small>' : '') + '</label>' + control(p, f, s, lock, f.label) + '</div>';
     if (r && !(s.revealed && s.shown[f.id])) h += msgHTML(r);
@@ -488,6 +490,28 @@ function tableHTML(p, s, lock) {
     h += '<tr' + (fb ? ' class="has-fb"' : '') + '><td class="item">' + (p.numbered ? '<b>' + (i + 1) + '.</b> ' : '') + esc(it.text) + '</td>' + (hasAmt ? '<td class="amt">' + (it.amount != null ? "$" + fmt(it.amount) : "") + '</td>' : '') +
       fs.map((f, k) => '<td class="sel">' + (f ? control(p, f, s, lock, p.cols[k].label + " for " + it.text) : "") + '</td>').join("") + '</tr>';
     if (fb) h += '<tr class="fbrow"><td colspan="' + span + '">' + fb + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  const extra = p.fields.filter(f => f.row == null);
+  return extra.length ? h + '<div style="margin-top:12px">' + listHTML(p, s, lock, extra) + '</div>' : h;
+}
+// A journal entry: each line is an account choice and an amount in the Debit or Credit column.
+function jeHTML(p, s, lock) {
+  const F = id => p.fields.find(x => x.id === id);
+  let h = '<div class="scroll"><table class="jtab"><thead><tr><th scope="col">Account</th><th scope="col" class="r">Debit</th><th scope="col" class="r">Credit</th></tr></thead><tbody>';
+  p.lines.forEach((ln, k) => {
+    const fa = F(ln.a), fv = F(ln.v); if (!fa || !fv) return;
+    const side = ln.side === "Cr" ? "Credit" : "Debit";
+    const msgs = [], shown = [];
+    [[fa, "Account"], [fv, "Amount"]].forEach(([f, lab]) => {
+      const r = s.fb && s.fb.res[f.id];
+      if (s.revealed && s.shown[f.id]) { if (f.work && lab === "Account") shown.push(esc(f.work)); }
+      else if (r && !r.ok) msgs.push('<li><b>' + lab + ':</b> ' + esc(r.msg) + '</li>');
+    });
+    const fb = msgs.length ? '<div class="fb no"><ul>' + msgs.join("") + '</ul></div>' : shown.length ? '<div class="fb shown">' + shown.join("<br>") + '</div>' : "";
+    const amt = control(p, fv, s, lock, side + " amount, line " + (k + 1));
+    h += '<tr class="jl ' + (ln.side === "Cr" ? "cr" : "dr") + (fb ? " has-fb" : "") + '"><td class="acct">' + control(p, fa, s, lock, side + " account, line " + (k + 1)) + '</td><td class="amt">' + (ln.side === "Cr" ? "" : amt) + '</td><td class="amt">' + (ln.side === "Cr" ? amt : "") + '</td></tr>';
+    if (fb) h += '<tr class="fbrow"><td colspan="3">' + fb + '</td></tr>';
   });
   return h + '</tbody></table></div>';
 }
@@ -522,7 +546,7 @@ function renderPart() {
   const hl = walking ? walking[s.walk].keys : null;
   let h = '<div class="meta"><span class="pill ph-' + (ph.i % 3) + '">Part ' + (cur + 1) + ' of ' + PARTS.length + '</span><span>' + esc(ph.label) + '</span></div>' +
     '<h3 class="part-title">' + esc(p.title) + '</h3>' + (p.desc ? '<p class="part-desc">' + esc(p.desc) + '</p>' : '') + '<!--fields-->';
-  h += p.layout === "table" ? tableHTML(p, s, lock) : p.layout === "sched" ? schedHTML(p, s, lock, hl) : listHTML(p, s, lock);
+  h += p.layout === "table" ? tableHTML(p, s, lock) : p.layout === "sched" ? schedHTML(p, s, lock, hl) : p.layout === "je" ? jeHTML(p, s, lock) : listHTML(p, s, lock);
   if (walking) {
     const w = walking[s.walk];
     h += '<div class="walk" role="region" aria-label="Walk-through"><div class="wtitle">Step ' + (s.walk + 1) + ' of ' + walking.length + '</div><p>' + esc(w.text) + (w.formula ? '<span class="formula">' + esc(w.formula) + '</span>' : '') + '</p>' +
@@ -592,6 +616,7 @@ function onField(e) {
   if (s.fb && s.fb.res[id]) {
     delete s.fb.res[id];
     el.classList.remove("ok", "no", "shown");
+    const ib = el.closest(".inbox"); if (ib) ib.classList.remove("ok", "no", "shown");
     const w = el.closest(".field"); if (w) { w.className = "field"; const m = w.querySelector(".fmsg"); if (m) m.remove(); }
     const tr = el.closest("tr"); if (tr && tr.dataset.row) tr.classList.remove("ok", "no", "shown");
   }
