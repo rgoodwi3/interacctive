@@ -75,6 +75,8 @@ label.check{display:flex;gap:8px;align-items:center;font-weight:400}
 summary{cursor:pointer;font:700 18px/1.25 var(--head);color:var(--navy)}
 details .lead{margin-top:10px}
 .tag.auto{background:var(--bad-bg);color:#7a1a14}
+.tag.flag{background:#7a1a14;color:#fff}
+.flags td{vertical-align:top}.flags ul{margin:0;padding-left:18px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="platform.js"></script>
@@ -434,17 +436,51 @@ details .lead{margin-top:10px}
         autoClosed: mine.some(l => l.auto_closed)
       };
     };
-    const cellHtml = b => {
+    // Activity flags saved by the grading server with each step's first submission (see integrity.js).
+    // Strong flags send an attempt to review on their own; fast and paste only when repeated.
+    const FLAG_TEXT = {
+      script: 'Answers were filled in, or buttons clicked, by a script rather than the keyboard or mouse',
+      inserted: 'Text appeared in answer boxes without being typed or pasted, the way AI browser agents enter it',
+      automation: 'The browser reported that automation software was controlling it',
+      robotic: 'Typing was faster and more even than a person types',
+      fast: 'Submitted faster than the step could be read and filled in',
+      paste: 'Answers were pasted in',
+      away: 'Left the lab page for 30 seconds or more',
+      nodata: 'No activity data was sent (an older copy of the page, or the data was blocked)'
+    };
+    const STRONG = ['script', 'inserted', 'automation', 'robotic'];
+    const review = l => {
+      const by = {};
+      Object.entries(l.steps || {}).forEach(([k, s]) => (s && Array.isArray(s.flags) ? s.flags : []).forEach(f => (by[f] = by[f] || []).push(Number(k) + 1)));
+      const strong = STRONG.some(f => by[f]);
+      const flagged = strong || (by.fast || []).length >= 3 || (by.paste || []).length >= 2;
+      return { by, flagged };
+    };
+    const flaggedLabs = labs.map(l => ({ l, r: review(l) })).filter(x => x.r.flagged);
+    const cellHtml = (b, sid, aid) => {
       const score = b.best === null ? (b.open ? '' : '—') : `${b.best}% <span class="small muted">(${b.n})</span>`;
       const closed = b.autoClosed ? '<div><span class="tag auto">Closed at due date</span></div>' : '';
       const open = b.open ? `<div><span class="tag">In progress · ${Object.keys(b.open.steps || {}).length} steps</span></div>` : '';
-      return score + closed + open;
+      const flag = flaggedLabs.some(x => x.l.student_id === sid && x.l.activity_id === aid) ? '<div><button type="button" class="tag flag" data-flags style="border:0;cursor:pointer">Review</button></div>' : '';
+      return score + closed + open + flag;
     };
-    pane.innerHTML = `<p class="lead">Best finished score on each activity, as a percent. The small number is how many attempts finished. <b>In progress</b> means a lab attempt is still open. <b>Closed at due date</b> means an attempt was still open at the due date and was scored on the steps submitted.</p>
+    const steps = list => list.length > 6 ? `steps ${list.slice(0, 6).join(', ')} and ${list.length - 6} more` : (list.length === 1 ? 'step ' : 'steps ') + list.join(', ');
+    const nameOf = id => (people.find(p => p.id === id) || {}).name || 'Unknown student';
+    const titleOf = id => (catalog.find(a => a.id === id) || {}).title || 'Lab';
+    const when = t => t ? new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const flagsHtml = !flaggedLabs.length ? '' : `<h3 id="flags">Attempts to review (${flaggedLabs.length})</h3>
+      <p class="lead">The lab records how answers were entered, alongside the answers. These attempts show signs of AI tools, automation or copying. Treat them as a reason to look closer and talk with the student, not as proof: they never change a score.</p>
+      <div class="scroll"><table class="flags"><thead><tr><th>Student</th><th>Lab</th><th>Attempt</th><th>What the lab saw</th></tr></thead><tbody>
+      ${flaggedLabs.map(({ l, r }) => `<tr><td>${esc(nameOf(l.student_id))}</td><td>${esc(titleOf(l.activity_id))}</td>
+        <td class="small">Started ${esc(when(l.started_at))}<br>${l.finished_at ? 'Finished ' + esc(when(l.finished_at)) : 'In progress'}</td>
+        <td><ul>${Object.keys(FLAG_TEXT).filter(f => r.by[f]).map(f => `<li${STRONG.includes(f) ? ' style="font-weight:600"' : ''}>${esc(FLAG_TEXT[f])}: ${steps(r.by[f])}</li>`).join('')}</ul></td></tr>`).join('')}
+      </tbody></table></div>`;
+    pane.innerHTML = `${flaggedLabs.length ? `<div class="msg bad" style="margin:0 0 12px"><b>${flaggedLabs.length} lab attempt${flaggedLabs.length === 1 ? '' : 's'} to review.</b> <button type="button" class="linkbtn" data-flags>See what the lab saw</button></div>` : ''}<p class="lead">Best finished score on each activity, as a percent. The small number is how many attempts finished. <b>In progress</b> means a lab attempt is still open. <b>Closed at due date</b> means an attempt was still open at the due date and was scored on the steps submitted. <b>Review</b> means the lab saw signs of AI tools, automation or copying (details below the table).</p>
       <div class="scroll"><table><thead><tr><th>Student</th>${acts.map(a => `<th class="n">${esc(a.title)}</th>`).join('')}</tr></thead><tbody>
-      ${people.map(p => `<tr><td>${esc(p.name)}<div class="small muted">${esc(p.email)}</div></td>${acts.map(a => `<td class="n">${cellHtml(cell(p.id, a.id))}</td>`).join('')}</tr>`).join('')}
+      ${people.map(p => `<tr><td>${esc(p.name)}<div class="small muted">${esc(p.email)}</div></td>${acts.map(a => `<td class="n">${cellHtml(cell(p.id, a.id), p.id, a.id)}</td>`).join('')}</tr>`).join('')}
       </tbody></table></div>
-      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download CSV for Canvas</button><span class="small muted">Graded activities only, out of 100 points. Blank means no finished attempt.</span></div><div id="csvmsg"></div>`;
+      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download CSV for Canvas</button><span class="small muted">Graded activities only, out of 100 points. Blank means no finished attempt.</span></div><div id="csvmsg"></div>${flagsHtml}`;
+    pane.querySelectorAll('[data-flags]').forEach(b => b.addEventListener('click', () => document.getElementById('flags').scrollIntoView({ behavior: 'smooth' })));
     document.getElementById('csv').addEventListener('click', () => {
       const gradedActs = acts.filter(a => asg.some(x => x.activity_id === a.id && x.mode === 'graded'));
       if (!gradedActs.length) { document.getElementById('csvmsg').innerHTML = msg('bad', 'No activity in this class is set to Graded.'); return; }
