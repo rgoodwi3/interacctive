@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Activity-Based Costing Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M2 Lab 5: Activity-Based Costing. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-activity-based-costing), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-activity-based-costing.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => "$" + fmt(n);
+const cents = n => "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+const r2 = x => Math.round(x * 100) / 100;
+const DRIVERS = [["setups", "Number of setups"], ["pos", "Number of purchase orders"], ["mh", "Machine hours"], ["insp", "Number of inspections"], ["design", "Design hours"], ["dlh", "Direct labor hours"], ["units", "Units produced"]];
+const DRV = Object.fromEntries(DRIVERS);
+// Activity pools: id, name, driver, unit word, why the driver fits.
+const POOLS = [
+  ["setups", "Setting up the presses", "setups", "setups", "Setup cost depends on how many times the presses are set up for a new run, not on how many guidebooks each run prints."],
+  ["purch", "Purchasing paper and supplies", "pos", "purchase orders", "Purchasing cost depends on how many purchase orders are processed."],
+  ["maint", "Machine maintenance", "mh", "machine hours", "Presses need maintenance in proportion to how many hours they run."],
+  ["insp", "Quality inspection", "insp", "inspections", "Inspection cost depends on how many inspections are performed."],
+  ["design", "Custom design", "design", "design hours", "Design cost depends on the hours designers spend on each product."]];
+const PS = ["S", "D"], PNAME = { S: "Standard", D: "Deluxe" };
+
+// ---------- Problem generator ----------
+// The plantwide rate is whole cents per direct labor hour and every activity rate is whole dollars; the design
+// pool is sized so the five pools add up to total overhead. Overhead per unit is rounded to the cent; the other
+// parts of unit cost are whole cents, so total cost per unit is that rounded amount plus them.
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  for (let t = 0; t < 200000; t++) {
+    const u = { S: pick([4000, 5000, 6000, 8000, 10000, 12000, 16000, 20000]), D: pick([1000, 1200, 1500, 2000, 2500, 3000, 4000]) };
+    const dlh = { S: R(1, 6) / 4, D: R(2, 10) / 4 }, dm = { S: R(300, 900) / 100, D: R(900, 2400) / 100 }, wage = R(18, 28);
+    const DLH = u.S * dlh.S + u.D * dlh.D, rateP = R(500, 1500) * 4; // cents per DLH
+    const moh = rateP * DLH / 100;
+    if (!Number.isInteger(moh)) continue;
+    const use = { setups: { S: R(10, 40), D: R(40, 140) }, purch: { S: R(100, 400), D: R(150, 600) }, maint: { S: R(50, 200) * 100, D: R(10, 60) * 100 }, insp: { S: R(20, 80), D: R(40, 200) } };
+    const rate = { setups: R(150, 600), purch: R(20, 80), maint: R(4, 15), insp: R(50, 200) };
+    let four = 0; for (const k of Object.keys(rate)) four += rate[k] * (use[k].S + use[k].D);
+    const dcost = moh - four;
+    if (dcost < moh * 0.08 || dcost > moh * 0.35) continue;
+    const qs = []; for (let q = 200; q <= 3000; q += 10) if (dcost % q === 0 && dcost / q >= 20 && dcost / q <= 150) qs.push(q);
+    if (!qs.length) continue;
+    const q = pick(qs), dD = Math.round(q * R(60, 90) / 1000) * 10;
+    use.design = { S: q - dD, D: dD }; rate.design = dcost / q;
+    if (use.design.S <= 0) continue;
+    const oh = {}; PS.forEach(p => { oh[p] = POOLS.reduce((a, x) => a + rate[x[0]] * use[x[0]][p], 0); });
+    const trad = PS.map(p => rateP * dlh[p] / 100), abc = PS.map(p => oh[p] / u[p]);
+    if (PS.some((p, i) => Math.abs(abc[i] - trad[i]) < 0.5) || !PS.every((p, i) => Number.isInteger(Math.round(trad[i] * 100 * 1e6) / 1e6))) continue;
+    return { u, dlh, dm, wage, moh, use, cost: Object.fromEntries(POOLS.map(x => [x[0], rate[x[0]] * (use[x[0]].S + use[x[0]].D)])) };
+  }
+  throw new Error("Could not generate a problem set");
+}
+// Every answer, worked out from the data.
+function solve(P) {
+  const DLH = P.u.S * P.dlh.S + P.u.D * P.dlh.D, rateP = P.moh / DLH, x = {};
+  PS.forEach(p => {
+    const dl = P.dlh[p] * P.wage, tOh = r2(rateP * P.dlh[p]);
+    x[p] = { dl, tOh, tUnit: r2(P.dm[p] + dl + tOh) };
+  });
+  const rate = Object.fromEntries(POOLS.map(k => [k[0], P.cost[k[0]] / (P.use[k[0]].S + P.use[k[0]].D)]));
+  PS.forEach(p => {
+    const oh = POOLS.reduce((a, k) => a + rate[k[0]] * P.use[k[0]][p], 0);
+    const aOh = r2(oh / P.u[p]);
+    Object.assign(x[p], { oh, aOh, aUnit: r2(P.dm[p] + x[p].dl + aOh) });
+    x[p].diff = r2(Math.abs(x[p].aUnit - x[p].tUnit));
+  });
+  const over = x.S.tUnit > x.S.aUnit ? "S" : "D";
+  return { DLH, rateP, x, rate, over };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, wrong, work, dec: 2 }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+function buildParts(P) {
+  const S = solve(P), X = S.x, tot = k => P.use[k].S + P.use[k].D;
+  const parts = [];
+  const tWork = p => cents(S.rateP) + " × " + fmt(P.dlh[p]) + " DLH = " + cents(X[p].tOh);
+  parts.push({ id: "trad", phase: "trad", tick: "1", title: "Traditional costing: one plantwide rate",
+    desc: "Problem Solvers now applies all manufacturing overhead with a single plantwide rate based on direct labor hours. Compute the rate, then each guidebook's overhead and total cost per unit. Round to the cent.",
+    hint: "Plantwide rate = total overhead ÷ total direct labor hours (both products). Overhead per unit = rate × DLH per unit. Cost per unit = direct materials + direct labor + overhead per unit.",
+    why: "A single rate assumes overhead is caused by direct labor hours. When a product's overhead is caused by something else, such as setups or design work, the single rate distorts its cost.",
+    fields: [
+      num("rateP", "Plantwide overhead rate (per direct labor hour)", S.rateP, v => near(v, r2(P.moh / (P.u.S + P.u.D))) ? "That divides by units produced. The plantwide rate is based on direct labor hours." : near(v, r2(P.moh / (P.dlh.S + P.dlh.D))) ? "Use total direct labor hours: units × DLH per unit for each product, added together." : near(v, r2(P.moh / (P.u.S * P.dlh.S))) || near(v, r2(P.moh / (P.u.D * P.dlh.D))) ? "Use the direct labor hours of both products together." : "Plantwide rate = total manufacturing overhead ÷ total direct labor hours.", money(P.moh) + " ÷ " + fmt(S.DLH) + " DLH = " + cents(S.rateP)),
+      ...PS.map(p => num("tOh" + p, PNAME[p] + ": overhead per unit", X[p].tOh, v => near(v, r2(S.rateP * P.dlh[p] * P.u[p])) ? "That is " + PNAME[p] + "'s total overhead. Per unit = rate × " + fmt(P.dlh[p]) + " DLH per unit." : near(v, r2(S.rateP * P.dlh[p === "S" ? "D" : "S"])) ? "Use " + PNAME[p] + "'s own direct labor hours per unit." : "Overhead per unit = plantwide rate × " + fmt(P.dlh[p]) + " DLH per unit.", tWork(p))),
+      ...PS.map(p => num("tUnit" + p, PNAME[p] + ": total cost per unit", X[p].tUnit, (v, n) => n["tOh" + p] != null && near(v, P.dm[p] + X[p].dl + n["tOh" + p]) && !near(n["tOh" + p], X[p].tOh) ? "Your addition is right, but " + PNAME[p] + "'s overhead per unit is not. Fix it first." : near(v, P.dm[p] + X[p].dl) ? "Add overhead per unit too." : near(v, P.dm[p] + P.dlh[p] + X[p].tOh) ? "Direct labor per unit = DLH per unit × the " + money(P.wage) + " wage, not the hours." : "Cost per unit = direct materials + direct labor (" + fmt(P.dlh[p]) + " DLH × " + money(P.wage) + ") + overhead per unit.", cents(P.dm[p]) + " + " + cents(X[p].dl) + " + " + cents(X[p].tOh) + " = " + cents(X[p].tUnit)))],
+    walk: [{ keys: ["rateP"], text: "Total DLH = " + fmt(P.u.S) + " × " + fmt(P.dlh.S) + " + " + fmt(P.u.D) + " × " + fmt(P.dlh.D) + " = " + fmt(S.DLH) + ".", formula: money(P.moh) + " ÷ " + fmt(S.DLH) + " = " + cents(S.rateP) },
+      { keys: ["tOhS", "tOhD"], text: "Each unit gets overhead for its direct labor hours.", formula: tWork("S") + "; " + tWork("D") },
+      { keys: ["tUnitS", "tUnitD"], text: "Add direct materials and direct labor.", formula: PS.map(p => PNAME[p] + " " + cents(P.dm[p]) + " + " + cents(X[p].dl) + " + " + cents(X[p].tOh) + " = " + cents(X[p].tUnit)).join("; ") }] });
+
+  parts.push({ id: "drivers", phase: "abc", tick: "2", layout: "table", title: "Match each activity to its cost driver",
+    desc: "Activity-based costing groups overhead into activity cost pools and assigns each pool with the driver that causes its cost. Choose the cost driver for each pool.",
+    itemLabel: "Activity cost pool", items: POOLS.map(k => ({ text: k[1] })), cols: [{ key: "drv", label: "Cost driver" }],
+    why: "A cost driver is the activity that causes a pool's cost to change. Using the right driver assigns overhead to products in proportion to the work they actually cause.",
+    fields: POOLS.map((k, i) => sel("drv" + i, "Cost driver for " + k[1].toLowerCase(), DRIVERS, k[2], v => v === "dlh" || v === "units" ? "Volume measures such as " + DRV[v].toLowerCase() + " don't cause this cost. " + k[4] : k[4], k[4], { row: i, col: "drv" })),
+    walk: [{ keys: POOLS.map((k, i) => "drv" + i), text: "Ask what makes each pool's cost go up: setups, purchase orders, machine hours, inspections and design hours." }] });
+
+  const rWork = k => money(P.cost[k[0]]) + " ÷ " + fmt(tot(k[0])) + " " + k[3] + " = " + cents(S.rate[k[0]]);
+  parts.push({ id: "rates", phase: "abc", tick: "3", title: "Activity rates",
+    desc: "Compute an activity rate for each pool: the pool's cost divided by the total driver quantity for both guidebooks. Round to the cent.",
+    hint: "Activity rate = activity pool cost ÷ total quantity of the cost driver (Standard + Deluxe).",
+    why: "Each rate is the cost of one unit of the activity, such as one setup, so each product can be charged for exactly the activity it uses.",
+    fields: POOLS.map(k => num("rate_" + k[0], k[1] + " (per " + k[3].replace(/s$/, "").replace(/hour$/, "hour") + ")", S.rate[k[0]], v =>
+      near(v, r2(P.cost[k[0]] / P.use[k[0]].S)) || near(v, r2(P.cost[k[0]] / P.use[k[0]].D)) ? "Divide by the total " + k[3] + " for both products, not one product's." :
+      near(v, r2(P.cost[k[0]] / (P.u.S + P.u.D))) ? "Divide by the cost driver, " + k[3] + ", not units produced." :
+      near(v, r2(tot(k[0]) / P.cost[k[0]])) ? "You divided the driver by the cost. Rate = pool cost ÷ driver quantity." :
+      "Activity rate = " + money(P.cost[k[0]]) + " ÷ " + fmt(tot(k[0])) + " " + k[3] + ".", rWork(k))),
+    walk: POOLS.map(k => ({ keys: ["rate_" + k[0]], text: k[1] + ": pool cost ÷ total " + k[3] + ".", formula: rWork(k) })) });
+
+  const ohWork = p => POOLS.map(k => fmt(P.use[k[0]][p]) + " × " + cents(S.rate[k[0]])).join(" + ") + " = " + money(X[p].oh);
+  parts.push({ id: "abcCost", phase: "abc", tick: "4", title: "Product costs under ABC",
+    desc: "Activity rates (given): " + POOLS.map(k => cents(S.rate[k[0]]) + " per " + k[3].replace(/s$/, "")).join(", ") + ". Assign each pool to the products by the activity they used, then find overhead per unit and total cost per unit.",
+    hint: "Product overhead = Σ (activity rate × the product's usage). Per unit = product overhead ÷ units produced.",
+    why: "ABC charges each product for the activities it actually uses, so the low-volume, complex product picks up the setup and design cost it causes.",
+    fields: [
+      ...PS.map(p => num("oh" + p, PNAME[p] + ": total overhead assigned", X[p].oh, v => near(v, X[p].aOh) ? "That is overhead per unit. Total overhead = Σ activity rate × " + PNAME[p] + "'s usage." : near(v, r2(S.rateP * P.dlh[p] * P.u[p])) ? "That is traditional costing's overhead. Use the activity rates." : "Total overhead = Σ (activity rate × " + PNAME[p] + "'s driver usage) over the five pools.", ohWork(p))),
+      ...PS.map(p => num("aOh" + p, PNAME[p] + ": overhead per unit", X[p].aOh, (v, n) => n["oh" + p] != null && near(v, r2(n["oh" + p] / P.u[p])) && !near(n["oh" + p], X[p].oh) ? "Your division is right, but " + PNAME[p] + "'s total overhead is not. Fix it first." : near(v, X[p].oh) ? "That is total overhead. Divide by " + fmt(P.u[p]) + " units." : near(v, r2(X[p].oh / P.u[p === "S" ? "D" : "S"])) ? "Divide by " + PNAME[p] + "'s own units produced." : "Overhead per unit = total overhead ÷ " + fmt(P.u[p]) + " units.", money(X[p].oh) + " ÷ " + fmt(P.u[p]) + " = " + cents(X[p].aOh))),
+      ...PS.map(p => num("aUnit" + p, PNAME[p] + ": total cost per unit", X[p].aUnit, (v, n) => n["aOh" + p] != null && near(v, P.dm[p] + X[p].dl + n["aOh" + p]) && !near(n["aOh" + p], X[p].aOh) ? "Your addition is right, but " + PNAME[p] + "'s overhead per unit is not. Fix it first." : near(v, P.dm[p] + X[p].dl) ? "Add overhead per unit too." : near(v, X[p].tUnit) ? "That is the traditional cost. Use ABC overhead per unit." : "Cost per unit = direct materials + direct labor + ABC overhead per unit.", cents(P.dm[p]) + " + " + cents(X[p].dl) + " + " + cents(X[p].aOh) + " = " + cents(X[p].aUnit)))],
+    walk: [{ keys: ["ohS", "ohD"], text: "Multiply each activity rate by the product's usage and add the five pools.", formula: "Standard: " + ohWork("S") + "; Deluxe: " + ohWork("D") },
+      { keys: ["aOhS", "aOhD", "aUnitS", "aUnitD"], text: "Divide by units, then add direct materials and direct labor.", formula: PS.map(p => PNAME[p] + " " + cents(X[p].aOh) + " → " + cents(X[p].aUnit)).join("; ") }] });
+
+  const OVER = [["S", "Standard"], ["D", "Deluxe"]];
+  const IMPL = [["s_down", "Standard can be priced lower (it was overcosted); Deluxe needs a higher price (it was undercosted)"], ["d_down", "Deluxe can be priced lower (it was overcosted); Standard needs a higher price (it was undercosted)"],
+    ["both_up", "Raise both prices, because ABC adds overhead"], ["none", "Nothing changes: total overhead is the same, so pricing is unaffected"]];
+  const ov = S.over, un = ov === "S" ? "D" : "S";
+  parts.push({ id: "compare", phase: "dec", tick: "5", title: "Compare and decide",
+    desc: "Cost per unit (given): Standard " + cents(X.S.tUnit) + " traditional and " + cents(X.S.aUnit) + " under ABC; Deluxe " + cents(X.D.tUnit) + " traditional and " + cents(X.D.aUnit) + " under ABC. Compare the two systems.",
+    why: "Total overhead is the same under both systems; ABC only moves it between products. Pricing on distorted costs can make a company overprice its overcosted product and underprice its undercosted one.",
+    fields: [
+      ...PS.map(p => num("diff" + p, PNAME[p] + ": difference in cost per unit (as a positive amount)", X[p].diff, v => near(v, -X[p].diff) ? "Enter the difference as a positive amount." : near(v, r2(X[p].diff * P.u[p])) ? "That is the difference for all " + fmt(P.u[p]) + " units. Give it per unit." : "Difference = | ABC cost per unit − traditional cost per unit |.", cents(X[p].aUnit) + " vs. " + cents(X[p].tUnit) + " → " + cents(X[p].diff))),
+      sel("over", "Which product did traditional costing overcost?", OVER, ov, v => PNAME[ov] + "'s traditional cost (" + cents(X[ov].tUnit) + ") is higher than its ABC cost (" + cents(X[ov].aUnit) + "), so traditional costing overcosted " + PNAME[ov] + ". Don't assume the high-volume product is always the one undercosted.", PNAME[ov] + ": traditional " + cents(X[ov].tUnit) + " > ABC " + cents(X[ov].aUnit)),
+      sel("impl", "What does this mean for pricing?", IMPL, ov === "S" ? "s_down" : "d_down", v => v === "both_up" ? "ABC doesn't add overhead; total overhead is the same. It moves cost from the overcosted product to the undercosted one." : v === "none" ? "Total overhead is the same, but each product's cost changes, and prices set on the old costs are wrong." : "Traditional costing overcosted " + PNAME[ov] + " and undercosted " + PNAME[un] + ", so " + PNAME[ov] + " can be priced lower and " + PNAME[un] + " needs a higher price.", PNAME[ov] + " was overcosted; " + PNAME[un] + " was undercosted.")],
+    walk: [{ keys: ["diffS", "diffD"], text: "Subtract the two costs per unit for each product.", formula: PS.map(p => PNAME[p] + " " + cents(X[p].diff)).join("; ") },
+      { keys: ["over", "impl"], text: PNAME[ov] + " cost more under the single rate than under ABC, so it was overcosted and " + PNAME[un] + " was undercosted." }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 12.50." };
+      else res[f.id] = near(v, f.ans) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> prints two guidebook lines: <b>Standard</b> (high volume, simple) and <b>Deluxe</b> (low volume, custom design, many setups). Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, row = (k, a, b) => '<tr><td>' + k + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td></tr>';
+  let h = '<div class="scroll"><table class="dtab"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">Product data for ' + YEAR + '</div></caption><thead><tr><th scope="col"></th><th scope="col" class="r">Standard</th><th scope="col" class="r">Deluxe</th></tr></thead><tbody>' +
+    row("Units produced", fmt(P.u.S), fmt(P.u.D)) + row("Direct materials per unit", cents(P.dm.S), cents(P.dm.D)) + row("Direct labor hours per unit", fmt(P.dlh.S), fmt(P.dlh.D)) +
+    '</tbody></table></div><div class="facts"><div class="fact"><span class="k">Wage rate</span><span>Direct labor costs <b class="num">' + money(P.wage) + '</b> per hour.</span></div><div class="fact"><span class="k">Overhead</span><span>Total manufacturing overhead: <b class="num">' + money(P.moh) + '</b></span></div></div>';
+  const known = POOLS.map((k, i) => c.ans("drivers", "drv" + i));
+  h += '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">Activity cost pools</div><div class="cap-date">Driver usage by product</div></caption><thead><tr><th scope="col">Pool</th><th scope="col" class="r">Cost</th><th scope="col" class="r">Standard</th><th scope="col" class="r">Deluxe</th></tr></thead><tbody>' +
+    POOLS.map((k, i) => '<tr><td>' + k[1] + (known[i] ? '<br><span class="note" style="margin:0">' + DRV[known[i]] + '</span>' : '') + '</td><td class="r">' + money(P.cost[k[0]]) + '</td><td class="r">' + fmt(P.use[k[0]].S) + '</td><td class="r">' + fmt(P.use[k[0]].D) + '</td></tr>').join("") +
+    '</tbody></table></div><p class="note">The five pools add up to total manufacturing overhead. Each usage figure is in its pool’s cost driver.</p>';
+  return { title: "Costing data", sub: "Standard and Deluxe guidebooks", html: h };
+}
+
+MAFrame.start({
+  slug: "ma-activity-based-costing", key: "ma-abc1", module: "M2", title: "Activity-Based Costing Lab",
+  phases: [["trad", "Traditional"], ["abc", "Activity-based costing"], ["dec", "Compare"]],
+  dataTitle: "Costing data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
