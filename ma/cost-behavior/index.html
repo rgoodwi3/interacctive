@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cost Behavior and Variable Costing Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M3 Lab 6: Cost Behavior and Variable Costing. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-cost-behavior), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-cost-behavior.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => "$" + fmt(n);
+const cents = n => "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+const r2 = x => Math.round(x * 100) / 100;
+const MON = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const BEH = [["v", "Variable"], ["f", "Fixed"], ["m", "Mixed"]];
+const BWHY = { v: "The total changes in proportion to the number of guidebooks, so it is variable.", f: "The total stays the same within the relevant range no matter how many guidebooks are made, so it is fixed.", m: "It has a fixed part that is paid no matter what and a variable part that rises with activity, so it is mixed." };
+const COSTS = [
+  ["Paper used in printing, about the same amount per guidebook", "v"], ["Ink and toner used per page printed", "v"], ["Sales commissions of 5% of each sale", "v"],
+  ["Shipping charged per guidebook delivered", "v"], ["Binding glue and covers for each guidebook", "v"], ["Piece-rate pay to binders for each guidebook bound", "v"],
+  ["Monthly rent on the print shop", "f"], ["Print shop supervisor's salary", "f"], ["Straight-line depreciation on the presses", "f"],
+  ["Annual insurance on the print shop equipment", "f"], ["Property taxes on the print shop building", "f"], ["Software license for the design program, a flat yearly fee", "f"],
+  ["Electricity: a monthly service charge plus a rate per kilowatt-hour used", "m"], ["Press maintenance contract: a flat monthly fee plus a charge per service hour", "m"],
+  ["Salesperson pay: a base salary plus a commission on each sale", "m"], ["Delivery van lease: a monthly payment plus a charge per mile driven", "m"], ["Phone plan: a monthly fee plus a charge per minute over the allowance", "m"]];
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const shuffle = xs => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } return a; };
+  for (let t = 0; t < 50000; t++) {
+    // Part 1: eight costs, at least two of each behavior
+    const by = k => shuffle(COSTS.map((c, i) => c[1] === k ? i : -1).filter(i => i >= 0));
+    const v = by("v"), f = by("f"), m = by("m");
+    const pickN = R(2, 4), pickF = R(2, 4), pickM = 8 - pickN - pickF;
+    if (pickM < 2 || pickM > m.length) continue;
+    const items = shuffle(v.slice(0, pickN).concat(f.slice(0, pickF), m.slice(0, pickM)));
+    // Part 2: fixed total and variable rate at two other volumes; fixed per unit is whole cents at each
+    const fx = R(12, 60) * 1000, vr = R(150, 900) / 100, x0 = R(8, 20) * 500;
+    const vols = [x0 - R(2, 6) * 500, x0 + R(2, 8) * 500];
+    if (vols[0] < 1000 || vols.some(x => (fx * 100) % x !== 0)) continue;
+    // Part 3: twelve months of activity (machine hours, in hundreds) and maintenance cost. The high and low months
+    // sit exactly on the cost line; the month with the highest cost is not the highest-activity month.
+    const hF = R(20, 80) * 100, hV = R(150, 900) / 100;
+    const start = R(6, 14) * 100, step = R(1, 2) * 100;
+    const acts = shuffle(Array.from({ length: 12 }, (_, i) => start + i * step));
+    const hi = acts.indexOf(Math.max(...acts)), lo = acts.indexOf(Math.min(...acts));
+    const costs = acts.map(x => Math.round(hF + hV * x));
+    const sorted = acts.slice().sort((a, b) => b - a), second = acts.indexOf(sorted[1]);
+    acts.forEach((x, i) => { if (i !== hi && i !== lo) costs[i] += R(-6, 6) * 10; });
+    costs[second] = costs[hi] + R(3, 12) * 10;
+    if (costs.some((c, i) => i !== lo && c <= costs[lo])) continue;
+    const plan = R(11, 24) * 100;
+    // Parts 4-5: a year in which production exceeds sales
+    const sold = R(8, 20) * 500, made = sold + R(1, 6) * 500, price = R(30, 60);
+    const dm = R(400, 900) / 100, dl = R(300, 800) / 100, vmoh = R(100, 400) / 100, vsell = R(100, 300) / 100;
+    const fpu = R(200, 800) / 100, fmoh = Math.round(fpu * made), fsa = R(20, 80) * 1000;
+    if (!Number.isInteger(r2(fpu * made))) continue;
+    const vc = (dm + dl + vmoh + vsell) * sold, oi = price * sold - vc - fmoh - fsa;
+    if (oi < 5000) continue;
+    return { items, fx, vr, x0, vols, hF, hV, acts, costs, plan, sold, made, price, dm, dl, vmoh, vsell, fmoh, fsa };
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const hi = P.acts.indexOf(Math.max(...P.acts)), lo = P.acts.indexOf(Math.min(...P.acts));
+  const rate = r2((P.costs[hi] - P.costs[lo]) / (P.acts[hi] - P.acts[lo])), fixed = Math.round(P.costs[hi] - rate * P.acts[hi]);
+  const costHi = P.costs.indexOf(Math.max(...P.costs));
+  const sales = P.price * P.sold, vprod = r2((P.dm + P.dl + P.vmoh) * P.sold), vsellT = r2(P.vsell * P.sold), vc = r2(vprod + vsellT), cm = r2(sales - vc), fc = P.fmoh + P.fsa, oi = r2(cm - fc);
+  const ucV = r2(P.dm + P.dl + P.vmoh), fpu = r2(P.fmoh / P.made), ucA = r2(ucV + fpu), deferred = r2(fpu * (P.made - P.sold)), oiA = r2(oi + deferred);
+  return { hi, lo, rate, fixed, pred: Math.round(fixed + rate * P.plan), costHi, sales, vprod, vsellT, vc, cm, fc, oi, ucV, fpu, ucA, deferred, oiA };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, wrong, work }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+function buildParts(P) {
+  const S = solve(P), parts = [];
+  parts.push({ id: "classify", phase: "beh", tick: "1", layout: "table", title: "Classify cost behavior",
+    desc: "Decide how each of Problem Solvers' costs behaves as the number of guidebooks printed changes, within the relevant range.",
+    itemLabel: "Cost", items: P.items.map(i => ({ text: COSTS[i][0] })), cols: [{ key: "b", label: "Behavior" }],
+    why: "Knowing how each cost behaves is the starting point for the contribution margin income statement, cost-volume-profit analysis and budgeting.",
+    fields: P.items.map((i, k) => sel("b" + k, "Behavior of: " + COSTS[i][0], BEH, COSTS[i][1], () => BWHY[COSTS[i][1]], BWHY[COSTS[i][1]], { row: k, col: "b" })),
+    walk: [{ keys: P.items.map((_, k) => "b" + k), text: "Variable: the total moves with volume. Fixed: the total doesn't. Mixed: part of each." }] });
+
+  const vf = [];
+  P.vols.forEach((x, k) => {
+    const vt = r2(P.vr * x), fp = r2(P.fx / x), tp = r2(P.vr + P.fx / x);
+    vf.push(num("vt" + k, "At " + fmt(x) + " guidebooks: total variable cost", vt, v => near(v, P.vr) ? "That is the variable cost per unit. Total variable cost = " + cents(P.vr) + " × " + fmt(x) + "." : near(v, r2(P.vr * P.x0)) ? "Total variable cost changes with volume. Use " + fmt(x) + " guidebooks, not " + fmt(P.x0) + "." : "Total variable cost = variable cost per unit × " + fmt(x) + " guidebooks.", cents(P.vr) + " × " + fmt(x) + " = " + money(vt), { dec: 2 }));
+    vf.push(num("fp" + k, "At " + fmt(x) + " guidebooks: fixed cost per unit", fp, v => near(v, r2(P.fx / P.x0)) ? "Fixed cost per unit is not constant. The total stays " + money(P.fx) + ", so per unit it changes with volume: " + money(P.fx) + " ÷ " + fmt(x) + "." : near(v, P.fx) ? "That is total fixed cost. Per unit = " + money(P.fx) + " ÷ " + fmt(x) + "." : "Fixed cost per unit = total fixed cost ÷ " + fmt(x) + " guidebooks.", money(P.fx) + " ÷ " + fmt(x) + " = " + cents(fp), { dec: 2 }));
+    vf.push(num("tp" + k, "At " + fmt(x) + " guidebooks: total cost per unit", tp, (v, n) => n["fp" + k] != null && near(v, P.vr + n["fp" + k]) && !near(n["fp" + k], fp) ? "Your addition is right, but your fixed cost per unit is not. Fix it first." : near(v, r2(P.vr + P.fx / P.x0)) ? "That is the cost per unit at " + fmt(P.x0) + " guidebooks. Fixed cost per unit changes with volume." : near(v, r2(P.vr * x + P.fx)) ? "That is total cost. Divide by " + fmt(x) + " for cost per unit." : "Total cost per unit = variable cost per unit + fixed cost per unit.", cents(P.vr) + " + " + cents(fp) + " = " + cents(tp), { dec: 2 }));
+  });
+  parts.push({ id: "perunit", phase: "beh", tick: "2", title: "Total vs. per unit",
+    desc: "The binding department's costs are " + money(P.fx) + " fixed per year plus " + cents(P.vr) + " per guidebook, within a relevant range of 1,000 to 20,000 guidebooks. At " + fmt(P.x0) + " guidebooks, that's " + money(r2(P.fx + P.vr * P.x0)) + " in all. Find the costs at two other volumes, to the cent.",
+    hint: "Total variable cost changes with volume; variable cost per unit stays the same. Total fixed cost stays the same; fixed cost per unit changes.",
+    why: "Fixed cost per unit falls as volume rises, which is why spreading fixed costs over more units lowers the cost per unit, and why per-unit fixed costs mislead in decisions.",
+    fields: vf, walk: P.vols.map((x, k) => ({ keys: ["vt" + k, "fp" + k, "tp" + k], text: "At " + fmt(x) + " guidebooks.", formula: cents(P.vr) + " × " + fmt(x) + " = " + money(r2(P.vr * x)) + "; " + money(P.fx) + " ÷ " + fmt(x) + " = " + cents(r2(P.fx / x)) })) });
+
+  const MOPTS = MON.map((m, i) => ["m" + i, m]);
+  const hlWork = "(" + money(P.costs[S.hi]) + " − " + money(P.costs[S.lo]) + ") ÷ (" + fmt(P.acts[S.hi]) + " − " + fmt(P.acts[S.lo]) + ") = " + cents(S.rate) + " per hour";
+  parts.push({ id: "highlow", phase: "hl", tick: "3", title: "The high-low method",
+    desc: "Press maintenance is a mixed cost. Use the high-low method on the twelve months of data to estimate its cost equation, then predict maintenance cost for a month with " + fmt(P.plan) + " machine hours. Round the variable rate to the cent and the fixed cost and prediction to whole dollars.",
+    hint: "Pick the months with the highest and lowest activity (machine hours), not cost. Variable rate = change in cost ÷ change in activity. Fixed cost = total cost − variable rate × activity at either point.",
+    why: "The high-low method uses the two activity extremes because activity drives the cost. The month with the highest cost can be high for other reasons.",
+    fields: [
+      sel("hi", "High point: the month with the highest activity", MOPTS, "m" + S.hi, v => v === "m" + S.costHi ? MON[S.costHi] + " has the highest cost, but the high-low method picks the highest activity: " + MON[S.hi] + " with " + fmt(P.acts[S.hi]) + " machine hours." : "Pick the month with the most machine hours.", MON[S.hi] + ": " + fmt(P.acts[S.hi]) + " hours"),
+      sel("lo", "Low point: the month with the lowest activity", MOPTS, "m" + S.lo, v => "Pick the month with the fewest machine hours.", MON[S.lo] + ": " + fmt(P.acts[S.lo]) + " hours"),
+      num("rate", "Variable cost per machine hour", S.rate, v => near(v, r2((Math.max(...P.costs) - P.costs[S.lo]) / (P.acts[S.costHi] - P.acts[S.lo]))) ? "That uses the highest-cost month. Use the highest-activity month." : near(v, r2((P.acts[S.hi] - P.acts[S.lo]) / (P.costs[S.hi] - P.costs[S.lo]))) ? "You divided activity by cost. Rate = change in cost ÷ change in activity." : near(v, r2(P.costs[S.hi] / P.acts[S.hi])) ? "That is the average cost per hour at the high point. Use the change in cost ÷ the change in activity." : "Variable rate = (cost at high − cost at low) ÷ (hours at high − hours at low).", hlWork, { dec: 2 }),
+      num("fixed", "Fixed cost per month", S.fixed, v => Math.abs(v - (P.costs[S.hi] - S.rate * P.acts[S.lo])) < 1 || Math.abs(v - (P.costs[S.lo] - S.rate * P.acts[S.hi])) < 1 ? "Use the same month's cost and activity: cost − rate × that month's hours." : v === P.costs[S.lo] ? "That is the low month's total cost. Subtract its variable part." : "Fixed cost = total cost − variable rate × machine hours, at the high or low point.", money(P.costs[S.hi]) + " − " + cents(S.rate) + " × " + fmt(P.acts[S.hi]) + " = " + money(S.fixed)),
+      num("pred", "Predicted maintenance cost at " + fmt(P.plan) + " machine hours", S.pred, (v, n) => n.rate != null && n.fixed != null && Math.abs(v - (n.fixed + n.rate * P.plan)) < 1 && (!near(n.rate, S.rate) || n.fixed !== S.fixed) ? "Your equation is applied correctly, but the rate or fixed cost above is not. Fix it first." : Math.abs(v - S.rate * P.plan) < 1 ? "Add the fixed cost too." : "Predicted cost = fixed cost + variable rate × " + fmt(P.plan) + " hours.", money(S.fixed) + " + " + cents(S.rate) + " × " + fmt(P.plan) + " = " + money(S.pred))],
+    walk: [{ keys: ["hi", "lo"], text: "The extremes of activity are " + MON[S.hi] + " (" + fmt(P.acts[S.hi]) + " hours) and " + MON[S.lo] + " (" + fmt(P.acts[S.lo]) + " hours)." },
+      { keys: ["rate"], text: "Divide the change in cost by the change in hours.", formula: hlWork },
+      { keys: ["fixed", "pred"], text: "Back out the fixed cost at the high point, then predict.", formula: money(S.fixed) + " + " + cents(S.rate) + " × " + fmt(P.plan) + " = " + money(S.pred) }] });
+
+  const vcWork = "(" + cents(P.dm + P.dl + P.vmoh) + " production + " + cents(P.vsell) + " selling) × " + fmt(P.sold) + " = " + money(S.vc);
+  parts.push({ id: "cm", phase: "vc", tick: "4", layout: "sched", title: "Contribution margin income statement",
+    desc: "Prepare the year's contribution margin income statement (variable costing). It sorts costs by behavior: all variable costs come before the contribution margin, and all fixed costs after.",
+    sched: { title: ["Problem Solvers, Inc.", "Contribution Margin Income Statement", "For the year ended December 31, " + YEAR], lines: [{ t: "line", f: "sales", col: 2 }, { t: "line", f: "vc", col: 2 }, { t: "sub", f: "cm", col: 2 }, { t: "line", f: "fc", col: 2 }, { t: "total", f: "oi", col: 2 }] },
+    hint: "Sales = units sold × price. Variable costs = (variable production + variable selling) per unit × units sold. Fixed costs = fixed overhead + fixed selling and administrative.",
+    why: "The contribution margin shows how much each sale contributes toward fixed costs and profit, which is what managers need for decisions.",
+    fields: [
+      num("sales", "Sales revenue", S.sales, v => v === P.price * P.made ? "Revenue comes from the " + fmt(P.sold) + " guidebooks sold, not the " + fmt(P.made) + " produced." : "Sales = " + fmt(P.sold) + " sold × " + money(P.price) + ".", fmt(P.sold) + " × " + money(P.price) + " = " + money(S.sales)),
+      num("vc", "Variable costs", S.vc, v => near(v, S.vprod) ? "Include variable selling costs too. Every variable cost comes before the contribution margin." : near(v, r2((P.dm + P.dl + P.vmoh + P.vsell) * P.made)) ? "Use units sold, not units produced." : "Variable costs = (variable production + variable selling cost per unit) × units sold.", vcWork, { dec: 2 }),
+      num("cm", "Contribution margin", S.cm, (v, n) => n.sales != null && n.vc != null && near(v, n.sales - n.vc) && (n.sales !== S.sales || !near(n.vc, S.vc)) ? "Your subtraction is right, but a line above is not. Fix it first." : "Contribution margin = sales − variable costs.", money(S.sales) + " − " + money(S.vc) + " = " + money(S.cm), { dec: 2 }),
+      num("fc", "Fixed costs", S.fc, v => v === P.fmoh ? "Include fixed selling and administrative costs too." : v === P.fsa ? "Include fixed manufacturing overhead too. Under variable costing it is all expensed this year." : "Fixed costs = fixed manufacturing overhead + fixed selling and administrative.", money(P.fmoh) + " + " + money(P.fsa) + " = " + money(S.fc)),
+      num("oi", "Operating income", S.oi, (v, n) => n.cm != null && n.fc != null && near(v, n.cm - n.fc) && (!near(n.cm, S.cm) || n.fc !== S.fc) ? "Your subtraction is right, but a line above is not. Fix it first." : "Operating income = contribution margin − fixed costs.", money(S.cm) + " − " + money(S.fc) + " = " + money(S.oi), { dec: 2 })],
+    walk: [{ keys: ["sales", "vc", "cm"], text: "Variable costs follow units sold, including variable selling.", formula: vcWork + "; CM " + money(S.cm) },
+      { keys: ["fc", "oi"], text: "All fixed costs come after the contribution margin.", formula: money(S.cm) + " − " + money(S.fc) + " = " + money(S.oi) }] });
+
+  const REASON = [["defer", "Absorption costing puts part of fixed overhead in ending inventory, deferring it to next year"], ["vsell", "Absorption costing treats variable selling costs as product costs"],
+    ["fsa", "Variable costing leaves fixed selling and administrative costs out of expenses"], ["price", "Absorption costing uses a higher selling price"]];
+  parts.push({ id: "absorb", phase: "vc", tick: "5", title: "Variable vs. absorption costing",
+    desc: "This year Problem Solvers produced " + fmt(P.made) + " guidebooks and sold " + fmt(P.sold) + ". Compare unit product cost and operating income under variable and absorption costing. Round unit costs to the cent.",
+    hint: "Variable costing: unit cost = DM + DL + variable overhead. Absorption: add fixed overhead per unit produced. When production exceeds sales, absorption income is higher by the fixed overhead in ending inventory.",
+    why: "Under absorption costing, fixed overhead attached to unsold units waits in inventory, so producing more than you sell raises this year's income without selling anything more.",
+    fields: [
+      num("ucV", "Unit product cost, variable costing", S.ucV, v => near(v, r2(S.ucV + P.vsell)) ? "Variable selling costs are period costs, not product costs. Use DM + DL + variable overhead only." : near(v, S.ucA) ? "That includes fixed overhead. Under variable costing, fixed overhead is a period cost." : "Variable costing unit cost = direct materials + direct labor + variable overhead.", cents(P.dm) + " + " + cents(P.dl) + " + " + cents(P.vmoh) + " = " + cents(S.ucV), { dec: 2 }),
+      num("ucA", "Unit product cost, absorption costing", S.ucA, (v, n) => near(v, S.ucV) ? "Absorption costing includes fixed manufacturing overhead in product cost: add " + money(P.fmoh) + " ÷ " + fmt(P.made) + " per unit." : near(v, r2(S.ucV + P.fmoh / P.sold)) ? "Spread fixed overhead over the units produced, not units sold." : near(v, r2(S.ucV + S.fpu + P.vsell)) ? "Variable selling costs are never product costs." : n.ucV != null && near(v, r2(n.ucV + S.fpu)) && !near(n.ucV, S.ucV) ? "You added fixed overhead per unit correctly, but your variable costing unit cost is not right. Fix it first." : "Absorption unit cost = variable production cost per unit + fixed overhead per unit produced.", cents(S.ucV) + " + " + money(P.fmoh) + " ÷ " + fmt(P.made) + " = " + cents(S.ucA), { dec: 2 }),
+      num("oiV", "Operating income, variable costing", S.oi, v => near(v, S.oiA) ? "That is absorption costing income." : near(v, S.cm) ? "Subtract all fixed costs from the contribution margin." : "Variable costing operating income = contribution margin − all fixed costs (same as Part 4).", money(S.cm) + " − " + money(S.fc) + " = " + money(S.oi), { dec: 2 }),
+      num("oiA", "Operating income, absorption costing", S.oiA, v => near(v, S.oi) ? "Absorption income differs when production and sales differ. Add the fixed overhead deferred in ending inventory." : near(v, r2(S.oi - S.deferred)) ? "Production exceeded sales, so absorption income is higher, not lower." : "Absorption income = variable costing income + fixed overhead per unit × units added to inventory.", money(S.oi) + " + " + cents(S.fpu) + " × " + fmt(P.made - P.sold) + " = " + money(S.oiA), { dec: 2 }),
+      sel("why", "Why is absorption income different?", REASON, "defer", v => "The " + fmt(P.made - P.sold) + " unsold guidebooks each carry " + cents(S.fpu) + " of fixed overhead under absorption costing. That cost sits in ending inventory instead of being expensed this year.", "Fixed overhead deferred in ending inventory: " + money(S.deferred))],
+    walk: [{ keys: ["ucV", "ucA"], text: "Variable costing: DM + DL + VMOH. Absorption: add fixed overhead per unit produced.", formula: cents(S.ucV) + " → " + cents(S.ucA) },
+      { keys: ["oiV", "oiA", "why"], text: "Absorption income is higher by the fixed overhead in the units added to inventory.", formula: money(S.oi) + " + " + money(S.deferred) + " = " + money(S.oiA) }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or 2,400.50." };
+      else res[f.id] = (f.dec ? near(v, f.ans) : v === f.ans) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> prints and sells its own “how to” guidebooks. This lab looks at how its costs behave and how that changes the income statement. Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, id = c.part.id;
+  if (id === "classify") return { title: "Cost behavior", html: '<div class="defs"><div class="def"><b>Variable cost</b>The total changes in proportion to activity; the cost per unit stays the same.</div><div class="def"><b>Fixed cost</b>The total stays the same within the relevant range; the cost per unit falls as activity rises.</div><div class="def"><b>Mixed cost</b>Part fixed and part variable, such as a monthly fee plus a charge per use.</div></div>' };
+  if (id === "perunit") return { title: "Binding department costs", html: '<div class="facts"><div class="fact"><span class="k">Fixed</span><span><b class="num">' + money(P.fx) + '</b> per year</span></div><div class="fact"><span class="k">Variable</span><span><b class="num">' + cents(P.vr) + '</b> per guidebook</span></div><div class="fact"><span class="k">Volumes</span><span>' + P.vols.map(fmt).join(" and ") + ' guidebooks</span></div></div>' };
+  if (id === "highlow") return { title: "Press maintenance by month", sub: YEAR, html: '<div class="scroll"><table class="dtab"><thead><tr><th scope="col">Month</th><th scope="col" class="r">Machine hours</th><th scope="col" class="r">Maintenance cost</th></tr></thead><tbody>' + P.acts.map((x, i) => '<tr><td>' + MON[i] + '</td><td class="r">' + fmt(x) + '</td><td class="r">' + money(P.costs[i]) + '</td></tr>').join("") + '</tbody></table></div>' };
+  const row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  return { title: "Guidebook data for " + YEAR, html: '<div class="scroll"><table class="dtab"><tbody>' +
+    row("Guidebooks produced", fmt(P.made)) + row("Guidebooks sold", fmt(P.sold)) + row("Selling price per guidebook", money(P.price)) +
+    '<tr class="grp"><td colspan="2">Variable costs per guidebook</td></tr>' + row("Direct materials", cents(P.dm)) + row("Direct labor", cents(P.dl)) + row("Variable manufacturing overhead", cents(P.vmoh)) + row("Variable selling (commissions and shipping)", cents(P.vsell)) +
+    '<tr class="grp"><td colspan="2">Fixed costs for the year</td></tr>' + row("Fixed manufacturing overhead", money(P.fmoh)) + row("Fixed selling and administrative", money(P.fsa)) +
+    '</tbody></table></div><p class="note">There was no beginning inventory.</p>' };
+}
+
+MAFrame.start({
+  slug: "ma-cost-behavior", key: "ma-beh1", module: "M3", title: "Cost Behavior and Variable Costing Lab",
+  phases: [["beh", "Cost behavior"], ["hl", "High-low"], ["vc", "Variable costing"]],
+  dataTitle: "Data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
