@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Managerial Accounting Foundations Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M1 Lab 1: Managerial Accounting Foundations. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-foundations), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-foundations.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const money = n => (n < 0 ? "−" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+const num = n => Math.round(n).toLocaleString("en-US");
+function parse(v) {
+  if (v == null) return NaN;
+  let s = String(v).trim(); if (!s) return NaN;
+  const neg = /^\(.*\)$/.test(s) || /^[-−]/.test(s);
+  s = s.replace(/[$,()\s\-−]/g, "");
+  if (!/^\d+(\.\d+)?$/.test(s)) return NaN;
+  return (neg ? -1 : 1) * parseFloat(s);
+}
+const MGR = "Managerial accounting", FIN = "Financial accounting";
+const PL = "Planning", DI = "Directing", CO = "Controlling";
+const PR = "Product cost", PE = "Period cost";
+const DM = "Direct materials", DL = "Direct labor", OH = "Manufacturing overhead", SE = "Selling expense", AE = "Administrative expense";
+const V = "Variable", F = "Fixed";
+const COST_TEXT = [
+  "Paper used to print the guidebooks", "Cover stock used for guidebook covers", "Wages of press operators who print the guidebooks",
+  "Wages of binding workers who assemble the guidebooks", "Glue and binding thread", "Salary of the print shop supervisor",
+  "Straight-line depreciation on the printing presses", "Rent on the print shop building", "Electricity to run the printing presses",
+  "Insurance on the print shop equipment", "Sales commissions on guidebook sales", "Advertising for the guidebook line",
+  "Shipping guidebooks to customers", "Salary of the company accountant", "Rent on the corporate office"];
+
+// ---------- Problem generator ----------
+// The numbers are drawn in the same order as the original Lab 1 page, so a problem set number gives the same numbers.
+function gen(seed) {
+  const rnd = mulberry32((seed * 2654435761) >>> 0);
+  const int = (min, max, step = 1) => { const n = Math.floor((max - min) / step) + 1; return min + step * Math.floor(rnd() * n); };
+  const loan = int(40, 90, 5) * 1000, waste = int(120, 480, 10), vendor = int(3, 7), cpa = int(8, 15) * 500;
+  const goal = int(150, 300, 10) * 1000, run = int(8, 20) * 100, paperAct = int(21, 29) * 1000, paperBud = paperAct - int(2, 4) * 1000;
+  const hrsTarget = int(60, 90, 5) * 10, hrsActual = hrsTarget - int(4, 12) * 10, rush = int(3, 8) * 100;
+  const amts = [int(18000, 32000, 500), int(4000, 9000, 250), int(22000, 36000, 500), int(12000, 20000, 500), int(600, 1500, 50),
+    int(38000, 52000, 1000), int(6000, 12000, 500), int(12, 20) * 1200, int(2000, 4500, 100), int(1200, 3000, 100),
+    int(3000, 7000, 250), int(2500, 6000, 250), int(1500, 4000, 100), int(40000, 55000, 1000), int(10, 15) * 1200];
+  return { loan, waste, vendor, cpa, goal, run, paperAct, paperBud, hrsTarget, hrsActual, rush,
+    costs: COST_TEXT.map((text, i) => ({ text, amount: amts[i] })) };
+}
+
+// ---------- Parts ----------
+// A table part has one select per item and column; a "why" goes with each answer. The totals part is a schedule.
+function selField(id, row, col, opts, ans, why) { return { id, row, col, kind: "sel", opts: opts.map(o => [o, o]), ans, work: why }; }
+function buildParts(P) {
+  const Y = YEAR;
+  const why = {
+    int: "Managerial accounting serves managers inside the company and is not required to follow GAAP.",
+    ext: "Financial accounting serves people outside the company, such as lenders and shareholders, and follows US GAAP."
+  };
+  const reports = [
+    [`A daily report for the print shop supervisor showing ${P.waste} sheets of paper wasted on each press`, MGR, `Detailed, daily operating data for an internal manager is managerial accounting. Outside users never see press-level waste. ${why.int}`],
+    [`Annual financial statements sent to the bank that lent Problem Solvers ${money(P.loan)}`, FIN, `The bank is an outside user, so these statements are financial accounting. ${why.ext}`],
+    [`A forecast of guidebook sales for each month of ${Y + 1}`, MGR, "Forecasts look to the future to help managers plan. Financial accounting reports what already happened."],
+    ["An income statement prepared according to US GAAP", FIN, `GAAP rules govern reports for outside users. ${why.ext}`],
+    [`Year-end statements audited by an independent CPA firm for a fee of ${money(P.cpa)}`, FIN, "Audits give outside users confidence in the financial statements. Internal management reports are not audited."],
+    [`A comparison of printing guidebooks in-house with buying them from a printer that charges ${money(P.vendor)} per guide`, MGR, `Comparing options for a decision is managerial accounting. ${why.int}`],
+    ["A weekly profit report for the Consulting division and the Guidebook division", MGR, "Weekly reports by division give managers timely, detailed information. Financial statements report on the company as a whole, usually quarterly or yearly."],
+    ["Reports prepared mainly for shareholders and other investors", FIN, `Shareholders and investors are outside users. ${why.ext}`]
+  ];
+  const ex = {
+    P: "Setting a goal or deciding ahead of time how to reach it is planning.",
+    D: "Handling day-to-day operations to carry out the plan is directing.",
+    C: "Comparing actual results with the plan and acting on the difference is controlling."
+  };
+  const acts = [
+    [`The CEO sets a goal of ${money(P.goal)} in guidebook sales for the year.`, PL, ex.P],
+    [`The print shop supervisor schedules press operators for this week's run of ${num(P.run)} guidebooks.`, DI, ex.D],
+    [`Actual paper cost was ${money(P.paperAct)} against a budget of ${money(P.paperBud)}. Management investigates why and switches to a cheaper supplier.`, CO, ex.C],
+    ["The Binding department manager prepares next quarter's budget.", PL, "A budget is a plan for the future, so preparing one is planning."],
+    [`The operations manager adds an extra shift today to finish a rush order of ${num(P.rush)} guidebooks.`, DI, ex.D],
+    [`Consultants billed ${num(P.hrsActual)} hours this month against a target of ${num(P.hrsTarget)}, so the consulting manager adjusts staffing.`, CO, ex.C],
+    ["Management decides to start printing guidebooks in-house and lays out the steps to open the print shop.", PL, ex.P],
+    ["The binding supervisor moves two workers to packing to meet today's shipping deadline.", DI, ex.D]
+  ];
+  const w = {
+    pr: "It is a cost of making the guidebooks, so it is a product cost. It stays in inventory until the guides are sold.",
+    pe: "It is not a cost of making the guidebooks, so it is a period cost, expensed in the period it is incurred.",
+    dm: "It becomes a physical part of the guidebook and is easy to trace to each guide, so it is direct materials.",
+    dl: "These workers make the guidebooks by hand or machine, and their time is easy to trace to the guides, so it is direct labor.",
+    oh: "It is a cost of running the print shop that cannot be easily traced to individual guides, so it is manufacturing overhead (an indirect cost).",
+    se: "It is a cost of getting guidebooks to customers, so it is a selling expense.",
+    ae: "It is a cost of running the company as a whole, so it is an administrative expense.",
+    v: "The total goes up as more guidebooks are produced or sold, so it is variable.",
+    f: "The total stays the same no matter how many guidebooks are produced or sold, so it is fixed."
+  };
+  const cls = [
+    [PR, DM, V, w.dm], [PR, DM, V, w.dm], [PR, DL, V, w.dl], [PR, DL, V, w.dl],
+    [PR, OH, V, "Glue and thread go into each guide, but the amount per guide is too small to trace, so they are indirect materials, part of manufacturing overhead."],
+    [PR, OH, F, "The supervisor oversees the whole print shop rather than working on individual guides, so the salary is indirect labor, part of manufacturing overhead."],
+    [PR, OH, F, w.oh], [PR, OH, F, w.oh],
+    [PR, OH, V, "Power for the presses is a print shop cost that cannot be traced to individual guides, so it is manufacturing overhead. It rises with press use."],
+    [PR, OH, F, w.oh], [PE, SE, V, w.se], [PE, SE, F, w.se],
+    [PE, SE, V, "Shipping happens after the guides are finished, to deliver them to customers, so it is a selling expense (freight-out), not a product cost."],
+    [PE, AE, F, w.ae],
+    [PE, AE, F, "The corporate office is not part of the print shop, so its rent is an administrative expense, not overhead."]
+  ];
+  const a = P.costs.map(c => c.amount);
+  const sum = cat => a.filter((_, i) => cls[i][1] === cat).reduce((t, x) => t + x, 0);
+  const dm = sum(DM), dl = sum(DL), oh = sum(OH), se = sum(SE), ae = sum(AE);
+  const prime = dm + dl, conv = dl + oh, prod = dm + dl + oh, per = se + ae;
+  const line = (id, t, label, ans, explain, traps) => ({ id, t, label, kind: "$", ans, work: explain, explain, traps: traps || [] });
+  const tot = [
+    line("dm", "line", "Total direct materials", dm, "Add the costs you classified as direct materials: paper and cover stock."),
+    line("dl", "line", "Total direct labor", dl, "Add the wages of the workers who make the guidebooks: press operators and binding workers."),
+    line("oh", "line", "Total manufacturing overhead", oh, "Add every print shop cost that is not direct materials or direct labor. There are six.",
+      [{ val: oh - a[4], msg: "Close. Glue and binding thread are indirect materials, so they belong in manufacturing overhead too." }, { val: oh - a[5], msg: "Close. The print shop supervisor's salary is indirect labor, so it belongs in manufacturing overhead too." }]),
+    line("prime", "sub", "Prime costs", prime, "Prime costs are the direct costs of making the product: direct materials + direct labor.", [{ val: conv, msg: "That is conversion cost. Prime costs are direct materials + direct labor." }]),
+    line("conv", "sub", "Conversion costs", conv, "Conversion costs turn materials into a finished guidebook: direct labor + manufacturing overhead.", [{ val: prime, msg: "That is prime cost. Conversion costs are direct labor + manufacturing overhead." }]),
+    line("prod", "total", "Total product costs", prod, "Product costs = direct materials + direct labor + manufacturing overhead.",
+      [{ val: prime + conv, msg: "Prime + conversion counts direct labor twice. Add DM + DL + MOH once each." }, { val: prime, msg: "That is prime cost. Product costs also include manufacturing overhead." }]),
+    line("per", "total", "Total period costs", per, "Period costs = all selling expenses + all administrative expenses.",
+      [{ val: se, msg: "That is only the selling expenses. Add the administrative expenses too." }, { val: ae, msg: "That is only the administrative expenses. Add the selling expenses too." }])
+  ];
+  return [
+    { id: "users", phase: "role", tick: "1", layout: "table", title: "Who uses managerial accounting?",
+      desc: "Problem Solvers, Inc. started the year as a consulting firm and now prints its own “how to” guidebooks. Decide whether each report is managerial accounting (for managers inside the company) or financial accounting (for people outside it).",
+      itemLabel: "Report or information", cols: [{ key: "type", label: "Type of accounting" }], items: reports.map(r => ({ text: r[0] })),
+      fields: reports.map((r, i) => selField("type" + i, i, "type", [MGR, FIN], r[1], r[2])) },
+    { id: "functions", phase: "role", tick: "2", layout: "table", title: "What are managers doing?",
+      desc: "Managers use accounting information to plan, direct, and control. Match each activity to the function it shows.",
+      itemLabel: "Manager activity", cols: [{ key: "fn", label: "Management function" }], items: acts.map(r => ({ text: r[0] })),
+      fields: acts.map((r, i) => selField("fn" + i, i, "fn", [PL, DI, CO], r[1], r[2])) },
+    { id: "costs", phase: "costs", tick: "3", layout: "table", title: "Classify the print shop's costs",
+      desc: "These are some of Problem Solvers' costs for the year. Classify each one three ways. Behavior means how the total cost changes as the number of guidebooks produced and sold changes.",
+      itemLabel: "Cost", amountLabel: "Amount", cols: [{ key: "pp", label: "Product or period" }, { key: "cat", label: "Category" }, { key: "beh", label: "Behavior" }],
+      items: P.costs.map(c => ({ text: c.text, amount: c.amount })),
+      fields: cls.flatMap((c, i) => [selField("pp" + i, i, "pp", [PR, PE], c[0], c[0] === PR ? w.pr : w.pe), selField("cat" + i, i, "cat", [DM, DL, OH, SE, AE], c[1], c[3]), selField("beh" + i, i, "beh", [V, F], c[2], c[2] === V ? w.v : w.f)]) },
+    { id: "totals", phase: "costs", tick: "4", layout: "sched", title: "Total the costs",
+      desc: "Use your classifications from Part 3 to compute these totals.",
+      sched: { title: ["Problem Solvers, Inc.", "Cost totals", `For the year ended December 31, ${Y}`], lines: tot.map(f => ({ t: f.t, f: f.id, col: 2 })) },
+      fields: tot.map(({ t, ...f }) => f),
+      walk: [
+        { keys: ["dm"], text: "Paper and cover stock become part of every guidebook.", formula: `${money(a[0])} + ${money(a[1])} = ${money(dm)}` },
+        { keys: ["dl"], text: "Press operators and binding workers work directly on the guides.", formula: `${money(a[2])} + ${money(a[3])} = ${money(dl)}` },
+        { keys: ["oh"], text: "Overhead is every other print shop cost: glue and thread, the supervisor, depreciation, rent, electricity, and insurance.", formula: `${a.slice(4, 10).map(money).join(" + ")} = ${money(oh)}` },
+        { keys: ["prime"], text: "Prime costs are the direct costs.", formula: `DM ${money(dm)} + DL ${money(dl)} = ${money(prime)}` },
+        { keys: ["conv"], text: "Conversion costs turn paper into a finished guidebook. Direct labor is part of both prime and conversion costs.", formula: `DL ${money(dl)} + MOH ${money(oh)} = ${money(conv)}` },
+        { keys: ["prod"], text: "Product costs are all three manufacturing costs.", formula: `${money(dm)} + ${money(dl)} + ${money(oh)} = ${money(prod)}` },
+        { keys: ["per"], text: "Period costs are the selling and administrative expenses.", formula: `Selling ${money(se)} + Administrative ${money(ae)} = ${money(per)}` }
+      ] }
+  ];
+}
+
+// ---------- Grading ----------
+// A choice: right, or "not “your choice.”" with the reason. An amount: right, a known slip's message, or the rule.
+function grade(p, vals) {
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) { res[f.id] = { ok: false, msg: "choose an answer." }; all = false; return; }
+      if (v === f.ans) { res[f.id] = { ok: true, msg: "Correct." }; return; }
+      res[f.id] = { ok: false, msg: "not “" + v + ".” " + f.work }; all = false; return;
+    }
+    const v = parse(raw);
+    if (v === f.ans) { res[f.id] = { ok: true, msg: "Correct." }; return; }
+    all = false;
+    if (isNaN(v)) { res[f.id] = { ok: false, msg: "Enter a whole-dollar amount." }; return; }
+    const trap = f.traps.find(t => t.val === v);
+    res[f.id] = { ok: false, msg: trap ? trap.msg : f.explain };
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> started as a consulting firm and now prints and sells its own “how to” guidebooks. First year of operations, " + YEAR + "."; }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const CAT_SHORT = { [DM]: "DM", [DL]: "DL", [OH]: "MOH", [SE]: "Selling", [AE]: "Admin" };
+function dataHTML(c) {
+  const id = c.part.id;
+  if (id === "users") return { title: "Two kinds of accounting", html:
+    '<div class="defs"><div class="def"><b>Managerial accounting</b>Information for managers inside the company. Detailed, timely, forward-looking, and not required to follow GAAP.</div>' +
+    '<div class="def"><b>Financial accounting</b>Reports for people outside the company, such as lenders and shareholders. Follows US GAAP and is often audited.</div></div>' };
+  if (id === "functions") return { title: "What managers do", html:
+    '<div class="defs"><div class="def"><b>Planning</b>Choosing goals and deciding how to reach them.</div>' +
+    '<div class="def"><b>Directing</b>Running day-to-day operations to carry out the plan.</div>' +
+    '<div class="def"><b>Controlling</b>Comparing actual results with the plan and taking corrective action.</div></div>' };
+  if (id === "costs") return { title: "Product and period costs", html:
+    '<div class="defs"><div class="def"><b>Product costs</b>Direct materials, direct labor, manufacturing overhead</div>' +
+    '<div class="def"><b>Period costs</b>Selling and administrative expenses</div></div>' };
+  let h = '<div class="scroll"><table class="dtab"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">Costs for the year</div><div class="cap-date">Categories from Part 3</div></caption>' +
+    '<thead><tr><th scope="col">Cost</th><th scope="col">Category</th><th scope="col" class="r">Amount</th></tr></thead><tbody>';
+  (c.P.costs || []).forEach((x, i) => { const cat = c.ans("costs", "cat" + i);
+    h += '<tr><td>' + esc(x.text) + '</td><td class="' + (cat ? "" : "dim") + '">' + esc(cat ? CAT_SHORT[cat] || cat : "?") + '</td><td class="r">' + money(x.amount) + '</td></tr>'; });
+  h += '</tbody></table></div><div class="defs" style="margin-top:14px">' +
+    '<div class="def"><b>Prime costs</b>The direct costs of making a product</div><div class="def"><b>Conversion costs</b>The costs of turning materials into a finished product</div>' +
+    '<div class="def"><b>Product costs</b>All costs of making the product</div><div class="def"><b>Period costs</b>Selling and administrative expenses</div></div>';
+  return { title: "Costs and key terms", html: h };
+}
+
+MAFrame.start({
+  slug: "ma-foundations", key: "ma-foundations1", module: "M1", title: "Managerial Accounting Foundations Lab",
+  phases: [["role", "Role of managerial accounting"], ["costs", "Cost classifier"]],
+  seedMin: 1000, seedMax: 9999, dataTitle: "Key terms",
+  footer: "University of New Haven · ACCT 1102 · Problem Solvers, Inc. and all figures are illustrative. The same problem set number always gives the same numbers, so you can share a set with a classmate or your instructor.",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
