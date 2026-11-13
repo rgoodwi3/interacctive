@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Manufacturing Costs and COGM Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<style>
+/* Cost flow diagram (Part 1) */
+.flowwrap{min-width:560px}
+.flowwrap svg{display:block;width:100%;height:auto}
+.flow-box rect{fill:var(--sheet);stroke:var(--rule-strong);stroke-width:1.25}
+.flow-box text{font:600 13px var(--f-body);fill:var(--ink)}
+.flow-box.on rect{fill:var(--gold-soft);stroke:var(--gold);stroke-width:2}
+.flow-zone{fill:none;stroke:var(--rule-strong);stroke-dasharray:5 5}
+.flow-zone-label{font:600 11px var(--f-display);letter-spacing:.08em;fill:var(--muted)}
+.flow-line{fill:none;stroke:var(--rule-strong);stroke-width:2;stroke-dasharray:6 5}
+.flow-line.done{stroke:var(--brand);stroke-dasharray:none;stroke-width:2.5}
+.flow-line.cur{stroke:var(--gold);stroke-dasharray:none;stroke-width:3.5}
+.flow-badge circle{fill:var(--sheet);stroke:var(--rule-strong);stroke-width:1.25}
+.flow-badge text{font:700 11px var(--f-body);fill:var(--muted)}
+.flow-badge.done circle{fill:var(--brand);stroke:var(--brand)} .flow-badge.done text{fill:var(--sheet)}
+.flow-badge.cur circle{fill:var(--gold);stroke:var(--gold)} .flow-badge.cur text{fill:#111b2e}
+.flow-tag{font:600 11.5px var(--f-body);fill:var(--muted)}
+.flow-arrow{fill:var(--rule-strong)}
+</style>
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M1 Lab 2: Manufacturing Costs and COGM. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-cogm), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-cogm.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const money = n => (n < 0 ? "−" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+function parse(v) {
+  if (v == null) return NaN;
+  let s = String(v).trim(); if (!s) return NaN;
+  const neg = /^\(.*\)$/.test(s) || /^[-−]/.test(s);
+  s = s.replace(/[$,()\s\-−]/g, "");
+  if (!/^\d+(\.\d+)?$/.test(s)) return NaN;
+  return (neg ? -1 : 1) * parseFloat(s);
+}
+const SRC = "Cash, payables, or other accounts", RM = "Raw Materials Inventory", WIP = "Work in Process Inventory", FG = "Finished Goods Inventory", CGS = "Cost of Goods Sold", SA = "Selling and administrative expenses";
+const CO_S = "Service company", CO_M = "Merchandiser", CO_MF = "Manufacturer";
+
+// ---------- Problem generator ----------
+// The data for the year, drawn in the same order as the original Lab 2 page, so a problem set number gives the same numbers.
+function gen(seed) {
+  const rnd = mulberry32((seed * 2654435761) >>> 0);
+  const int = (min, max, step = 1) => { const n = Math.floor((max - min) / step) + 1; return min + step * Math.floor(rnd() * n); };
+  const brm = int(5000, 12000, 500), pur = int(40000, 70000, 1000), erm = int(4000, 10000, 500);
+  const dl = int(30000, 55000, 1000);
+  const il = int(18000, 30000, 1000), dep = int(6000, 12000, 500), rent = int(12, 20) * 1200, util = int(2000, 4500, 100), ins = int(1200, 3000, 100);
+  const bwip = int(6000, 14000, 500), ewip = int(5000, 12000, 500), bfg = int(8000, 15000, 500), efg = int(7000, 14000, 500);
+  const comm = int(3000, 7000, 250), adv = int(2500, 6000, 250), frt = int(1500, 4000, 100), osal = int(40000, 55000, 1000), orent = int(10, 15) * 1200;
+  const dm = brm + pur - erm, moh = il + dep + rent + util + ins, cogm = bwip + dm + dl + moh - ewip, cogs = bfg + cogm - efg, opex = comm + adv + frt + osal + orent;
+  const sales = Math.ceil((cogs + opex + int(15, 40) * 1000) / 1000) * 1000;
+  return { brm, pur, erm, dl, il, dep, rent, util, ins, bwip, ewip, bfg, efg, comm, adv, frt, osal, orent, sales };
+}
+// The totals every part works out from the data.
+function totals(P) {
+  const rmavail = P.brm + P.pur, dm = rmavail - P.erm, moh = P.il + P.dep + P.rent + P.util + P.ins, tmc = dm + P.dl + moh, tca = P.bwip + tmc, cogm = tca - P.ewip;
+  const cgas = P.bfg + cogm, cogs = cgas - P.efg, opex = P.comm + P.adv + P.frt + P.osal + P.orent, gp = P.sales - cogs, oi = gp - opex;
+  return { rmavail, dm, moh, tmc, tca, cogm, cgas, cogs, opex, gp, oi };
+}
+// The eight events of Part 1: arrow id, event, from, to, box the walk-through lights, walk-through text.
+function flowsOf(P) {
+  const T = totals(P);
+  return [
+    ["pur", `Bought paper and cover stock on account, ${money(P.pur)}`, SRC, RM, "rm", `Materials bought go into Raw Materials Inventory until they are used. Purchases this year: ${money(P.pur)}.`],
+    ["dm", `Sent paper and cover stock to the presses and used them, ${money(T.dm)}`, RM, WIP, "wip", `Materials used in production move from Raw Materials to Work in Process as direct materials: ${money(P.brm)} + ${money(P.pur)} − ${money(P.erm)} = ${money(T.dm)}.`],
+    ["dl", `Press operators and binding workers earned wages, ${money(P.dl)}`, SRC, WIP, "wip", `Wages of the workers who make the guidebooks are direct labor and go straight into Work in Process: ${money(P.dl)}.`],
+    ["moh", `Incurred print shop overhead: supervisor, depreciation, rent, utilities, and insurance, ${money(T.moh)}`, SRC, WIP, "wip", `Manufacturing overhead is also a product cost, so it is added to Work in Process: ${money(T.moh)}.`],
+    ["cogm", `Moved finished guidebooks to the warehouse, ${money(T.cogm)}`, WIP, FG, "fg", `The cost of guides completed this year, the cost of goods manufactured, moves to Finished Goods: ${money(T.cogm)}.`],
+    ["cogs", `Sold guidebooks to customers; their cost was ${money(T.cogs)}`, FG, CGS, "cogs", `When guides are sold, their cost leaves Finished Goods and becomes Cost of Goods Sold, an expense: ${money(T.cogs)}.`],
+    ["sa1", `Paid sales commissions, ${money(P.comm)}`, SRC, SA, "per", `Sales commissions are a period cost. They never enter inventory and are expensed right away as a selling expense: ${money(P.comm)}.`],
+    ["sa2", `Paid rent on the corporate office, ${money(P.orent)}`, SRC, SA, "per", `Corporate office rent is an administrative expense, a period cost expensed right away: ${money(P.orent)}.`]
+  ];
+}
+
+// ---------- Parts ----------
+function selField(id, row, col, opts, ans, why) { return { id, row, col, kind: "sel", opts: opts.map(o => [o, o]), ans, work: why }; }
+function line(id, t, label, col, ind, ans, explain, traps) { return { id, t, label, col, ind, kind: "$", ans, work: explain, explain, traps: traps || [] }; }
+function sched(rows) { return { lines: rows.map(r => r.t === "head" || r.t === "given" ? r : { t: r.t, f: r.id, col: r.col, ind: r.ind || 0 }), fields: rows.filter(r => r.id).map(({ t, col, ind, ...f }) => f) }; }
+function buildParts(P) {
+  const Y = YEAR, T = totals(P), flows = flowsOf(P);
+  const fromWhy = {
+    [SRC]: "This cost comes from outside the inventory accounts: it is paid in cash, owed to someone, or (like depreciation) recorded against another account.",
+    [RM]: "Materials are taken out of Raw Materials Inventory when they are used.",
+    [WIP]: "Completed guides leave Work in Process when they are finished.",
+    [FG]: "Guides that are sold leave Finished Goods Inventory."
+  };
+  const toWhy = {
+    [RM]: "Purchased materials wait in Raw Materials Inventory until they are used.",
+    [WIP]: "Direct materials used, direct labor, and manufacturing overhead are all added to Work in Process while the guides are being made.",
+    [FG]: "Finished guides move to Finished Goods Inventory until they are sold.",
+    [CGS]: "The cost of guides sold becomes Cost of Goods Sold, an expense on the income statement.",
+    [SA]: "Selling and administrative costs are period costs. They never enter inventory and are expensed when incurred."
+  };
+  const c2 = sched([
+    line("bwip", "line", "Beginning work in process inventory", 2, 0, P.bwip, "Start with the work in process balance on January 1.", [{ val: P.ewip, msg: "That is the ending balance. The schedule starts with beginning work in process." }]),
+    { t: "head", label: "Add: Direct materials used" },
+    line("brm", "line", "Beginning raw materials inventory", 1, 1, P.brm, "Use the raw materials balance on January 1.", [{ val: P.erm, msg: "That is the ending balance. Use raw materials on January 1." }]),
+    line("pur", "line", "Purchases of raw materials", 1, 1, P.pur, "Use the purchases of raw materials for the year."),
+    line("rmavail", "sub", "Raw materials available for use", 1, 1, T.rmavail, "Raw materials available = beginning raw materials + purchases."),
+    line("erm", "line", "Less: Ending raw materials inventory", 1, 1, P.erm, "Subtract the raw materials still on hand at December 31.", [{ val: P.brm, msg: "That is the beginning balance. Subtract raw materials on December 31." }]),
+    line("dm", "sub", "Direct materials used", 2, 1, T.dm, "Direct materials used = materials available − ending raw materials.", [{ val: T.rmavail, msg: "That is materials available. Subtract the ending raw materials still on hand." }, { val: P.pur, msg: "Purchases are not the same as materials used. Adjust for the beginning and ending raw materials." }]),
+    line("dl", "line", "Add: Direct labor", 2, 0, P.dl, "Use direct labor for the year."),
+    { t: "head", label: "Add: Manufacturing overhead" },
+    line("il", "line", "Indirect labor", 1, 1, P.il, "Use indirect labor from the print shop costs."),
+    line("dep", "line", "Depreciation on printing presses", 1, 1, P.dep, "Use depreciation on the printing presses."),
+    line("rent", "line", "Print shop rent", 1, 1, P.rent, "Use the print shop rent, not the corporate office rent.", [{ val: P.orent, msg: "That is the corporate office rent, an administrative expense. Use the print shop rent." }]),
+    line("util", "line", "Print shop utilities", 1, 1, P.util, "Use the print shop utilities."),
+    line("ins", "line", "Print shop insurance", 1, 1, P.ins, "Use the print shop insurance."),
+    line("moh", "sub", "Total manufacturing overhead", 2, 1, T.moh, "Add the five overhead costs.", [{ val: T.moh - P.il, msg: "Indirect labor is manufacturing overhead too. Include it." }]),
+    line("tmc", "sub", "Total manufacturing costs incurred during the year", 2, 0, T.tmc, "Total manufacturing costs incurred = direct materials used + direct labor + manufacturing overhead.", [{ val: T.dm + P.dl, msg: "That is direct materials + direct labor (prime costs). Add manufacturing overhead." }, { val: T.tca, msg: "That includes beginning work in process. Costs incurred during the year are DM + DL + MOH only." }]),
+    line("tca", "sub", "Total manufacturing costs to account for", 2, 0, T.tca, "Total to account for = beginning work in process + total manufacturing costs incurred.", [{ val: T.tmc, msg: "Add beginning work in process to the costs incurred this year." }]),
+    line("ewip", "line", "Less: Ending work in process inventory", 2, 0, P.ewip, "Subtract the work in process still unfinished at December 31.", [{ val: P.bwip, msg: "That is the beginning balance. Subtract work in process on December 31." }]),
+    line("cogm", "total", "Cost of goods manufactured", 2, 0, T.cogm, "Cost of goods manufactured = total manufacturing costs to account for − ending work in process.", [{ val: T.tca, msg: "Subtract ending work in process. Those guides are not finished yet." }, { val: T.tmc - P.ewip, msg: "Close, but you left out beginning work in process." }, { val: T.tmc, msg: "That is total manufacturing costs incurred. Adjust for beginning and ending work in process." }])
+  ]);
+  // The income statement gives cost of goods manufactured, so a slip on the schedule doesn't carry into it.
+  const c3 = sched([
+    line("sales", "line", "Sales revenue", 2, 0, P.sales, "Use sales revenue for the year."),
+    { t: "head", label: "Cost of goods sold" },
+    line("bfg", "line", "Beginning finished goods inventory", 1, 1, P.bfg, "Use finished goods on January 1.", [{ val: P.efg, msg: "That is the ending balance. Use finished goods on January 1." }]),
+    { t: "given", label: "Add: Cost of goods manufactured", col: 1, ind: 1, v: T.cogm },
+    line("cgas", "sub", "Cost of goods available for sale", 1, 1, T.cgas, "Goods available for sale = beginning finished goods + cost of goods manufactured."),
+    line("efg", "line", "Less: Ending finished goods inventory", 1, 1, P.efg, "Subtract finished goods still on hand at December 31.", [{ val: P.bfg, msg: "That is the beginning balance. Subtract finished goods on December 31." }]),
+    line("cogs", "sub", "Cost of goods sold", 2, 1, T.cogs, "Cost of goods sold = goods available for sale − ending finished goods.", [{ val: T.cgas, msg: "Subtract ending finished goods. Those guides have not been sold." }, { val: T.cogm, msg: "Cost of goods manufactured is not cost of goods sold. Adjust for beginning and ending finished goods." }]),
+    line("gp", "sub", "Gross profit", 2, 0, T.gp, "Gross profit = sales revenue − cost of goods sold."),
+    { t: "head", label: "Operating expenses" },
+    line("comm", "line", "Sales commissions", 1, 1, P.comm, "Use sales commissions."),
+    line("adv", "line", "Advertising", 1, 1, P.adv, "Use advertising."),
+    line("frt", "line", "Shipping to customers", 1, 1, P.frt, "Use shipping to customers."),
+    line("osal", "line", "Office salaries", 1, 1, P.osal, "Use office salaries."),
+    line("orent", "line", "Corporate office rent", 1, 1, P.orent, "Use the corporate office rent. Print shop rent is overhead and is already inside cost of goods sold.", [{ val: P.rent, msg: "That is the print shop rent, which is manufacturing overhead and already inside cost of goods sold. Use the corporate office rent." }]),
+    line("opex", "sub", "Total operating expenses", 2, 1, T.opex, "Add the five selling and administrative expenses."),
+    line("oi", "total", "Operating income", 2, 0, T.oi, "Operating income = gross profit − total operating expenses.")
+  ]);
+  const quick = [
+    ["Reports no cost of goods sold", CO_S, "A service company sells services, not goods, so it has no cost of goods sold."],
+    ["Computes cost of goods sold as beginning inventory + purchases − ending inventory", CO_M, "A merchandiser buys finished goods to resell, so purchases feed its cost of goods sold."],
+    ["Prepares a schedule of cost of goods manufactured", CO_MF, "Only a manufacturer makes its products, so only it computes cost of goods manufactured."],
+    ["Reports Raw Materials, Work in Process, and Finished Goods on its balance sheet", CO_MF, "A manufacturer holds inventory at three stages of production."]
+  ];
+  return [
+    { id: "flows", phase: "flows", tick: "1", layout: "table", numbered: true, title: "Where does each cost go?",
+      desc: "Manufacturing costs flow through three inventory accounts on the balance sheet before they reach the income statement as Cost of Goods Sold. Selling and administrative costs skip inventory and are expensed right away. For each event, choose where the cost comes from and where it goes. Each correct row lights up its arrow in the diagram.",
+      itemLabel: "Event", cols: [{ key: "from", label: "Comes from" }, { key: "to", label: "Goes to" }], items: flows.map(f => ({ text: f[1] })),
+      fields: flows.flatMap((f, i) => [selField("from" + i, i, "from", [SRC, RM, WIP, FG], f[2], fromWhy[f[2]]), selField("to" + i, i, "to", [RM, WIP, FG, CGS, SA], f[3], toWhy[f[3]])]),
+      walk: flows.map((f, i) => ({ keys: ["from" + i, "to" + i], text: f[1] + ". " + f[5] })) },
+    { id: "cogm", phase: "cogm", tick: "2", layout: "sched", title: "Prepare the schedule of cost of goods manufactured",
+      desc: "Use the data to complete the schedule. Not every item in the data belongs in it. Enter whole dollars; commas are optional.",
+      sched: { title: ["Problem Solvers, Inc.", "Schedule of Cost of Goods Manufactured", `For the year ended December 31, ${Y}`], lines: c2.lines }, fields: c2.fields,
+      walk: [
+        { keys: ["bwip"], text: "Start with the guides that were already in process on January 1.", formula: `Beginning WIP = ${money(P.bwip)}` },
+        { keys: ["brm", "pur", "rmavail"], text: "Materials on hand at the start of the year plus materials bought gives the materials available to use.", formula: `${money(P.brm)} + ${money(P.pur)} = ${money(T.rmavail)}` },
+        { keys: ["erm", "dm"], text: "Subtract the materials still on the shelf at year-end to get the materials actually used.", formula: `${money(T.rmavail)} − ${money(P.erm)} = ${money(T.dm)}` },
+        { keys: ["dl"], text: "Add the wages of the press operators and binding workers.", formula: `Direct labor = ${money(P.dl)}` },
+        { keys: ["il", "dep", "rent", "util", "ins", "moh"], text: "Add the print shop's indirect costs. Selling costs and the corporate office rent are period costs, so they stay out.", formula: `${[P.il, P.dep, P.rent, P.util, P.ins].map(money).join(" + ")} = ${money(T.moh)}` },
+        { keys: ["tmc"], text: "These are the manufacturing costs incurred this year.", formula: `${money(T.dm)} + ${money(P.dl)} + ${money(T.moh)} = ${money(T.tmc)}` },
+        { keys: ["tca"], text: "Add beginning work in process to get all the manufacturing cost the print shop has to account for.", formula: `${money(P.bwip)} + ${money(T.tmc)} = ${money(T.tca)}` },
+        { keys: ["ewip", "cogm"], text: "Subtract the cost of guides still unfinished at year-end. What is left is the cost of the guides finished this year.", formula: `${money(T.tca)} − ${money(P.ewip)} = ${money(T.cogm)}` }
+      ] },
+    { id: "is", phase: "is", tick: "3", layout: "sched", title: "Prepare the manufacturer's income statement",
+      desc: "Cost of goods manufactured from the COGM schedule is given. Use it and the data to complete the income statement.",
+      sched: { title: ["Problem Solvers, Inc.", "Income Statement", `For the year ended December 31, ${Y}`], lines: c3.lines }, fields: c3.fields,
+      walk: [
+        { keys: ["sales"], text: "Start with sales revenue from guidebooks sold.", formula: `Sales revenue = ${money(P.sales)}` },
+        { keys: ["bfg", "cgas"], text: "Finished guides on hand at the start plus guides finished this year are the goods available for sale. For a manufacturer, cost of goods manufactured plays the role a merchandiser's purchases play.", formula: `${money(P.bfg)} + ${money(T.cogm)} = ${money(T.cgas)}` },
+        { keys: ["efg", "cogs"], text: "Subtract the finished guides still unsold at year-end.", formula: `${money(T.cgas)} − ${money(P.efg)} = ${money(T.cogs)}` },
+        { keys: ["gp"], text: "Gross profit is what is left after the cost of the guides sold.", formula: `${money(P.sales)} − ${money(T.cogs)} = ${money(T.gp)}` },
+        { keys: ["comm", "adv", "frt", "osal", "orent", "opex"], text: "List the period costs: selling and administrative expenses.", formula: `${[P.comm, P.adv, P.frt, P.osal, P.orent].map(money).join(" + ")} = ${money(T.opex)}` },
+        { keys: ["oi"], text: "Subtract operating expenses from gross profit.", formula: `${money(T.gp)} − ${money(T.opex)} = ${money(T.oi)}` }
+      ] },
+    { id: "types", phase: "is", tick: "4", layout: "table", title: "How the three types of companies compare",
+      desc: "Problem Solvers began as a service company. If it had bought guidebooks from a publisher, it would be a merchandiser. Printing its own makes it a manufacturer. Only the cost of goods sold section changes. Quick check: which type of company does each statement describe?",
+      itemLabel: "Statement", cols: [{ key: "co", label: "Type of company" }], items: quick.map(q => ({ text: q[0] })),
+      fields: quick.map((q, i) => selField("co" + i, i, "co", [CO_S, CO_M, CO_MF], q[1], q[2])) }
+  ];
+}
+
+// ---------- Grading ----------
+// A choice: right, or "not “your choice.”" with the reason. An amount: right, a known slip's message, or the rule.
+function grade(p, vals) {
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) { res[f.id] = { ok: false, msg: "choose an answer." }; all = false; return; }
+      if (v === f.ans) { res[f.id] = { ok: true, msg: "Correct." }; return; }
+      res[f.id] = { ok: false, msg: "not “" + v + ".” " + f.work }; all = false; return;
+    }
+    const v = parse(raw);
+    if (v === f.ans) { res[f.id] = { ok: true, msg: "Correct." }; return; }
+    all = false;
+    if (isNaN(v)) { res[f.id] = { ok: false, msg: "Enter a whole-dollar amount." }; return; }
+    const trap = f.traps.find(t => t.val === v);
+    res[f.id] = { ok: false, msg: trap ? trap.msg : f.explain };
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> prints its own “how to” guidebooks in a print shop with Printing and Binding departments. First year of operations, " + YEAR + "."; }
+function dataTable(P) {
+  const g = (name, rows) => '<tr class="grp"><td colspan="2">' + name + '</td></tr>' + rows.map(r => '<tr><td>' + r[0] + '</td><td class="r">' + money(r[1]) + '</td></tr>').join("");
+  return '<div class="scroll"><table class="dtab"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">Data for ' + YEAR + '</div></caption><tbody>' +
+    g("Inventories", [["Raw materials, January 1", P.brm], ["Raw materials, December 31", P.erm], ["Work in process, January 1", P.bwip], ["Work in process, December 31", P.ewip], ["Finished goods, January 1", P.bfg], ["Finished goods, December 31", P.efg]]) +
+    g("Print shop costs", [["Purchases of raw materials", P.pur], ["Direct labor", P.dl], ["Indirect labor", P.il], ["Depreciation on printing presses", P.dep], ["Print shop rent", P.rent], ["Print shop utilities", P.util], ["Print shop insurance", P.ins]]) +
+    g("Sales and operating expenses", [["Sales revenue", P.sales], ["Sales commissions", P.comm], ["Advertising", P.adv], ["Shipping to customers", P.frt], ["Office salaries", P.osal], ["Corporate office rent", P.orent]]) +
+    '</tbody></table></div>';
+}
+function flowSVG(c) {
+  const flows = flowsOf(c.P), ids = flows.map(f => f[0]);
+  const solved = flows.map((f, i) => c.ok("flows", "from" + i) && c.ok("flows", "to" + i)), cur = c.part.id === "flows" ? c.walk : -1;
+  const lineCls = id => { const own = id === "sa1" ? [6, 7] : [ids.indexOf(id)]; return own.indexOf(cur) >= 0 ? " cur" : own.some(i => solved[i]) ? " done" : ""; };
+  const badgeCls = id => { const i = ids.indexOf(id); return i === cur ? " cur" : solved[i] ? " done" : ""; };
+  const box = (id, x, y, w, h, l1, l2) => '<g class="flow-box' + (cur >= 0 && flows[cur][4] === id ? " on" : "") + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8"/><text x="' + (x + w / 2) + '" y="' + (y + h / 2 - 3) + '" text-anchor="middle">' + l1 + '</text><text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 14) + '" text-anchor="middle">' + l2 + '</text></g>';
+  const badge = (id, n, x, y) => '<g class="flow-badge' + badgeCls(id) + '"><circle cx="' + x + '" cy="' + y + '" r="11"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle">' + n + '</text></g>';
+  const ln = (id, d) => '<path class="flow-line' + lineCls(id) + '" d="' + d + '" marker-end="url(#ah)"/>';
+  return '<div class="scroll"><div class="flowwrap"><svg viewBox="0 0 900 350" role="img" aria-label="Manufacturing costs flow from raw materials to work in process to finished goods to cost of goods sold; selling and administrative costs are expensed right away">' +
+    '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="flow-arrow" d="M0 0L10 5L0 10z"/></marker></defs>' +
+    '<rect class="flow-zone" x="190" y="30" width="546" height="250" rx="10"/><text class="flow-zone-label" x="204" y="50">BALANCE SHEET: INVENTORIES</text>' +
+    '<rect class="flow-zone" x="756" y="30" width="138" height="300" rx="10"/><text class="flow-zone-label" x="764" y="50" style="letter-spacing:.04em">INCOME STATEMENT</text>' +
+    ln("pur", "M140 172 H208") + ln("dm", "M334 172 H402") + ln("dl", "M76 140 V96 H466 V138") + ln("moh", "M104 204 V252 H466 V206") +
+    ln("cogm", "M528 172 H596") + ln("cogs", "M716 160 H746 V98 H774") + ln("sa1", "M50 204 V318 H832 V294") +
+    box("src", 12, 140, 128, 64, "Cash, payables", "&amp; other accounts") + box("rm", 210, 140, 124, 64, "Raw Materials", "Inventory") + box("wip", 404, 140, 124, 64, "Work in Process", "Inventory") +
+    box("fg", 598, 140, 118, 64, "Finished Goods", "Inventory") + box("cogs", 776, 70, 112, 56, "Cost of", "Goods Sold") + box("per", 776, 236, 112, 56, "Selling &amp; admin", "expenses") +
+    badge("pur", 1, 174, 172) + badge("dm", 2, 368, 172) + badge("dl", 3, 236, 96) + '<text class="flow-tag" x="254" y="88">Direct labor</text>' +
+    badge("moh", 4, 236, 252) + '<text class="flow-tag" x="254" y="243">Manufacturing overhead</text>' + badge("cogm", 5, 562, 172) + badge("cogs", 6, 746, 130) +
+    badge("sa1", 7, 420, 318) + badge("sa2", 8, 448, 318) + '<text class="flow-tag" x="468" y="309">Selling and administrative costs</text></svg></div></div>' +
+    '<p class="note">Each event you get right lights up its arrow. Walk me through it follows the costs one event at a time.</p>';
+}
+function compareTable() {
+  const rows = [
+    ["Example", "Problem Solvers selling only consulting", "Problem Solvers reselling guidebooks bought from a publisher", "Problem Solvers printing its own guidebooks"],
+    ["Revenue", "Service revenue", "Sales revenue", "Sales revenue"],
+    ["Cost of goods sold", "None", "Beginning inventory + Purchases − Ending inventory", "Beginning finished goods + Cost of goods manufactured − Ending finished goods"],
+    ["Inventory on the balance sheet", "None", "Inventory (merchandise)", "Raw Materials, Work in Process, Finished Goods"],
+    ["Operating expenses", "Selling and administrative", "Selling and administrative", "Selling and administrative"]];
+  return '<div class="scroll"><table class="cmp-table"><thead><tr><th></th><th scope="col">Service company</th><th scope="col">Merchandiser</th><th scope="col">Manufacturer</th></tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map((x, i) => i === 0 ? '<th scope="row" style="text-align:left">' + x + '</th>' : '<td>' + x + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+function dataHTML(c) {
+  const id = c.part.id;
+  if (id === "flows") return { title: "Follow the costs through the print shop", html: flowSVG(c) };
+  if (id === "types") return { title: "How the three types of companies compare", html: compareTable() };
+  return { title: "Problem Solvers data", sub: "Not every item belongs in the schedule", html: dataTable(c.P) };
+}
+
+MAFrame.start({
+  slug: "ma-cogm", key: "ma-cogm1", module: "M1", title: "Manufacturing Costs and COGM Lab",
+  phases: [["flows", "Cost flows"], ["cogm", "COGM schedule"], ["is", "Income statements compared"]],
+  seedMin: 1000, seedMax: 9999, dataTitle: "Problem Solvers data",
+  footer: "University of New Haven · ACCT 1102 · Problem Solvers, Inc. and all figures are illustrative. The same problem set number always gives the same numbers, so you can share a set with a classmate or your instructor.",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>

@@ -127,7 +127,7 @@ function okField(pid, fid) {
 }
 function ctx() {
   return { P: P, parts: PARTS, cur: cur, part: PARTS[cur], graded: graded(), YEAR: YEAR, esc: esc, fmt: fmt,
-    ans: known, ok: okField, done: pid => { const i = PARTS.findIndex(p => p.id === pid); return i >= 0 && !!st[i].status && (!graded() || gKnown(i)); } };
+    ans: known, ok: okField, walk: !graded() && st[cur] ? st[cur].walk : -1, done: pid => { const i = PARTS.findIndex(p => p.id === pid); return i >= 0 && !!st[i].status && (!graded() || gKnown(i)); } };
 }
 
 // ---------- graded mode (server) ----------
