@@ -105,6 +105,9 @@ details .lead{margin-top:10px}
   const fmtDate = d => d ? new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
   const toLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
   const pct = (s, t) => t ? Math.round(1000 * s / t) / 10 : 0;   // one decimal, so a percent can be turned back into points
+  // Which course content a class includes (courses.content) and the labels instructors see.
+  const CONTENT = [['financial', 'Financial accounting'], ['managerial', 'Managerial accounting'], ['both', 'Both financial and managerial']];
+  const contentName = v => (CONTENT.find(([k]) => k === v) || [null, 'Financial accounting'])[1];
   const CH_OK = /^[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*$/;
   const MIN_PASSWORD = 8;
   let me = null, catalog = [], state = { course: null, tab: 'assign' };
@@ -128,7 +131,7 @@ details .lead{margin-top:10px}
     return data;
   }
   async function loadCatalog() {
-    const { data } = await sb.from('activities').select('id,slug,title,url,scored,server_graded,chapter,description,sort_order').order('sort_order');
+    const { data } = await sb.from('activities').select('id,slug,title,url,scored,server_graded,chapter,description,sort_order,subject').order('sort_order');
     catalog = data || [];
   }
   // Labs take ?course=&lab=. Games take ?course=&act=&ch=. Game urls are relative to this page.
@@ -330,17 +333,19 @@ details .lead{margin-top:10px}
 
   // ---------- instructor ----------
   async function instructorView(note = '') {
-    const { data: courses, error } = await sb.from('courses').select('id,name,term,join_code,show_answers,created_at').eq('instructor_id', me.id).order('created_at');
+    const { data: courses, error } = await sb.from('courses').select('id,name,term,join_code,show_answers,content,created_at').eq('instructor_id', me.id).order('created_at');
     if (error) { app.innerHTML = `<div class="card">${msg('bad', esc(error.message))}</div>`; return; }
     if (!state.course || !courses.some(c => c.id === state.course)) state.course = courses.length ? courses.at(-1).id : null;
     const c = courses.find(x => x.id === state.course);
     app.innerHTML = `<div class="card"><h2>Create a class</h2>
         <form class="row" id="newc"><label>Class name<input name="name" placeholder="ACCT 1101 Section 01" required></label><label>Term<input name="term" placeholder="Spring 2027"></label>
+        <label>Content<select name="content" required><option value="" selected disabled>Choose…</option>${CONTENT.map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select></label>
         <label class="check"><input type="checkbox" name="show"> Show answers after each lab step</label>
         <button class="btn primary" type="submit">Create</button></form>${note}</div>
       ${c ? `<div class="card"><div class="coursehead"><div>
           ${courses.length > 1 ? `<label>Class<select id="pickc">${courses.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.term ? ' · ' + esc(x.term) : ''}</option>`).join('')}</select></label>` : `<h2>${esc(c.name)}</h2><p class="lead">${esc(c.term || '')}</p>`}
-          <label class="check" style="margin-top:8px"><input type="checkbox" id="showans"${c.show_answers ? ' checked' : ''}> Show answers after each lab step</label>
+          <div class="row" style="margin-top:8px"><label>Content<select id="content">${CONTENT.map(([v, n]) => `<option value="${v}"${v === c.content ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+          <label class="check"><input type="checkbox" id="showans"${c.show_answers ? ' checked' : ''}> Show answers after each lab step</label></div>
         </div><div><div class="small muted">Students join with this code</div><span class="code">${esc(c.join_code)}</span></div></div>
         <div class="tabs" role="tablist">${[['assign', 'Assignments'], ['roster', 'Students'], ['grades', 'Gradebook']].map(([k, n]) => `<button class="tab" role="tab" type="button" data-tab="${k}" aria-selected="${state.tab === k}">${n}</button>`).join('')}</div>
         <div id="pane"><p class="muted">Loading…</p></div></div>` : '<div class="card"><p class="empty">Create your first class above.</p></div>'}`;
@@ -348,12 +353,18 @@ details .lead{margin-top:10px}
       e.preventDefault();
       const f = new FormData(e.target), name = String(f.get('name') || '').trim();
       if (!name) return;
-      const { data, error } = await sb.from('courses').insert({ instructor_id: me.id, name, term: String(f.get('term') || '').trim() || null, show_answers: f.get('show') === 'on' }).select('id').single();
+      const content = String(f.get('content') || '');
+      if (!CONTENT.some(([v]) => v === content)) { instructorView(msg('bad', 'Choose the class content: financial, managerial, or both.')); return; }
+      const { data, error } = await sb.from('courses').insert({ instructor_id: me.id, name, term: String(f.get('term') || '').trim() || null, show_answers: f.get('show') === 'on', content }).select('id').single();
       if (error) { instructorView(msg('bad', esc(error.message))); return; }
       state.course = data.id; state.tab = 'assign'; instructorView(msg('good', 'Class created. Assign activities below, then share the join code.'));
     });
     if (!c) return;
     const pk = document.getElementById('pickc'); if (pk) pk.addEventListener('change', () => { state.course = pk.value; instructorView(); });
+    document.getElementById('content').addEventListener('change', async e => {
+      const { error } = await sb.from('courses').update({ content: e.target.value }).eq('id', c.id);
+      instructorView(error ? msg('bad', esc(error.message)) : msg('good', `${esc(c.name)} now uses ${esc(contentName(e.target.value).toLowerCase())} content.`));
+    });
     document.getElementById('showans').addEventListener('change', async e => {
       const { error } = await sb.from('courses').update({ show_answers: e.target.checked }).eq('id', c.id);
       instructorView(error ? msg('bad', esc(error.message)) : msg('good', `Show answers is now ${e.target.checked ? 'on' : 'off'} for ${esc(c.name)}.`));
@@ -369,11 +380,14 @@ details .lead{margin-top:10px}
     const { data: asg, error } = await sb.from('course_activities').select('*').eq('course_id', c.id);
     if (error) throw error;
     const has = Object.fromEntries(asg.map(x => [x.activity_id, x]));
-    pane.innerHTML = `<p class="lead">Check an activity to assign it, set its options, and click <b>Save</b>. Graded activities stop accepting work after the due date or the attempt limit. A graded lab still open at the due date is scored on the steps submitted so far.</p>
+    const list = catalog.filter(a => c.content === 'both' || (a.subject || 'financial') === c.content);
+    if (!list.length) { pane.innerHTML = `<p class="empty">No ${esc(contentName(c.content).toLowerCase())} activities are available yet.</p>${note}`; return; }
+    const subjTag = a => c.content === 'both' ? ` <span class="tag">${(a.subject || 'financial') === 'managerial' ? 'Managerial' : 'Financial'}</span>` : '';
+    pane.innerHTML = `<p class="lead">This class uses <b>${esc(contentName(c.content).toLowerCase())}</b> content. Check an activity to assign it, set its options, and click <b>Save</b>. Graded activities stop accepting work after the due date or the attempt limit. A graded lab still open at the due date is scored on the steps submitted so far.</p>
       <div class="scroll"><table><thead><tr><th>Assign</th><th>Activity</th><th>Mode</th><th>Chapters</th><th>Due</th><th>Attempts</th><th></th></tr></thead><tbody>
-      ${catalog.map(a => { const x = has[a.id] || {}; const ch = x.chapters || (a.chapter ? String(a.chapter) : '1-4'); return `<tr data-a="${a.id}">
+      ${list.map(a => { const x = has[a.id] || {}; const ch = x.chapters || (a.chapter ? String(a.chapter) : '1-4'); return `<tr data-a="${a.id}">
         <td><input type="checkbox" name="on" aria-label="Assign ${esc(a.title)}"${has[a.id] ? ' checked' : ''}></td>
-        <td><b>${esc(a.title)}</b><div class="small muted">${esc(a.description || '')}</div></td>
+        <td><b>${esc(a.title)}</b>${subjTag(a)}<div class="small muted">${esc(a.description || '')}</div></td>
         <td>${a.scored ? `<select name="mode" aria-label="Mode for ${esc(a.title)}"><option value="practice"${x.mode !== 'graded' ? ' selected' : ''}>Practice</option><option value="graded"${x.mode === 'graded' ? ' selected' : ''}>Graded</option></select>` : '<span class="tag">Class game</span>'}</td>
         <td>${a.server_graded ? `<input type="hidden" name="ch" value="${esc(ch)}"><span class="muted">—</span>` : `<input class="ch" name="ch" value="${esc(ch)}" aria-label="Chapters for ${esc(a.title)}" placeholder="1-4">`}</td>
         <td><input type="datetime-local" name="due" value="${toLocalInput(x.due_at)}" aria-label="Due date for ${esc(a.title)}"></td>
