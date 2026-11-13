@@ -76,6 +76,17 @@ summary{cursor:pointer;font:700 18px/1.25 var(--head);color:var(--navy)}
 details .lead{margin-top:10px}
 .tag.auto{background:var(--bad-bg);color:#7a1a14}
 .tag.flag{background:#7a1a14;color:#fff}
+.brandgrid{display:grid;grid-template-columns:minmax(240px,1fr) minmax(260px,1.2fr);gap:18px;align-items:start;margin-top:10px}
+@media (max-width:720px){.brandgrid{grid-template-columns:1fr}}
+.brandgrid .colors{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
+.brandgrid input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--rule,#d8dfea);border-radius:6px;vertical-align:middle;background:#fff}
+.brandgrid .hex{width:92px;font-family:var(--mono,monospace)}
+.bprev{border:1px solid #d8dfea;border-radius:8px;overflow:hidden;background:#fff}
+.bprev .bm{padding:12px 14px 10px;color:#fff}.bprev .be{font:700 11.5px/1.2 var(--head);letter-spacing:.12em;text-transform:uppercase}
+.bprev .bt{font:700 19px/1.2 var(--head);margin-top:3px}.bprev .br{height:4px}
+.bprev .bb{padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bprev .bbtn{border-radius:6px;padding:5px 12px;font-weight:700;font-size:14px;color:#111b2e}
+.bchecks{list-style:none;padding:0;margin:10px 0 0;font-size:14px}.bchecks li{margin:3px 0}.bchecks .ok{color:#14532f}.bchecks .no{color:#7a1a14}
 fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}fieldset.subjects legend{font-weight:600;font-size:14px;padding:0;margin-bottom:4px;width:100%}
 .flags td{vertical-align:top}.flags ul{margin:0;padding-left:18px}
 </style>
@@ -132,7 +143,7 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
   async function loadMe() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return null;
-    const { data } = await sb.from('profiles').select('id,full_name,email,role,is_admin').eq('id', session.user.id).maybeSingle();
+    const { data } = await sb.from('profiles').select('id,full_name,email,role,is_admin,brand_institution,brand_primary,brand_accent').eq('id', session.user.id).maybeSingle();
     return data;
   }
   async function loadCatalog() {
@@ -347,6 +358,7 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
         <fieldset class="subjects" style="flex-basis:100%"><legend>Content (choose at least one)</legend>${subjectBoxes('subj', [])}</fieldset>
         <label class="check"><input type="checkbox" name="show"> Show answers after each lab step</label>
         <button class="btn primary" type="submit">Create</button></form>${note}</div>
+      ${brandingCard()}
       ${c ? `<div class="card"><div class="coursehead"><div>
           ${courses.length > 1 ? `<label>Class<select id="pickc">${courses.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.term ? ' · ' + esc(x.term) : ''}</option>`).join('')}</select></label>` : `<h2>${esc(c.name)}</h2><p class="lead">${esc(c.term || '')}</p>`}
           <fieldset class="subjects" id="csubj" style="margin-top:8px"><legend>Content</legend>${subjectBoxes('csubj', c.subjects || ['financial'])}</fieldset>
@@ -364,6 +376,7 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
       if (error) { instructorView(msg('bad', esc(error.message))); return; }
       state.course = data.id; state.tab = 'assign'; instructorView(msg('good', 'Class created. Assign activities below, then share the join code.'));
     });
+    wireBranding();
     if (!c) return;
     const pk = document.getElementById('pickc'); if (pk) pk.addEventListener('change', () => { state.course = pk.value; instructorView(); });
     document.getElementById('csubj').addEventListener('change', async () => {
@@ -379,6 +392,81 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
     app.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; instructorView(); }));
     ({ assign: assignPane, roster: rosterPane, grades: gradesPane })[state.tab](c).catch(e => {
       document.getElementById('pane').innerHTML = msg('bad', esc(e.message));
+    });
+  }
+
+  // ---------- instructor branding ----------
+  // The school name and two colors students see in labs and games opened from this instructor's classes
+  // (profiles.brand_*; read by brand.js through course_branding). Blank means the default look.
+  const BRAND_DEFAULT = { school: 'University of New Haven', primary: '#002d74', accent: '#ffc629' };
+  const hexOk = v => /^#[0-9a-f]{6}$/i.test(v || '');
+  const lumOf = h => [1, 3, 5].reduce((s, i, k) => { let c = parseInt(h.substr(i, 2), 16) / 255; c = c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); return s + c * [0.2126, 0.7152, 0.0722][k]; }, 0);
+  const contrastOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const brandChecks = (P, A) => [
+    [contrastOf(P, '#ffffff') >= 4.5, 'White text is readable on the main color'],
+    [contrastOf(A, P) >= 3, 'The accent stands out from the main color'],
+    [contrastOf(A, '#111b2e') >= 4.5, 'Dark text is readable on the accent (it is used behind dark text on buttons)']
+  ];
+  function brandingCard() {
+    const custom = hexOk(me.brand_primary) && hexOk(me.brand_accent);
+    const P = custom ? me.brand_primary : BRAND_DEFAULT.primary, A = custom ? me.brand_accent : BRAND_DEFAULT.accent;
+    return `<div class="card" id="brandcard"><details><summary>Your school and colors</summary>
+      <p class="lead">Students see this name and these colors in every lab and game opened from your classes. Leave them blank or unchecked for the default look (${esc(BRAND_DEFAULT.school)}, navy and gold).</p>
+      <form id="brandf" class="brandgrid"><div>
+        <label>School name<input name="school" maxlength="80" placeholder="${esc(BRAND_DEFAULT.school)}" value="${esc(me.brand_institution || '')}"></label>
+        <label class="check" style="margin-top:12px"><input type="checkbox" name="custom"${custom ? ' checked' : ''}> Use my own colors</label>
+        <div class="colors">
+          <label>Main color<div><input type="color" name="p" value="${P}" aria-label="Main color"> <input class="hex" name="ph" value="${P}" aria-label="Main color hex code"></div></label>
+          <label>Accent color<div><input type="color" name="a" value="${A}" aria-label="Accent color"> <input class="hex" name="ah" value="${A}" aria-label="Accent color hex code"></div></label>
+        </div>
+        <ul class="bchecks" id="bchecks"></ul>
+        <div class="row" style="margin-top:12px"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="brandreset">Use the default look</button></div>
+        <div id="brandmsg"></div>
+      </div><div><div class="small muted" style="margin-bottom:6px">Preview</div><div class="bprev" id="bprev"></div></div></form>
+    </details></div>`;
+  }
+  function wireBranding() {
+    const f = document.getElementById('brandf'); if (!f) return;
+    const el = n => f.elements[n];
+    const current = () => {
+      const custom = el('custom').checked;
+      return { school: el('school').value.trim(), custom, P: custom ? el('ph').value.trim().toLowerCase() : BRAND_DEFAULT.primary, A: custom ? el('ah').value.trim().toLowerCase() : BRAND_DEFAULT.accent };
+    };
+    const paint = () => {
+      const v = current();
+      ['p', 'ph', 'a', 'ah'].forEach(n => { el(n).disabled = !v.custom; });
+      const valid = hexOk(v.P) && hexOk(v.A);
+      const checks = valid ? brandChecks(v.P, v.A) : [[false, 'Enter colors as six-digit codes, like #c8102e']];
+      document.getElementById('bchecks').innerHTML = v.custom ? checks.map(([ok, t]) => `<li class="${ok ? 'ok' : 'no'}">${ok ? '✓' : '✗'} ${esc(t)}</li>`).join('') : '';
+      const P = valid ? v.P : BRAND_DEFAULT.primary, A = valid ? v.A : BRAND_DEFAULT.accent;
+      const label = contrastOf(A, P) >= 4.5 ? A : '#ffffff';
+      document.getElementById('bprev').innerHTML = `<div class="bm" style="background:${P}"><div class="be" style="color:${label}">${esc(v.school || BRAND_DEFAULT.school)} · Financial Accounting · Chapter 8</div><div class="bt">Receivables &amp; Bad Debts Lab</div></div>
+        <div class="br" style="background:${A}"></div><div class="bb"><span class="bbtn" style="background:${A}">Graded</span><b style="color:${P}">Journal entry</b><span class="small muted">Sample of how a lab will look</span></div>`;
+      return valid && checks.every(([ok]) => ok);
+    };
+    el('p').addEventListener('input', () => { el('ph').value = el('p').value; paint(); });
+    el('a').addEventListener('input', () => { el('ah').value = el('a').value; paint(); });
+    ['ph', 'ah'].forEach(n => el(n).addEventListener('input', () => { const v = el(n).value.trim(); if (hexOk(v)) el(n[0]).value = v.toLowerCase(); paint(); }));
+    el('custom').addEventListener('change', paint);
+    el('school').addEventListener('input', paint);
+    paint();
+    const save = async (row, done) => {
+      const { error } = await sb.from('profiles').update(row).eq('id', me.id);
+      if (error) { document.getElementById('brandmsg').innerHTML = msg('bad', esc(/readable/.test(error.message) ? 'Those colors aren\'t readable together. Adjust them until all three checks pass.' : error.message)); return; }
+      Object.assign(me, row);
+      document.getElementById('brandmsg').innerHTML = msg('good', done);
+    };
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const v = current();
+      if (v.school && (v.school.length < 2 || /[<>]/.test(v.school))) { document.getElementById('brandmsg').innerHTML = msg('bad', 'Enter a school name of 2 to 80 characters, without < or >.'); return; }
+      if (v.custom && !paint()) { document.getElementById('brandmsg').innerHTML = msg('bad', 'Adjust the colors until all three checks pass.'); return; }
+      save({ brand_institution: v.school || null, brand_primary: v.custom ? v.P : null, brand_accent: v.custom ? v.A : null },
+        'Saved. Labs and games opened from your classes now use this look.');
+    });
+    document.getElementById('brandreset').addEventListener('click', () => {
+      el('school').value = ''; el('custom').checked = false; paint();
+      save({ brand_institution: null, brand_primary: null, brand_accent: null }, `Saved. Your classes use the default look (${esc(BRAND_DEFAULT.school)}, navy and gold).`);
     });
   }
 
