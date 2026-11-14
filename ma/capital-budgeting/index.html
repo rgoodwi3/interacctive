@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Capital Budgeting Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<style>.ftab{font-size:12.5px}.ftab td,.ftab th{padding:3px 5px}.ftab td.hl{background:var(--hl);color:var(--hl-ink);font-weight:700}</style>
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M4 Lab 9: Capital Budgeting. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-capital-budgeting), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-capital-budgeting.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 3 });
+const money = n => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,%\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^[−–]/, "-").replace(/years?$/i, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+// Present and future value factors as in OpenStax Appendix B: rates 4%–12%, 1–10 periods, 3 decimals.
+const RATES = [4, 5, 6, 7, 8, 9, 10, 11, 12], NPER = 10;
+const f3 = x => Math.round(x * 1000) / 1000;
+const PV1 = {}, PVA = {}, FV1 = {};
+RATES.forEach(r => { PV1[r] = [0]; PVA[r] = [0]; FV1[r] = [0]; for (let n = 1; n <= NPER; n++) { const i = r / 100; PV1[r].push(f3(Math.pow(1 + i, -n))); PVA[r].push(f3((1 - Math.pow(1 + i, -n)) / i)); FV1[r].push(f3(Math.pow(1 + i, n))); } });
+const ACC = [["accept", "Accept"], ["reject", "Reject"]];
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  for (let t = 0; t < 50000; t++) {
+    // Project A: a new press (payback, ARR, NPV)
+    const cf = R(20, 90) * 1000, yrs = R(25, 60) / 10, inv = Math.round(cf * yrs), life = R(5, 10), salv = R(0, 8) * 5000, rate = pick(RATES);
+    if (life <= yrs + 0.5 || salv >= inv * 0.3) continue;
+    const dep = (inv - salv) / life;
+    if (!Number.isInteger(dep) || cf - dep <= 0) continue;
+    const npv = Math.round(cf * PVA[rate][life]) + Math.round(salv * PV1[rate][life]) - inv;
+    if (Math.abs(npv) < 2000) continue;
+    // Project B: uneven cash flows; payback falls a whole number of tenths into a year
+    const flows = [R(10, 40), R(15, 50), R(20, 60), R(20, 60), R(10, 40)].map(x => x * 1000);
+    const k = R(2, 3), tenth = R(1, 9), invB = flows.slice(0, k).reduce((a, x) => a + x, 0) + flows[k] * tenth / 10;
+    // Time value of money questions
+    const tv = { lump: R(10, 90) * 1000, nL: R(3, 10), rL: pick(RATES), pmt: R(5, 40) * 1000, nA: R(3, 10), rA: pick(RATES), fv: R(10, 60) * 1000, nF: R(3, 10), rF: pick(RATES) };
+    // Project C: IRR from the annuity table; the hurdle rate differs from the IRR
+    const cfC = R(10, 60) * 1000, nC = R(4, 10), irr = pick(RATES), invC = Math.round(cfC * PVA[irr][nC]), hurdle = pick(RATES.filter(x => x !== irr));
+    // Projects X and Y: payback and NPV disagree
+    const fast = pick(["X", "Y"]), rateXY = pick([8, 10, 12]), invXY = R(10, 30) * 5000;
+    const quick = [0.45, 0.35, 0.15, 0.05, 0.05].map(w => Math.round(invXY * w * R(95, 105) / 100 / 1000) * 1000);
+    const slow = [0.1, 0.15, 0.3, 0.45, 0.5].map(w => Math.round(invXY * w * R(100, 115) / 100 / 1000) * 1000);
+    const npvOf = fl => fl.reduce((a, x, i) => a + Math.round(x * PV1[rateXY][i + 1]), 0) - invXY;
+    const pbOf = fl => { let c = 0; for (let i = 0; i < fl.length; i++) { if (c + fl[i] >= invXY) return i + (invXY - c) / fl[i]; c += fl[i]; } return 99; };
+    if (!(pbOf(quick) < pbOf(slow) && npvOf(slow) > npvOf(quick) + 2000 && npvOf(slow) > 0 && pbOf(slow) < 5)) continue;
+    return { cf, inv, life, salv, rate, flows, invB, tv, cfC, nC, invC, hurdle, fast, rateXY, invXY, X: fast === "X" ? quick : slow, Y: fast === "X" ? slow : quick };
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const pb = Math.round(P.inv / P.cf * 10) / 10;
+  let c = 0, pbB = 0; for (let i = 0; i < P.flows.length; i++) { if (c + P.flows[i] >= P.invB) { pbB = Math.round((i + (P.invB - c) / P.flows[i]) * 10) / 10; break; } c += P.flows[i]; }
+  const dep = (P.inv - P.salv) / P.life, ni = P.cf - dep, arr = Math.round(ni / (P.inv - P.salv) * 1000) / 10;
+  const T = P.tv, pvL = Math.round(T.lump * PV1[T.rL][T.nL]), pvA = Math.round(T.pmt * PVA[T.rA][T.nA]), fvL = Math.round(T.fv * FV1[T.rF][T.nF]);
+  const pvCF = Math.round(P.cf * PVA[P.rate][P.life]), pvS = Math.round(P.salv * PV1[P.rate][P.life]), npv = pvCF + pvS - P.inv;
+  const fac = Math.round(P.invC / P.cfC * 1000) / 1000, irr = RATES.find(x => PVA[x][P.nC] === fac);
+  const npvOf = fl => fl.reduce((a, x, i) => a + Math.round(x * PV1[P.rateXY][i + 1]), 0) - P.invXY;
+  const pbOf = fl => { let s = 0; for (let i = 0; i < fl.length; i++) { if (s + fl[i] >= P.invXY) return Math.round((i + (P.invXY - s) / fl[i]) * 10) / 10; s += fl[i]; } return 99; };
+  return { pb, pbB, dep, ni, arr, pvL, pvA, fvL, pvCF, pvS, npv, fac, irr, npvX: npvOf(P.X), npvY: npvOf(P.Y), pbX: pbOf(P.X), pbY: pbOf(P.Y) };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, tol, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, tol, wrong, work }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+const close = (a, b, t) => Math.abs(a - b) <= t;
+function buildParts(P) {
+  const S = solve(P), T = P.tv, parts = [];
+  let cum = 0; const cumTxt = P.flows.map(x => { cum += x; return money(cum); }).join(", ");
+  parts.push({ id: "payback", phase: "simple", tick: "1", title: "Payback period",
+    desc: "Find the payback period, in years to 1 decimal, for the new press (even cash flows) and for the binding line upgrade (uneven cash flows).",
+    hint: "Even cash flows: payback = initial investment ÷ annual net cash flow. Uneven: add the cash flows year by year until they cover the investment; the last year counts as a fraction.",
+    why: "Payback shows how fast an investment returns its cost, a rough measure of risk. It ignores the time value of money and every cash flow after payback.",
+    fields: [
+      num("pb", "Payback period, new press (years)", S.pb, 0.05, v => close(v, Math.round(P.cf / P.inv * 10) / 10, 0.05) ? "Flip it: payback = investment ÷ annual cash flow." : close(v, Math.round(P.inv / (P.cf - S.dep) * 10) / 10, 0.05) ? "Use net cash flow, not net income: depreciation isn't a cash outflow." : "Payback = " + money(P.inv) + " ÷ " + money(P.cf) + " per year.", money(P.inv) + " ÷ " + money(P.cf) + " = " + fmt(S.pb) + " years", { post: "years" }),
+      num("pbB", "Payback period, binding line upgrade (years)", S.pbB, 0.05, v => close(v, Math.floor(S.pbB), 0.05) || close(v, Math.ceil(S.pbB), 0.05) ? "The investment is recovered partway through a year. Add the fraction: amount still needed ÷ that year's cash flow." : close(v, Math.round(P.invB / (P.flows.reduce((a, x) => a + x, 0) / 5) * 10) / 10, 0.05) ? "With uneven cash flows, don't use an average. Add the flows year by year." : "Add the cash flows year by year (" + cumTxt + ") until they reach " + money(P.invB) + ".", "Cumulative: " + cumTxt + " → " + fmt(S.pbB) + " years", { post: "years" })],
+    walk: [{ keys: ["pb"], text: "Even flows: divide.", formula: money(P.inv) + " ÷ " + money(P.cf) + " = " + fmt(S.pb) }, { keys: ["pbB"], text: "Uneven flows: accumulate until the investment is covered, then take the fraction of the next year.", formula: cumTxt + " → " + fmt(S.pbB) }] });
+
+  parts.push({ id: "arr", phase: "simple", tick: "2", title: "Accounting rate of return",
+    desc: "Find the new press's accounting rate of return as a percent to 1 decimal, using the OpenStax formula: incremental net income ÷ (initial investment − salvage value). Depreciation is straight-line.",
+    hint: "Incremental net income = annual net cash flow − annual depreciation. Depreciation = (initial investment − salvage) ÷ useful life.",
+    why: "ARR uses accounting income, so it includes depreciation but ignores the timing of cash flows.",
+    fields: [num("arr", "Accounting rate of return (%)", S.arr, 0.05, v => close(v, Math.round(P.cf / (P.inv - P.salv) * 1000) / 10, 0.05) ? "Use net income, not cash flow: subtract depreciation of " + money(S.dep) + " per year." : close(v, Math.round(S.ni / P.inv * 1000) / 10, 0.05) ? "Divide by initial investment − salvage value (" + money(P.inv - P.salv) + "), as in OpenStax 11.2." : close(v, Math.round(S.ni / ((P.inv + P.salv) / 2) * 1000) / 10, 0.05) ? "That uses average investment. This course uses initial investment − salvage value." : close(v, S.arr / 100, 0.0005) ? "Enter it as a percent, like 12.5." : "ARR = (" + money(P.cf) + " − " + money(S.dep) + " depreciation) ÷ (" + money(P.inv) + " − " + money(P.salv) + ").", "(" + money(P.cf) + " − " + money(S.dep) + ") ÷ " + money(P.inv - P.salv) + " = " + fmt(S.arr) + "%", { post: "%" })],
+    walk: [{ keys: ["arr"], text: "Net income = cash flow − depreciation; divide by investment − salvage.", formula: money(S.ni) + " ÷ " + money(P.inv - P.salv) + " = " + fmt(S.arr) + "%" }] });
+
+  parts.push({ id: "tvm", phase: "tvm", tick: "3", title: "Time value of money",
+    desc: "Use the Appendix B factors (3 decimals) in the data. (a) What is " + money(T.lump) + " received in " + T.nL + " years worth today at " + T.rL + "%? (b) What is " + money(T.pmt) + " a year for " + T.nA + " years worth today at " + T.rA + "%? (c) What will " + money(T.fv) + " invested today grow to in " + T.nF + " years at " + T.rF + "%?",
+    hint: "PV of a lump sum = amount × PV of $1 factor. PV of an annuity = payment × PV of an annuity factor. FV of a lump sum = amount × FV of $1 factor.",
+    why: "A dollar today is worth more than a dollar later, because it can earn a return. Discounting brings future cash flows to today's value so they can be compared with the investment.",
+    fields: [
+      num("pvL", "(a) Present value of the lump sum", S.pvL, 1, v => close(v, T.lump * PVA[T.rL][T.nL], 1) ? "That uses the annuity factor. A single future amount uses the PV of $1 factor." : close(v, T.lump * FV1[T.rL][T.nL], 1) ? "That is a future value factor. Use the PV of $1 table." : "PV = " + money(T.lump) + " × PV of $1 factor (" + T.rL + "%, " + T.nL + " periods).", money(T.lump) + " × " + fmt(PV1[T.rL][T.nL]) + " = " + money(S.pvL)),
+      num("pvA", "(b) Present value of the annuity", S.pvA, 1, v => close(v, T.pmt * PV1[T.rA][T.nA], 1) ? "That uses the lump-sum factor for the last payment only. An annuity uses the PV of an annuity factor." : close(v, T.pmt * T.nA, 1) ? "That ignores the time value of money. Multiply by the PV of an annuity factor." : "PV = " + money(T.pmt) + " × PV of an annuity factor (" + T.rA + "%, " + T.nA + " periods).", money(T.pmt) + " × " + fmt(PVA[T.rA][T.nA]) + " = " + money(S.pvA)),
+      num("fvL", "(c) Future value of the lump sum", S.fvL, 1, v => close(v, T.fv * PV1[T.rF][T.nF], 1) ? "That is a present value. Use the FV of $1 factor to grow money forward." : "FV = " + money(T.fv) + " × FV of $1 factor (" + T.rF + "%, " + T.nF + " periods).", money(T.fv) + " × " + fmt(FV1[T.rF][T.nF]) + " = " + money(S.fvL))],
+    walk: [{ keys: ["pvL", "pvA", "fvL"], text: "Pick the right table, then the row (periods) and column (rate).", formula: fmt(PV1[T.rL][T.nL]) + ", " + fmt(PVA[T.rA][T.nA]) + ", " + fmt(FV1[T.rF][T.nF]) }] });
+
+  parts.push({ id: "npv", phase: "dcf", tick: "4", title: "Net present value",
+    desc: "Find the new press's net present value at Problem Solvers' required return of " + P.rate + "%, using the Appendix B factors. The annual net cash flows are even; the salvage value comes at the end of year " + P.life + ".",
+    hint: "PV of cash flows = annual cash flow × PV of an annuity factor. PV of salvage = salvage × PV of $1 factor. NPV = PV of cash flows + PV of salvage − initial investment.",
+    why: "NPV counts every cash flow and the time value of money. A positive NPV means the investment earns more than the required return.",
+    fields: [
+      num("pvCF", "Present value of the annual cash flows", S.pvCF, 1, v => close(v, P.cf * PV1[P.rate][P.life], 1) ? "Even yearly cash flows are an annuity. Use the PV of an annuity factor." : close(v, (P.cf - S.dep) * PVA[P.rate][P.life], 1) ? "Discount cash flows, not net income. Depreciation isn't a cash flow." : close(v, P.cf * P.life, 1) ? "Discount the cash flows; don't just add them." : "PV = " + money(P.cf) + " × PV of an annuity factor (" + P.rate + "%, " + P.life + " years).", money(P.cf) + " × " + fmt(PVA[P.rate][P.life]) + " = " + money(S.pvCF)),
+      num("pvS", "Present value of the salvage value", S.pvS, 1, v => close(v, P.salv, 1) && P.salv ? "Salvage comes in year " + P.life + ", so discount it with the PV of $1 factor." : close(v, P.salv * PVA[P.rate][P.life], 1) && P.salv ? "Salvage is one amount at the end, not an annuity. Use the PV of $1 factor." : "PV of salvage = " + money(P.salv) + " × PV of $1 factor (" + P.rate + "%, " + P.life + " years).", money(P.salv) + " × " + fmt(PV1[P.rate][P.life]) + " = " + money(S.pvS)),
+      num("npvA", "Net present value (negative if below zero)", S.npv, 2, (v, n) => close(v, S.pvCF - P.inv, 2) && P.salv ? "Include the present value of the salvage value." : n.pvCF != null && n.pvS != null && close(v, n.pvCF + n.pvS - P.inv, 2) && (!close(n.pvCF, S.pvCF, 1) || !close(n.pvS, S.pvS, 1)) ? "Your arithmetic is right, but a present value above is not. Fix it first." : close(v, -S.npv, 2) ? "Check the sign: PV of inflows − investment." : "NPV = PV of cash flows + PV of salvage − " + money(P.inv) + ".", money(S.pvCF) + " + " + money(S.pvS) + " − " + money(P.inv) + " = " + money(S.npv)),
+      sel("dA", "Accept or reject the new press?", ACC, S.npv > 0 ? "accept" : "reject", () => S.npv > 0 ? "NPV is positive, so the press earns more than the " + P.rate + "% required return: accept." : "NPV is negative, so the press earns less than the " + P.rate + "% required return: reject.", (S.npv > 0 ? "Accept" : "Reject") + ": NPV " + money(S.npv))],
+    walk: [{ keys: ["pvCF", "pvS"], text: "Discount the annuity and the salvage separately.", formula: money(S.pvCF) + " + " + money(S.pvS) }, { keys: ["npvA", "dA"], text: "Subtract the investment.", formula: money(S.npv) }] });
+
+  const RO = RATES.map(x => ["r" + x, x + "%"]);
+  parts.push({ id: "irr", phase: "dcf", tick: "5", title: "Internal rate of return",
+    desc: "A new folding machine costs " + money(P.invC) + " and returns " + money(P.cfC) + " a year for " + P.nC + " years. Find its IRR factor (3 decimals), read the IRR from the annuity table row for " + P.nC + " periods, and compare it with the " + P.hurdle + "% hurdle rate.",
+    hint: "IRR factor = initial investment ÷ annual cash flow. Find that factor in the PV of an annuity table on the row for the project's life; its column is the IRR.",
+    why: "The IRR is the rate that makes NPV exactly zero. An investment is worth taking when its IRR is higher than the hurdle rate.",
+    fields: [
+      num("fac", "IRR factor", S.fac, 0.0005, v => close(v, Math.round(P.cfC / P.invC * 1000) / 1000, 0.0005) ? "Flip it: factor = investment ÷ annual cash flow." : "IRR factor = " + money(P.invC) + " ÷ " + money(P.cfC) + ".", money(P.invC) + " ÷ " + money(P.cfC) + " = " + fmt(S.fac)),
+      sel("irr", "Internal rate of return", RO, "r" + S.irr, v => { const x = +v.slice(1); const other = []; for (let n = 1; n <= NPER; n++) if (n !== P.nC && PVA[x] && PVA[x][n] === S.fac) other.push(n); return other.length ? "That rate has this factor on the " + other[0] + "-period row. Read the row for " + P.nC + " periods, the project's life." : "Find " + fmt(S.fac) + " on the " + P.nC + "-period row of the PV of an annuity table; its column is the IRR."; }, fmt(S.fac) + " on the " + P.nC + "-period row → " + S.irr + "%"),
+      sel("dC", "Compared with the " + P.hurdle + "% hurdle rate, accept or reject?", ACC, S.irr > P.hurdle ? "accept" : "reject", () => S.irr > P.hurdle ? "The IRR (" + S.irr + "%) is above the " + P.hurdle + "% hurdle rate: accept." : "The IRR (" + S.irr + "%) is below the " + P.hurdle + "% hurdle rate: reject.", (S.irr > P.hurdle ? "Accept" : "Reject") + ": " + S.irr + "% vs. " + P.hurdle + "%")],
+    walk: [{ keys: ["fac", "irr", "dC"], text: "Divide, find the factor on the project's row, compare with the hurdle.", formula: fmt(S.fac) + " → " + S.irr + "% vs. " + P.hurdle + "%" }] });
+
+  const fastP = P.fast, slowP = fastP === "X" ? "Y" : "X";
+  const CH = [["x_pb", "Project X: it pays back sooner"], ["y_pb", "Project Y: it pays back sooner"], ["x_npv", "Project X: it has the higher NPV, which counts every cash flow and the time value of money"], ["y_npv", "Project Y: it has the higher NPV, which counts every cash flow and the time value of money"]];
+  parts.push({ id: "disagree", phase: "dcf", tick: "6", title: "When the methods disagree",
+    desc: "Problem Solvers can fund only one of two projects that cost " + money(P.invXY) + " each. Their cash flows and NPVs at " + P.rateXY + "% are in the data.",
+    why: "Payback favors quick cash and ignores what happens after payback. NPV measures the value an investment adds, so it is the better guide when the two disagree.",
+    fields: [
+      sel("fast", "Which project ranks higher on payback?", [["X", "Project X"], ["Y", "Project Y"]], fastP, () => "Project " + fastP + " pays back in " + fmt(fastP === "X" ? S.pbX : S.pbY) + " years; Project " + slowP + " takes " + fmt(fastP === "X" ? S.pbY : S.pbX) + ". A shorter payback ranks higher.", "Payback: X " + fmt(S.pbX) + ", Y " + fmt(S.pbY) + " years"),
+      sel("pick", "Which project should Problem Solvers choose?", CH, slowP.toLowerCase() + "_npv", v => v.endsWith("_pb") ? "Payback ignores the cash flows after payback and the time value of money. Project " + slowP + "'s higher NPV (" + money(slowP === "X" ? S.npvX : S.npvY) + ") means it adds more value." : "Check which NPV is higher: X " + money(S.npvX) + ", Y " + money(S.npvY) + ".", "Project " + slowP + ": higher NPV")],
+    walk: [{ keys: ["fast", "pick"], text: "Payback favors Project " + fastP + "; NPV favors Project " + slowP + ". Trust NPV." }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+// Present-value amounts may be off by $1 from rounding (the spec's tolerance); years and percents by 0.05.
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 3.5 or 24,000." };
+      else res[f.id] = close(v, f.ans, f.tol + 1e-9) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> is weighing new equipment for its print shop. Evaluate the investments with payback, ARR, NPV and IRR. Year: " + YEAR + "."; }
+function factorTable(name, T, hlR, hlN) {
+  return '<div class="scroll"><table class="dtab ftab"><caption><div class="cap-name">' + name + '</div><div class="cap-date">OpenStax Appendix B, 3 decimals</div></caption><thead><tr><th scope="col">n</th>' + RATES.map(x => '<th scope="col" class="r">' + x + '%</th>').join("") + '</tr></thead><tbody>' +
+    Array.from({ length: NPER }, (_, k) => '<tr><td>' + (k + 1) + '</td>' + RATES.map(x => '<td class="r' + (hlR === x && hlN === k + 1 ? ' hl' : '') + '">' + T[x][k + 1].toFixed(3) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+function dataHTML(c) {
+  const P = c.P, id = c.part.id, row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  const press = '<div class="scroll"><table class="dtab"><caption><div class="cap-name">New press</div></caption><tbody>' + row("Initial investment", money(P.inv)) + row("Annual net cash inflow", money(P.cf)) + row("Useful life", P.life + " years") + row("Salvage value", money(P.salv)) + row("Required rate of return", P.rate + "%") + '</tbody></table></div>';
+  if (id === "payback") return { title: "Investment data", html: press + '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">Binding line upgrade</div><div class="cap-date">Initial investment ' + money(P.invB) + '</div></caption><thead><tr><th scope="col">Year</th><th scope="col" class="r">Net cash inflow</th></tr></thead><tbody>' + P.flows.map((x, i) => row(i + 1, money(x))).join("") + '</tbody></table></div>' };
+  if (id === "arr" || id === "npv") return { title: "New press", html: press + (id === "npv" ? '<div style="margin-top:12px">' + factorTable("PV of an annuity of $1", PVA) + factorTable("PV of $1", PV1) + '</div>' : '<p class="note">Depreciation is straight-line over the useful life, down to the salvage value.</p>') };
+  if (id === "tvm") return { title: "Appendix B factors", html: factorTable("PV of $1", PV1) + factorTable("PV of an annuity of $1", PVA) + factorTable("FV of $1", FV1) };
+  if (id === "irr") return { title: "PV of an annuity of $1", html: factorTable("PV of an annuity of $1", PVA) };
+  return { title: "Projects X and Y", html: '<div class="scroll"><table class="dtab"><caption><div class="cap-date">Each costs ' + money(P.invXY) + '; NPV at ' + P.rateXY + '%</div></caption><thead><tr><th scope="col">Year</th><th scope="col" class="r">Project X</th><th scope="col" class="r">Project Y</th></tr></thead><tbody>' +
+    P.X.map((x, i) => '<tr><td>' + (i + 1) + '</td><td class="r">' + money(x) + '</td><td class="r">' + money(P.Y[i]) + '</td></tr>').join("") + '</tbody><tfoot><tr><td>NPV</td><td class="r">' + money(solve(P).npvX) + '</td><td class="r">' + money(solve(P).npvY) + '</td></tr></tfoot></table></div>' };
+}
+
+MAFrame.start({
+  slug: "ma-capital-budgeting", key: "ma-cap1", module: "M4", title: "Capital Budgeting Lab",
+  phases: [["simple", "Payback and ARR"], ["tvm", "Time value"], ["dcf", "Discounted cash flow"]],
+  dataTitle: "Data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
