@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Short-Term Decisions Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M4 Lab 8: Short-Term Decisions. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-short-term-decisions), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-short-term-decisions.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => (n < 0 ? "−" : "") + "$" + fmt(n);
+const cents = n => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^[−–]/, "-");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+const r2 = x => Math.round(x * 100) / 100;
+const REL = [["rel", "Relevant"], ["not", "Not relevant"]];
+// Costs and revenues to judge: text, relevant?, why.
+const ITEMS = [
+  ["The purchase price of a new binding machine, if Problem Solvers replaces its old one", "rel", "It is a future cost that happens only if Problem Solvers replaces the machine, so it differs between the alternatives."],
+  ["The original cost of the old binding machine, paid three years ago", "not", "It is a sunk cost: it was paid in the past and no decision now can change it."],
+  ["Depreciation on the old binding machine", "not", "Depreciation spreads a past (sunk) cost. It doesn't change with the decision."],
+  ["Rent Problem Solvers could earn by leasing its storage space to another company instead of using it", "rel", "It is an opportunity cost: the benefit given up by choosing the other alternative."],
+  ["A line supervisor's salary that would be eliminated if the Pocket guidebook line is dropped", "rel", "It is an avoidable fixed cost: it goes away if the line is dropped, so it differs between the alternatives."],
+  ["Corporate office costs allocated to the Pocket line that will continue whether or not the line is dropped", "not", "It is an unavoidable common cost. It stays the same either way, so allocating it doesn't make it relevant."],
+  ["Paper cost per guidebook that is the same whether Problem Solvers prints in-house or outsources", "not", "A future cost that is the same under both alternatives doesn't affect the choice."],
+  ["Revenue from a one-time special order", "rel", "It is incremental revenue that happens only if the order is accepted."],
+  ["Market research on a new guidebook, already paid for last month", "not", "It is a sunk cost: it was already spent and can't be recovered either way."],
+  ["What the old binding machine would bring if it were sold now", "rel", "Its salvage value is a future cash inflow that happens only under one alternative."],
+  ["The company president's salary, which won't change with the decision", "not", "It is the same under every alternative, so it isn't relevant."],
+  ["Contribution margin lost on regular sales when a special order fills a plant already at capacity", "rel", "It is an opportunity cost of accepting the order: regular sales given up."],
+  ["Joint printing costs incurred before two guidebook editions split off", "not", "Joint costs are incurred before the split-off point no matter what is done after it, so they don't affect a sell-or-process decision."],
+  ["Extra binding cost to turn a basic edition into a deluxe edition after split-off", "rel", "It is incurred only if the product is processed further, so it is relevant."]];
+const PROD = ["Standard", "Deluxe", "Pocket"];
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const shuffle = xs => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } return a; };
+  for (let t = 0; t < 50000; t++) {
+    const rel = shuffle(ITEMS.map((x, i) => x[1] === "rel" ? i : -1).filter(i => i >= 0)), not = shuffle(ITEMS.map((x, i) => x[1] === "not" ? i : -1).filter(i => i >= 0));
+    const nr = R(3, 5), items = shuffle(rel.slice(0, nr).concat(not.slice(0, 8 - nr)));
+    // Special order
+    const cap = R(40, 80) * 1000, full = r() < 0.4, ord = R(2, 10) * 500;
+    const vol = full ? cap - ord + R(1, Math.min(4, ord / 500)) * 500 : cap - ord - R(1, 10) * 500; // at capacity, the order displaces up to its own size
+    const price = R(28, 45), vcost = R(10, 18), vsell = R(1, 3), fpu = R(4, 9), offer = R(vcost + 2, price - 4), setup = R(1, 10) * 500;
+    const lost = full ? (vol + ord - cap) * (price - vcost - vsell) : 0;
+    const effect = ord * offer - (ord * vcost + setup + lost);
+    if (Math.abs(effect) < 1000 || vol < cap * 0.5) continue;
+    // Make or buy a binding kit
+    const n = R(5, 20) * 1000, kdm = R(150, 400) / 100, kdl = R(100, 300) / 100, kvo = R(50, 150) / 100, kfo = R(100, 250) / 100, avoid = R(4, 20) * 1000;
+    const rent = r() < 0.6 ? R(4, 24) * 1000 : 0, buy = r2(kdm + kdl + kvo + (avoid + rent) / n + R(-60, 60) / 100); // close to the relevant cost to make, either side
+    const make = r2(n * (kdm + kdl + kvo) + avoid + rent), buyT = r2(n * buy);
+    if (Math.abs(make - buyT) < 1000) continue;
+    // Keep or drop the Pocket line
+    const ks = R(150, 400) * 1000, kv = Math.round(ks * R(40, 65) / 100 / 1000) * 1000, ktf = R(30, 120) * 1000, kal = R(20, 80) * 1000;
+    const sm = ks - kv - ktf;
+    if (Math.abs(sm) < 5000 || (sm > 0 && sm - kal > 0 && r() < 0.6)) continue; // usually the line shows a loss after allocations
+    // Sell or process further
+    const su = R(4, 20) * 500, sp = R(8, 20), fp = sp + R(2, 10), fc = R(5, 60) * 1000, jc = R(40, 150) * 1000;
+    const incr = su * (fp - sp) - fc;
+    if (Math.abs(incr) < 1000) continue;
+    // Constrained resource: machine hours
+    const cmu = [R(8, 30), R(12, 45), R(6, 20)], mh = [R(1, 6) / 2, R(2, 10) / 2, R(1, 4) / 2], dem = [R(4, 16) * 500, R(2, 8) * 500, R(4, 16) * 500];
+    const per = cmu.map((c, i) => r2(c / mh[i]));
+    if (new Set(per).size < 3 || new Set(cmu).size < 3) continue;
+    const order = [0, 1, 2].sort((a, b) => per[b] - per[a]), byUnit = [0, 1, 2].sort((a, b) => cmu[b] - cmu[a]);
+    if (order[0] === byUnit[0]) continue; // ranking by CM per unit would pick the wrong product first
+    const need = dem[order[0]] * mh[order[0]] + dem[order[1]] * mh[order[1]];
+    const last = order[2], lastUnits = R(1, Math.max(1, dem[last] / 50 - 1)) * 50;
+    const hours = need + lastUnits * mh[last];
+    if (!Number.isInteger(hours) || lastUnits >= dem[last]) continue;
+    return { items, cap, vol, ord, price, vcost, vsell, fpu, offer, setup, n, kdm, kdl, kvo, kfo, avoid, rent, buy, ks, kv, ktf, kal, su, sp, fp, fc, jc, cmu, mh, dem, hours };
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const regCm = P.price - P.vcost - P.vsell, lostU = Math.max(0, P.vol + P.ord - P.cap), lost = lostU * regCm;
+  const rev = P.ord * P.offer, cost = P.ord * P.vcost + P.setup + lost, eff = rev - cost;
+  const make = r2(P.n * (P.kdm + P.kdl + P.kvo) + P.avoid + P.rent), buyT = r2(P.n * P.buy), mdiff = r2(Math.abs(make - buyT));
+  const sm = P.ks - P.kv - P.ktf, drop = -sm;
+  const incRev = P.su * (P.fp - P.sp), incProfit = incRev - P.fc;
+  const per = P.cmu.map((c, i) => r2(c / P.mh[i])), order = [0, 1, 2].sort((a, b) => per[b] - per[a]);
+  const rem = P.hours - P.dem[order[0]] * P.mh[order[0]] - P.dem[order[1]] * P.mh[order[1]], lastUnits = Math.round(rem / P.mh[order[2]]);
+  const plan = [0, 0, 0]; plan[order[0]] = P.dem[order[0]]; plan[order[1]] = P.dem[order[1]]; plan[order[2]] = lastUnits;
+  const tcm = plan.reduce((a, u, i) => a + u * P.cmu[i], 0);
+  return { regCm, lostU, lost, rev, cost, eff, make, buyT, mdiff, sm, drop, incRev, incProfit, per, order, lastUnits, plan, tcm };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, wrong, work, dec: 2 }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+function buildParts(P) {
+  const S = solve(P), parts = [];
+  parts.push({ id: "relevant", phase: "rel", tick: "1", layout: "table", title: "Relevant or not?",
+    desc: "A relevant cost or revenue is a future amount that differs between the alternatives being considered. Decide whether each item is relevant to the decision it describes.",
+    itemLabel: "Cost or revenue", items: P.items.map(i => ({ text: ITEMS[i][0] })), cols: [{ key: "rel", label: "Relevant?" }],
+    why: "Only future amounts that differ between alternatives can change a decision. Sunk costs and costs that stay the same either way only add noise.",
+    fields: P.items.map((i, k) => sel("rel" + k, "Relevant? " + ITEMS[i][0], REL, ITEMS[i][1], () => ITEMS[i][2], ITEMS[i][2], { row: k, col: "rel" })),
+    walk: [{ keys: P.items.map((_, k) => "rel" + k), text: "Ask two questions: is it in the future, and does it differ between the alternatives? Only a yes to both makes it relevant." }] });
+
+  const full = S.lostU > 0;
+  const costWork = fmt(P.ord) + " × " + money(P.vcost) + " + " + money(P.setup) + " setup" + (full ? " + " + fmt(S.lostU) + " lost regular sales × " + money(S.regCm) + " CM" : "") + " = " + money(S.cost);
+  parts.push({ id: "special", phase: "dec", tick: "2", title: "Special order",
+    desc: "A corporate client offers to buy " + fmt(P.ord) + " Standard guidebooks at " + money(P.offer) + " each, a one-time order. Regular sales won't be affected except through capacity. The order needs a one-time setup costing " + money(P.setup) + ", and no sales commissions or shipping (variable selling costs) apply to it.",
+    hint: "Incremental cost = variable production cost × units + setup + any contribution margin lost on regular sales the order pushes out. Fixed overhead doesn't change.",
+    why: "A special order is worth taking when it adds more revenue than cost. With idle capacity only variable and one-time costs count; at capacity, lost regular contribution margin counts too.",
+    fields: [
+      num("rev", "Incremental revenue", S.rev, v => v === P.ord * P.price ? "The client pays the special price, " + money(P.offer) + ", not the regular price." : "Incremental revenue = " + fmt(P.ord) + " × " + money(P.offer) + ".", fmt(P.ord) + " × " + money(P.offer) + " = " + money(S.rev)),
+      num("cost", "Incremental cost", S.cost, v => v === P.ord * (P.vcost + P.fpu) + P.setup + S.lost ? "Fixed overhead doesn't change with this order, so leave it out." : v === P.ord * (P.vcost + P.vsell) + P.setup + S.lost ? "No sales commissions or shipping apply to this order. Leave variable selling costs out." : v === P.ord * P.vcost + S.lost ? "Include the one-time setup cost." : full && v === P.ord * P.vcost + P.setup ? "The plant is near capacity: the order pushes out " + fmt(S.lostU) + " regular sales. Add their lost contribution margin." : !full && v === P.ord * P.vcost + P.setup + P.ord * S.regCm ? "There is idle capacity, so no regular sales are lost." : "Incremental cost = variable production cost × units + setup" + (full ? " + lost contribution margin on displaced regular sales." : "."), costWork),
+      num("eff", "Effect on operating income (enter a decrease as negative)", S.eff, (v, n) => near(v, -S.eff) ? "Check the sign: revenue − cost is " + (S.eff > 0 ? "an increase" : "a decrease") + "." : n.rev != null && n.cost != null && near(v, n.rev - n.cost) && (n.rev !== S.rev || n.cost !== S.cost) ? "Your subtraction is right, but revenue or cost above is not. Fix it first." : "Effect = incremental revenue − incremental cost.", money(S.rev) + " − " + money(S.cost) + " = " + money(S.eff)),
+      sel("acc", "Accept or reject the order?", [["accept", "Accept"], ["reject", "Reject"]], S.eff > 0 ? "accept" : "reject", () => S.eff > 0 ? "The order adds " + money(S.eff) + " to operating income, so accept it." : "The order lowers operating income by " + money(-S.eff) + ", so reject it.", (S.eff > 0 ? "Accept" : "Reject") + ": " + money(S.eff))],
+    walk: [{ keys: ["rev", "cost"], text: "Count only what changes: revenue at the special price, variable production cost, the setup" + (full ? ", and the regular sales pushed out." : "; there is idle capacity."), formula: costWork },
+      { keys: ["eff", "acc"], text: "Compare.", formula: money(S.rev) + " − " + money(S.cost) + " = " + money(S.eff) }] });
+
+  const makeWork = fmt(P.n) + " × " + cents(r2(P.kdm + P.kdl + P.kvo)) + " + " + money(P.avoid) + " avoidable fixed" + (P.rent ? " + " + money(P.rent) + " rent given up" : "") + " = " + money(S.make);
+  parts.push({ id: "make", phase: "dec", tick: "3", title: "Make or buy",
+    desc: "Problem Solvers makes " + fmt(P.n) + " binding kits a year. An outside supplier offers them at " + cents(P.buy) + " each. If it buys, it avoids " + money(P.avoid) + " of fixed costs (a supervisor's salary); the rest of the fixed overhead stays. " + (P.rent ? "The freed space could be rented out for " + money(P.rent) + " a year." : "The freed space would sit idle."),
+    hint: "Relevant cost to make = variable cost per kit × kits + avoidable fixed costs" + (P.rent ? " + rent given up by making." : ".") + " Unavoidable fixed overhead is the same either way.",
+    why: "Only costs that go away when buying, and benefits given up by making, belong in the comparison. Allocated fixed overhead that stays is irrelevant.",
+    fields: [
+      num("mk", "Relevant cost to make", S.make, v => near(v, r2(P.n * (P.kdm + P.kdl + P.kvo + P.kfo) + P.rent)) || near(v, r2(P.n * (P.kdm + P.kdl + P.kvo + P.kfo) + P.avoid + P.rent)) ? "Unavoidable fixed overhead stays either way. Count only the " + money(P.avoid) + " avoidable fixed cost." : near(v, r2(P.n * (P.kdm + P.kdl + P.kvo) + P.rent)) ? "Add the avoidable fixed cost, " + money(P.avoid) + ": it goes away if Problem Solvers buys." : P.rent && near(v, r2(P.n * (P.kdm + P.kdl + P.kvo) + P.avoid)) ? "Add the " + money(P.rent) + " rent given up: it is an opportunity cost of making." : "Relevant cost to make = variable cost × kits + avoidable fixed costs" + (P.rent ? " + rent given up." : "."), makeWork),
+      num("by", "Cost to buy", S.buyT, v => near(v, P.buy) ? "That is per kit. Multiply by " + fmt(P.n) + " kits." : "Cost to buy = " + fmt(P.n) + " × " + cents(P.buy) + ".", fmt(P.n) + " × " + cents(P.buy) + " = " + money(S.buyT)),
+      num("md", "Difference between the two (as a positive amount)", S.mdiff, (v, n) => near(v, -S.mdiff) ? "Enter the difference as a positive amount." : n.mk != null && n.by != null && near(v, Math.abs(n.mk - n.by)) && (!near(n.mk, S.make) || !near(n.by, S.buyT)) ? "Your subtraction is right, but a cost above is not. Fix it first." : "Difference = | cost to make − cost to buy |.", "| " + money(S.make) + " − " + money(S.buyT) + " | = " + money(S.mdiff)),
+      sel("mb", "Make or buy?", [["make", "Make"], ["buy", "Buy"]], S.make < S.buyT ? "make" : "buy", () => S.make < S.buyT ? "Making costs " + money(S.mdiff) + " less, so keep making the kits." : "Buying costs " + money(S.mdiff) + " less, so buy the kits.", (S.make < S.buyT ? "Make" : "Buy") + ": saves " + money(S.mdiff))],
+    walk: [{ keys: ["mk", "by"], text: "Relevant cost to make vs. the purchase price.", formula: makeWork + " vs. " + money(S.buyT) }, { keys: ["md", "mb"], text: "Choose the cheaper option.", formula: money(S.mdiff) }] });
+
+  parts.push({ id: "drop", phase: "dec", tick: "4", title: "Keep or drop a product line",
+    desc: "The Pocket guidebook line reports the results in the data, after its share of corporate costs. If the line is dropped, its sales, variable costs and traceable fixed costs go away, but the allocated corporate costs stay.",
+    hint: "Segment margin = contribution margin − traceable fixed costs. Dropping the line changes company income by minus the segment margin.",
+    why: "A line can show a loss after allocations and still help the company. As long as its segment margin is positive, it covers its own costs and helps pay common costs that won't go away.",
+    fields: [
+      num("sm", "Segment margin of the Pocket line", S.sm, v => v === S.sm - P.kal ? "That subtracts the allocated corporate costs. They stay either way, so segment margin stops before them." : v === P.ks - P.kv ? "Subtract the traceable fixed costs too." : "Segment margin = sales − variable costs − traceable fixed costs.", money(P.ks) + " − " + money(P.kv) + " − " + money(P.ktf) + " = " + money(S.sm)),
+      num("chg", "Change in company operating income if the line is dropped (enter a decrease as negative)", S.drop, (v, n) => near(v, -S.drop) ? "Check the sign: dropping the line loses its segment margin of " + money(S.sm) + "." : v === -(S.sm - P.kal) || v === S.sm - P.kal ? "The allocated corporate costs don't go away. Only the segment margin is lost." : n.sm != null && near(v, -n.sm) && n.sm !== S.sm ? "Your sign is right, but your segment margin is not. Fix it first." : "Change if dropped = − segment margin.", "Lose the segment margin: " + money(S.drop)),
+      sel("kd", "Keep or drop the line?", [["keep", "Keep"], ["drop", "Drop"]], S.sm > 0 ? "keep" : "drop", () => S.sm > 0 ? "The line's segment margin is positive (" + money(S.sm) + "), so dropping it would lower company income. Keep it, even though it shows a loss after allocations." : "The line doesn't cover its own traceable costs (segment margin " + money(S.sm) + "), so dropping it raises company income.", (S.sm > 0 ? "Keep" : "Drop") + ": segment margin " + money(S.sm))],
+    walk: [{ keys: ["sm", "chg", "kd"], text: "Stop at segment margin; allocated costs stay either way.", formula: money(P.ks) + " − " + money(P.kv) + " − " + money(P.ktf) + " = " + money(S.sm) }] });
+
+  parts.push({ id: "process", phase: "dec", tick: "5", title: "Sell or process further",
+    desc: "Joint printing produces " + fmt(P.su) + " basic editions that can be sold now for " + money(P.sp) + " each, or bound into deluxe editions that sell for " + money(P.fp) + " each after " + money(P.fc) + " of extra binding cost. The joint printing cost was " + money(P.jc) + ".",
+    hint: "Incremental revenue = units × (price after processing − price at split-off). Incremental profit = incremental revenue − further processing cost. Joint costs are irrelevant.",
+    why: "Joint costs are spent before the split-off point whatever is done afterward, so only what happens after split-off matters.",
+    fields: [
+      num("ir", "Incremental revenue from processing further", S.incRev, v => v === P.su * P.fp ? "Subtract what the basic editions would bring at split-off: incremental revenue = units × (" + money(P.fp) + " − " + money(P.sp) + ")." : "Incremental revenue = " + fmt(P.su) + " × (" + money(P.fp) + " − " + money(P.sp) + ").", fmt(P.su) + " × " + money(P.fp - P.sp) + " = " + money(S.incRev)),
+      num("ip", "Incremental profit from processing further (enter a loss as negative)", S.incProfit, (v, n) => near(v, S.incProfit - P.jc) ? "Leave out the joint cost. It was incurred before split-off either way." : near(v, -S.incProfit) ? "Check the sign: incremental revenue − further cost." : n.ir != null && near(v, n.ir - P.fc) && n.ir !== S.incRev ? "Your subtraction is right, but your incremental revenue is not. Fix it first." : "Incremental profit = incremental revenue − " + money(P.fc) + " further processing cost.", money(S.incRev) + " − " + money(P.fc) + " = " + money(S.incProfit)),
+      sel("sp", "Sell at split-off or process further?", [["sell", "Sell at split-off"], ["process", "Process further"]], S.incProfit > 0 ? "process" : "sell", () => S.incProfit > 0 ? "Processing further adds " + money(S.incProfit) + ", so process further." : "Processing further loses " + money(-S.incProfit) + ", so sell at split-off.", (S.incProfit > 0 ? "Process further" : "Sell at split-off") + ": " + money(S.incProfit))],
+    walk: [{ keys: ["ir", "ip", "sp"], text: "Compare the extra revenue with the extra cost; ignore the joint cost.", formula: money(S.incRev) + " − " + money(P.fc) + " = " + money(S.incProfit) }] });
+
+  const PO = PROD.map((n, i) => ["p" + i, n]), RK = ["first", "second", "third"];
+  const planWork = S.order.map(i => fmt(S.plan[i]) + " " + PROD[i] + " × " + money(P.cmu[i])).join(" + ") + " = " + money(S.tcm);
+  parts.push({ id: "constraint", phase: "dec", tick: "6", title: "Constrained resource",
+    desc: "The presses have only " + fmt(P.hours) + " machine hours this quarter, not enough to meet demand for all three guidebooks. Find each guidebook's contribution margin per machine hour (to the cent), rank them, then plan production to make the most contribution margin.",
+    hint: "CM per machine hour = CM per unit ÷ machine hours per unit. Make the highest-ranked guidebook up to its demand, then the next, then use the hours left on the third.",
+    why: "When one resource limits output, the best product is the one that earns the most from each unit of that resource, not the one with the highest CM per unit.",
+    fields: [
+      ...PROD.map((nm, i) => num("per" + i, nm + ": contribution margin per machine hour", S.per[i], v => near(v, r2(P.mh[i] / P.cmu[i])) ? "Flip it: CM per unit ÷ machine hours per unit." : near(v, P.cmu[i]) ? "That is CM per unit. Divide by " + fmt(P.mh[i]) + " machine hours per unit." : "CM per machine hour = " + money(P.cmu[i]) + " ÷ " + fmt(P.mh[i]) + " hours.", money(P.cmu[i]) + " ÷ " + fmt(P.mh[i]) + " = " + cents(S.per[i]))),
+      ...RK.map((rk, k) => sel("rank" + k, "Make " + rk, PO, "p" + S.order[k], v => { const byU = [0, 1, 2].sort((a, b) => P.cmu[b] - P.cmu[a]); return v === "p" + byU[k] && byU[k] !== S.order[k] ? "That ranks by CM per unit. With machine hours limited, rank by CM per machine hour." : "Rank by CM per machine hour, highest first: " + S.order.map(i => PROD[i] + " " + cents(S.per[i])).join(", ") + "."; }, PROD[S.order[k]] + ": " + cents(S.per[S.order[k]]) + " per hour")),
+      num("lastU", "Units of the third-ranked guidebook you can make with the hours left", S.lastUnits, v => v === P.dem[S.order[2]] ? "There aren't enough hours to meet all its demand. Use only the hours left after the first two." : "Hours left = " + fmt(P.hours) + " − hours for the first two guidebooks at full demand; units = hours left ÷ " + fmt(P.mh[S.order[2]]) + ".", fmt(P.hours) + " − " + fmt(P.dem[S.order[0]] * P.mh[S.order[0]]) + " − " + fmt(P.dem[S.order[1]] * P.mh[S.order[1]]) + " = " + fmt(S.lastUnits * P.mh[S.order[2]]) + " hours ÷ " + fmt(P.mh[S.order[2]]) + " = " + fmt(S.lastUnits), { dec: 0 }),
+      num("tcm", "Total contribution margin from this plan", S.tcm, (v, n) => n.lastU != null && v === S.tcm - S.lastUnits * P.cmu[S.order[2]] + n.lastU * P.cmu[S.order[2]] && n.lastU !== S.lastUnits ? "Your total follows from your units, but the units above are not right. Fix them first." : v === P.dem.reduce((a, d, i) => a + d * P.cmu[i], 0) ? "That meets all demand, which needs more hours than the presses have." : "Total CM = Σ units made × CM per unit.", planWork)],
+    walk: [{ keys: ["per0", "per1", "per2"], text: "Divide each CM per unit by its machine hours.", formula: PROD.map((n, i) => n + " " + cents(S.per[i])).join(", ") },
+      { keys: ["rank0", "rank1", "rank2"], text: "Rank by CM per machine hour." }, { keys: ["lastU", "tcm"], text: "Fill demand in rank order until the hours run out.", formula: planWork }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or −2,400." };
+      else res[f.id] = (f.dec === 0 ? v === f.ans : near(v, f.ans)) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> faces six short-term decisions this year. Use only the costs and revenues that differ between the alternatives. Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, id = c.part.id, row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  if (id === "relevant") return { title: "What makes a cost relevant", html: '<div class="defs"><div class="def"><b>Relevant</b>A future cost or revenue that differs between the alternatives.</div><div class="def"><b>Sunk cost</b>Already incurred; no decision can change it. Never relevant.</div><div class="def"><b>Opportunity cost</b>The benefit given up by choosing one alternative over another. Relevant.</div></div>' };
+  if (id === "special") return { title: "Standard guidebook", html: '<div class="scroll"><table class="dtab"><tbody>' + row("Plant capacity (guidebooks per year)", fmt(P.cap)) + row("Regular sales this year", fmt(P.vol)) + row("Regular selling price", money(P.price)) + row("Variable production cost per guidebook", money(P.vcost)) + row("Variable selling cost per guidebook (commissions, shipping)", money(P.vsell)) + row("Fixed overhead per guidebook (at regular volume)", money(P.fpu)) + '</tbody></table></div><p class="note">Fixed overhead won\'t change if the order is accepted.</p>' };
+  if (id === "make") return { title: "Binding kit cost per unit", html: '<div class="scroll"><table class="dtab"><tbody>' + row("Direct materials", cents(P.kdm)) + row("Direct labor", cents(P.kdl)) + row("Variable overhead", cents(P.kvo)) + row("Fixed overhead (allocated)", cents(P.kfo)) + '<tfoot><tr><td>Total cost per kit</td><td class="r">' + cents(r2(P.kdm + P.kdl + P.kvo + P.kfo)) + '</td></tr></tfoot></tbody></table></div>' };
+  if (id === "drop") return { title: "Pocket guidebook line", html: '<div class="scroll"><table class="dtab"><caption><div class="cap-name">Product line income statement</div><div class="cap-date">For the year ended December 31, ' + YEAR + '</div></caption><tbody>' + row("Sales", money(P.ks)) + row("Variable costs", money(P.kv)) + row("Contribution margin", money(P.ks - P.kv)) + row("Traceable fixed costs", money(P.ktf)) + row("Allocated corporate costs", money(P.kal)) + '</tbody><tfoot><tr><td>Operating income (loss)</td><td class="r">' + money(P.ks - P.kv - P.ktf - P.kal) + '</td></tr></tfoot></table></div>' };
+  if (id === "process") return { title: "Basic and deluxe editions", html: '<div class="facts"><div class="fact"><span class="k">At split-off</span><span>' + fmt(P.su) + ' basic editions at ' + money(P.sp) + '</span></div><div class="fact"><span class="k">Processed</span><span>Deluxe at ' + money(P.fp) + ' after ' + money(P.fc) + ' more cost</span></div><div class="fact"><span class="k">Joint cost</span><span>' + money(P.jc) + ' (already spent)</span></div></div>' };
+  return { title: "Three guidebooks, one press", html: '<div class="scroll"><table class="dtab"><thead><tr><th scope="col">Guidebook</th><th scope="col" class="r">CM per unit</th><th scope="col" class="r">Machine hours per unit</th><th scope="col" class="r">Demand this quarter</th></tr></thead><tbody>' + PROD.map((n, i) => '<tr><td>' + n + '</td><td class="r">' + money(P.cmu[i]) + '</td><td class="r">' + fmt(P.mh[i]) + '</td><td class="r">' + fmt(P.dem[i]) + '</td></tr>').join("") + '</tbody></table></div><div class="facts"><div class="fact"><span class="k">Available</span><span><b class="num">' + fmt(P.hours) + '</b> machine hours</span></div></div>' };
+}
+
+MAFrame.start({
+  slug: "ma-short-term-decisions", key: "ma-std1", module: "M4", title: "Short-Term Decisions Lab",
+  phases: [["rel", "Relevant costs"], ["dec", "Decisions"]],
+  dataTitle: "Data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
