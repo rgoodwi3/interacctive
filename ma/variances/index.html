@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flexible Budgets and Variances Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M6 Lab 11: Flexible Budgets and Standard Cost Variances. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-variances), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-variances.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => (n < 0 ? "−" : "") + "$" + fmt(n);
+const cents = n => "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const c2 = x => Math.round(x * 100) / 100;
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^[−–]/, "-");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const FU = [["F", "Favorable (F)"], ["U", "Unfavorable (U)"]];
+const MGR = [["purch", "Purchasing manager"], ["prod", "Production supervisor"], ["hr", "Human resources manager"], ["sales", "Sales manager"]];
+const RESP = [
+  ["Materials price variance: paper was bought from a new supplier at a different price per pound", "purch", "The purchasing manager chooses suppliers and negotiates prices, so the materials price variance is theirs."],
+  ["Materials quantity variance: more paper than the standard allows was spoiled on the presses", "prod", "Paper used on the presses is controlled on the production floor, so the quantity variance belongs to the production supervisor."],
+  ["Labor rate variance: a new wage agreement with print shop employees took effect", "hr", "Wage rates come from the agreement human resources negotiated, so the rate variance is theirs."],
+  ["Labor time (efficiency) variance: press crews were scheduled poorly and stood idle", "prod", "Scheduling crews and keeping them busy is the production supervisor's job, so the time variance is theirs."],
+  ["Variable overhead efficiency variance: presses ran more hours than the standard allows for the output", "prod", "Overhead efficiency follows the hours worked, which the production supervisor controls."],
+  ["Sales revenue variance: guidebooks sold at a discount to win a large order", "sales", "Selling prices and discounts are set by the sales manager."]];
+
+// ---------- Problem generator ----------
+// Standards in whole cents and quantities in round numbers, so every variance is whole dollars and none is zero.
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  const shuffle = xs => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } return a; };
+  for (let t = 0; t < 50000; t++) {
+    const su = R(8, 20) * 1000, au = su + pick([-1, 1]) * R(1, 4) * 500, price = R(30, 60), aprice = price + R(-2, 2);
+    const sl = pick([2, 2.5, 3, 4]), sp = R(150, 400) / 100, sh = pick([0.5, 0.75, 1, 1.25, 1.5]), sr = R(16, 28), vr = R(3, 10), fr = R(4, 12);
+    const fsa = R(40, 120) * 1000;
+    if (Math.abs(sl * sp * 100 - Math.round(sl * sp * 100)) > 1e-6) continue; // standard costs per unit are whole cents
+    const sq = au * sl, aq = Math.round(sq * (1 + pick([-1, 1]) * R(1, 8) / 100) / 100) * 100, ap = c2(sp + pick([-1, 1]) * R(1, 30) / 100);
+    const shA = au * sh, ah = Math.round(shA * (1 + pick([-1, 1]) * R(1, 8) / 100) / 100) * 100, ar = c2(sr + pick([-1, 1]) * R(5, 150) / 100);
+    const avoh = ah * vr + pick([-1, 1]) * R(2, 40) * 50, foh = fr * su * sh, afoh = foh + pick([-1, 1]) * R(2, 40) * 100, afsa = fsa + R(-20, 20) * 100;
+    const items = shuffle([0, 1, 2, 3, 4, 5]).slice(0, 4);
+    const P = { su, au, price, aprice, sl, sp, sh, sr, vr, fr, fsa, aq, ap, ah, ar, avoh, afoh, afsa, items };
+    const X = solve(P);
+    if ([X.mp, X.mq, X.lr, X.lt, X.vrv, X.ve, X.fs, X.fv, X.volv, X.perf].some(v => Math.abs(v) < 100 || !Number.isInteger(c2(v)))) continue;
+    if (X.soi <= 0 || X.aoi <= 0 || aq === sq || ah === shA) continue;
+    return P;
+  }
+  throw new Error("Could not generate a problem set");
+}
+// Variances are signed actual − standard (or flexible − static for operating income): + is unfavorable for a cost,
+// favorable for income.
+function solve(P) {
+  const dmU = c2(P.sl * P.sp), dlU = c2(P.sh * P.sr), voU = c2(P.sh * P.vr), vcU = c2(dmU + dlU + voU), foh = P.fr * P.su * P.sh;
+  const fixedB = foh + P.fsa, soi = c2(P.su * (P.price - vcU) - fixedB);
+  const frev = P.au * P.price, fvar = c2(P.au * vcU), foi = c2(frev - fvar - fixedB);
+  const arev = P.au * P.aprice, avar = c2(P.aq * P.ap + P.ah * P.ar + P.avoh), afix = P.afoh + P.afsa, aoi = c2(arev - avar - afix);
+  const sq = P.au * P.sl, shA = P.au * P.sh;
+  return { dmU, dlU, voU, vcU, foh, fixedB, soi, frev, fvar, foi, arev, avar, afix, aoi, sq, shA,
+    volv: c2(foi - soi), perf: c2(aoi - foi),
+    mp: c2((P.ap - P.sp) * P.aq), mq: c2((P.aq - sq) * P.sp), lr: c2((P.ar - P.sr) * P.ah), lt: c2((P.ah - shA) * P.sr),
+    vrv: c2(P.avoh - P.ah * P.vr), ve: c2((P.ah - shA) * P.vr), fs: c2(P.afoh - foh), fv: c2(foh - P.fr * shA) };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, wrong, work }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+// A variance amount (entered as a positive number) and its F/U choice. cost: true when a positive signed value is unfavorable.
+function varPair(id, name, signed, cost, formula, wrongs, fuWhy) {
+  const amt = Math.abs(signed), fu = (signed > 0) === cost ? "U" : "F";
+  return [
+    num(id, name + " (amount)", amt, v => v === -amt ? "Enter variances as positive amounts and choose F or U separately." : (wrongs.find(w => Math.abs(v - Math.abs(w[0])) < 0.005) || [0, name + " = " + formula + "."])[1], formula + " = " + money(amt)),
+    sel(id + "F", name + ": favorable or unfavorable?", FU, fu, () => fuWhy(fu), fu === "F" ? "Favorable" : "Unfavorable")];
+}
+function buildParts(P) {
+  const X = solve(P), parts = [];
+  parts.push({ id: "flex", phase: "flex", tick: "1", layout: "sched", title: "Flexible budget",
+    desc: "The static budget was set for " + fmt(P.su) + " guidebooks, but Problem Solvers actually made and sold " + fmt(P.au) + ". Prepare the flexible budget for the actual volume, using the budgeted price, standard variable cost per unit and budgeted fixed costs.",
+    hint: "Flexible budget revenue = actual units × budgeted price. Variable costs = actual units × standard variable cost per unit. Fixed costs stay at the budget.",
+    why: "A flexible budget shows what costs and income should have been at the volume actually achieved, so performance is judged at the right level of activity.",
+    sched: { title: ["Problem Solvers, Inc.", "Flexible Budget", "For the year ended December 31, " + YEAR + " (" + fmt(P.au) + " units)"], lines: [{ t: "line", f: "fr", col: 2 }, { t: "line", f: "fv", col: 2 }, { t: "line", f: "ff", col: 2 }, { t: "total", f: "foi", col: 2 }] },
+    fields: [
+      num("fr", "Revenue", X.frev, v => v === P.su * P.price ? "That is the static budget. Use the actual volume, " + fmt(P.au) + " units." : v === X.arev ? "That uses the actual price. The flexible budget uses the budgeted price." : "Revenue = " + fmt(P.au) + " × " + money(P.price) + ".", fmt(P.au) + " × " + money(P.price) + " = " + money(X.frev)),
+      num("fv", "Variable costs", X.fvar, v => Math.abs(v - c2(P.su * X.vcU)) < 0.005 ? "That is the static budget. Use the actual volume." : Math.abs(v - X.avar) < 0.005 ? "Those are actual costs. The flexible budget uses standard cost per unit × actual units." : "Variable costs = " + fmt(P.au) + " × " + cents(X.vcU) + " standard variable cost per unit.", fmt(P.au) + " × " + cents(X.vcU) + " = " + money(X.fvar), { dec: 2 }),
+      num("ff", "Fixed costs", X.fixedB, v => v === Math.round(X.fixedB * P.au / P.su) ? "Fixed costs don't flex with volume. Use the budgeted amount." : v === X.afix ? "Those are actual fixed costs. Use the budget." : "Fixed costs = budgeted fixed overhead + budgeted fixed selling and administrative.", money(X.foh) + " + " + money(P.fsa) + " = " + money(X.fixedB)),
+      num("foi", "Operating income", X.foi, (v, n) => n.fr != null && n.fv != null && n.ff != null && Math.abs(v - (n.fr - n.fv - n.ff)) < 0.005 && (n.fr !== X.frev || Math.abs(n.fv - X.fvar) > 0.005 || n.ff !== X.fixedB) ? "Your arithmetic is right, but a line above is not. Fix it first." : "Operating income = revenue − variable costs − fixed costs.", money(X.foi), { dec: 2 })],
+    walk: [{ keys: ["fr", "fv", "ff", "foi"], text: "Flex revenue and variable costs to actual units; keep fixed costs at the budget.", formula: money(X.frev) + " − " + money(X.fvar) + " − " + money(X.fixedB) + " = " + money(X.foi) }] });
+
+  parts.push({ id: "vp", phase: "flex", tick: "2", title: "Volume vs. performance",
+    desc: "Static budget operating income was " + money(X.soi) + "; actual operating income was " + money(X.aoi) + "; flexible budget operating income at " + fmt(P.au) + " units is " + money(X.foi) + " (given). Split the difference into the part caused by volume and the part caused by performance.",
+    hint: "Volume variance = flexible budget − static budget operating income. Performance (flexible budget) variance = actual − flexible budget operating income. Higher income is favorable.",
+    why: "Comparing actual results with the static budget mixes up two things: selling a different volume, and controlling prices and costs. The flexible budget separates them.",
+    fields: [
+      ...varPair("vv", "Static-to-flexible (volume) variance", X.volv, false, money(X.foi) + " − " + money(X.soi), [[X.aoi - X.soi, "That compares actual with the static budget. The volume variance compares the flexible budget with the static budget."]], fu => fu === "F" ? "Selling more units than budgeted raised flexible budget income above the static budget: favorable." : "Selling fewer units than budgeted lowered flexible budget income below the static budget: unfavorable."),
+      ...varPair("pv", "Flexible-to-actual (performance) variance", X.perf, false, money(X.aoi) + " − " + money(X.foi), [[X.aoi - X.soi, "That compares actual with the static budget. Judge performance against the flexible budget, at the actual volume."]], fu => fu === "F" ? "Actual income was higher than the flexible budget: favorable." : "Actual income was lower than the flexible budget: unfavorable. For income, lower is unfavorable.")],
+    walk: [{ keys: ["vv", "vvF"], text: "Flexible − static isolates volume.", formula: money(X.foi) + " − " + money(X.soi) + " = " + money(X.volv) }, { keys: ["pv", "pvF"], text: "Actual − flexible isolates performance.", formula: money(X.aoi) + " − " + money(X.foi) + " = " + money(X.perf) }] });
+
+  parts.push({ id: "card", phase: "std", tick: "3", title: "Standard cost card",
+    desc: "Build the standard variable cost of one guidebook from the standards in the data. Round to the cent.",
+    hint: "Standard cost = standard quantity per unit × standard price (or rate) per unit of input.",
+    why: "The standard cost card is the yardstick: actual costs are compared with it to find the price and quantity variances.",
+    fields: [
+      num("cDM", "Direct materials per guidebook", X.dmU, v => Math.abs(v - P.sp) < 0.005 ? "That is the price per pound. Multiply by " + fmt(P.sl) + " pounds." : "Direct materials = " + fmt(P.sl) + " pounds × " + cents(P.sp) + ".", fmt(P.sl) + " × " + cents(P.sp) + " = " + cents(X.dmU), { dec: 2 }),
+      num("cDL", "Direct labor per guidebook", X.dlU, v => Math.abs(v - P.sr) < 0.005 ? "That is the hourly rate. Multiply by " + fmt(P.sh) + " hours." : "Direct labor = " + fmt(P.sh) + " hours × " + money(P.sr) + ".", fmt(P.sh) + " × " + money(P.sr) + " = " + cents(X.dlU), { dec: 2 }),
+      num("cVO", "Variable overhead per guidebook", X.voU, v => Math.abs(v - P.vr) < 0.005 ? "That is the rate per direct labor hour. Multiply by " + fmt(P.sh) + " hours." : "Variable overhead = " + fmt(P.sh) + " hours × " + money(P.vr) + " per direct labor hour.", fmt(P.sh) + " × " + money(P.vr) + " = " + cents(X.voU), { dec: 2 }),
+      num("cT", "Total standard variable cost per guidebook", X.vcU, (v, n) => n.cDM != null && n.cDL != null && n.cVO != null && Math.abs(v - (n.cDM + n.cDL + n.cVO)) < 0.005 && (Math.abs(n.cDM - X.dmU) > 0.005 || Math.abs(n.cDL - X.dlU) > 0.005 || Math.abs(n.cVO - X.voU) > 0.005) ? "Your addition is right, but a line above is not. Fix it first." : "Total = direct materials + direct labor + variable overhead.", cents(X.dmU) + " + " + cents(X.dlU) + " + " + cents(X.voU) + " = " + cents(X.vcU), { dec: 2 })],
+    walk: [{ keys: ["cDM", "cDL", "cVO", "cT"], text: "Quantity × price for each input, then add.", formula: cents(X.vcU) }] });
+
+  const costWhy = (fu, a, b) => fu === "U" ? a : b;
+  parts.push({ id: "mat", phase: "std", tick: "4", title: "Direct materials variances",
+    desc: "Problem Solvers bought and used " + fmt(P.aq) + " pounds of paper at " + cents(P.ap) + " a pound to make " + fmt(P.au) + " guidebooks. Find the direct materials price and quantity variances.",
+    hint: "Price variance = (actual price − standard price) × actual quantity. Quantity variance = (actual quantity − standard quantity allowed for actual output) × standard price.",
+    why: "Splitting the materials variance tells managers whether the problem was what they paid or how much they used.",
+    fields: [
+      ...varPair("mp", "Direct materials price variance", X.mp, true, "(" + cents(P.ap) + " − " + cents(P.sp) + ") × " + fmt(P.aq), [[c2((P.ap - P.sp) * X.sq), "Price variance uses the actual quantity, " + fmt(P.aq) + " pounds, not the standard quantity."]], fu => costWhy(fu, "The actual price was higher than standard: unfavorable.", "The actual price was lower than standard: favorable.")),
+      ...varPair("mq", "Direct materials quantity variance", X.mq, true, "(" + fmt(P.aq) + " − " + fmt(X.sq) + ") × " + cents(P.sp), [[c2((P.aq - P.su * P.sl) * P.sp), "Use the standard quantity allowed for the actual output: " + fmt(P.au) + " units × " + fmt(P.sl) + " pounds, not the static budget's units."], [c2((P.aq - X.sq) * P.ap), "Quantity variance uses the standard price, " + cents(P.sp) + "."]], fu => costWhy(fu, "More paper was used than the standard allows: unfavorable.", "Less paper was used than the standard allows: favorable."))],
+    walk: [{ keys: ["mp", "mpF"], text: "Price difference × actual pounds.", formula: money(Math.abs(X.mp)) }, { keys: ["mq", "mqF"], text: "Standard quantity allowed = " + fmt(P.au) + " × " + fmt(P.sl) + " = " + fmt(X.sq) + " pounds.", formula: money(Math.abs(X.mq)) }] });
+
+  parts.push({ id: "lab", phase: "std", tick: "5", title: "Direct labor variances",
+    desc: "Workers logged " + fmt(P.ah) + " direct labor hours at " + cents(P.ar) + " an hour to make " + fmt(P.au) + " guidebooks. Find the direct labor rate and time (efficiency) variances.",
+    hint: "Rate variance = (actual rate − standard rate) × actual hours. Time variance = (actual hours − standard hours allowed for actual output) × standard rate.",
+    why: "The rate variance shows the effect of paying more or less per hour; the time variance shows the effect of using more or fewer hours than the output called for.",
+    fields: [
+      ...varPair("lr", "Direct labor rate variance", X.lr, true, "(" + cents(P.ar) + " − " + money(P.sr) + ") × " + fmt(P.ah), [[c2((P.ar - P.sr) * X.shA), "Rate variance uses the actual hours, " + fmt(P.ah) + "."]], fu => costWhy(fu, "The actual wage rate was higher than standard: unfavorable.", "The actual wage rate was lower than standard: favorable.")),
+      ...varPair("lt", "Direct labor time (efficiency) variance", X.lt, true, "(" + fmt(P.ah) + " − " + fmt(X.shA) + ") × " + money(P.sr), [[c2((P.ah - P.su * P.sh) * P.sr), "Use standard hours allowed for the actual output (" + fmt(X.shA) + "), not the static budget's hours."], [c2((P.ah - X.shA) * P.ar), "Time variance uses the standard rate, " + money(P.sr) + "."]], fu => costWhy(fu, "More hours were worked than the output allows: unfavorable.", "Fewer hours were worked than the output allows: favorable."))],
+    walk: [{ keys: ["lr", "lrF"], text: "Rate difference × actual hours.", formula: money(Math.abs(X.lr)) }, { keys: ["lt", "ltF"], text: "Standard hours allowed = " + fmt(P.au) + " × " + fmt(P.sh) + " = " + fmt(X.shA) + ".", formula: money(Math.abs(X.lt)) }] });
+
+  parts.push({ id: "oh", phase: "std", tick: "6", title: "Overhead variances",
+    desc: "Actual variable overhead was " + money(P.avoh) + " and actual fixed overhead was " + money(P.afoh) + ". Fixed overhead is applied at " + money(P.fr) + " per standard direct labor hour; budgeted fixed overhead was " + money(X.foh) + ". Actual hours: " + fmt(P.ah) + "; standard hours allowed: " + fmt(X.shA) + ".",
+    hint: "Variable overhead rate variance = actual variable overhead − actual hours × standard rate. Efficiency variance = (actual − standard hours) × standard rate. Fixed overhead spending = actual − budgeted. Production volume = budgeted − applied (standard hours × fixed rate).",
+    why: "Variable overhead variances work like labor variances. The fixed overhead volume variance only shows that output differed from the level the rate was built on; it doesn't mean more was spent.",
+    fields: [
+      ...varPair("vr", "Variable overhead rate variance", X.vrv, true, money(P.avoh) + " − " + fmt(P.ah) + " × " + money(P.vr), [[c2(P.avoh - X.shA * P.vr), "Use actual hours here; the hours difference belongs in the efficiency variance."]], fu => costWhy(fu, "Variable overhead cost more per hour than standard: unfavorable.", "Variable overhead cost less per hour than standard: favorable.")),
+      ...varPair("ve", "Variable overhead efficiency variance", X.ve, true, "(" + fmt(P.ah) + " − " + fmt(X.shA) + ") × " + money(P.vr), [[c2((P.ah - P.su * P.sh) * P.vr), "Use standard hours allowed for the actual output, not the static budget's hours."]], fu => costWhy(fu, "More hours than standard drove more variable overhead: unfavorable.", "Fewer hours than standard saved variable overhead: favorable.")),
+      ...varPair("fs", "Fixed overhead spending variance", X.fs, true, money(P.afoh) + " − " + money(X.foh), [[c2(P.afoh - P.fr * X.shA), "Spending variance compares actual with budgeted fixed overhead, not applied."]], fu => costWhy(fu, "More was spent on fixed overhead than budgeted: unfavorable.", "Less was spent on fixed overhead than budgeted: favorable.")),
+      ...varPair("fv2", "Fixed overhead production volume variance", X.fv, true, money(X.foh) + " − " + fmt(X.shA) + " × " + money(P.fr), [[c2(X.foh - P.fr * P.ah), "Applied fixed overhead uses standard hours allowed, not actual hours."]], fu => costWhy(fu, "Output was below the budgeted level, so less fixed overhead was applied than budgeted: unfavorable.", "Output was above the budgeted level, so more fixed overhead was applied than budgeted: favorable."))],
+    walk: [{ keys: ["vr", "vrF", "ve", "veF"], text: "Variable overhead: rate and efficiency, like labor.", formula: money(Math.abs(X.vrv)) + ", " + money(Math.abs(X.ve)) }, { keys: ["fs", "fsF", "fv2", "fv2F"], text: "Fixed overhead: actual vs. budget, then budget vs. applied.", formula: money(Math.abs(X.fs)) + ", " + money(Math.abs(X.fv)) }] });
+
+  parts.push({ id: "resp", phase: "use", tick: "7", layout: "table", title: "Who is responsible?",
+    desc: "Match each variance and its cause to the manager most likely responsible for it.",
+    itemLabel: "Variance and cause", items: P.items.map(i => ({ text: RESP[i][0] })), cols: [{ key: "m", label: "Responsible manager" }],
+    why: "Variances are useful only when someone can act on them. Each one goes to the manager who controls its cause.",
+    fields: P.items.map((i, k) => sel("m" + k, "Responsible manager: " + RESP[i][0], MGR, RESP[i][1], () => RESP[i][2], RESP[i][2], { row: k, col: "m" })),
+    walk: [{ keys: P.items.map((_, k) => "m" + k), text: "Ask who controls the cause: prices paid, amounts used, wage rates, scheduling or selling prices." }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or 2,400." };
+      else res[f.id] = Math.abs(v - f.ans) < 0.005 ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> uses a standard cost system in its print shop. Compare the year's actual results with the budget and the standards. Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, X = solve(P), row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  return { title: "Budget, standards and actual results", html: '<div class="scroll"><table class="dtab"><tbody>' +
+    '<tr class="grp"><td colspan="2">Static budget</td></tr>' + row("Budgeted units", fmt(P.su)) + row("Budgeted selling price", money(P.price)) + row("Budgeted fixed overhead", money(X.foh)) + row("Budgeted fixed selling and administrative", money(P.fsa)) +
+    '<tr class="grp"><td colspan="2">Standards per guidebook</td></tr>' + row("Paper", fmt(P.sl) + " pounds at " + cents(P.sp)) + row("Direct labor", fmt(P.sh) + " hours at " + money(P.sr)) + row("Variable overhead", money(P.vr) + " per direct labor hour") + row("Fixed overhead applied", money(P.fr) + " per standard direct labor hour") +
+    '<tr class="grp"><td colspan="2">Actual results</td></tr>' + row("Units made and sold", fmt(P.au)) + row("Actual selling price", money(P.aprice)) + row("Paper bought and used", fmt(P.aq) + " pounds at " + cents(P.ap)) + row("Direct labor", fmt(P.ah) + " hours at " + cents(P.ar)) +
+    row("Variable overhead", money(P.avoh)) + row("Fixed overhead", money(P.afoh)) + row("Fixed selling and administrative", money(P.afsa)) + '</tbody></table></div>' };
+}
+
+MAFrame.start({
+  slug: "ma-variances", key: "ma-var1", module: "M6", title: "Flexible Budgets and Variances Lab",
+  phases: [["flex", "Flexible budget"], ["std", "Standard cost variances"], ["use", "Using variances"]],
+  dataTitle: "Budget, standards and actual results",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
