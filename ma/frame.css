@@ -237,6 +237,11 @@ table.jtab{width:100%;border-collapse:collapse;font-size:14.5px}
 .field .inbox.ok,.field .inbox.no,.field .inbox.shown,.field select.ok,.field select.no,.field select.shown{box-shadow:none;border-color:var(--rule-strong)}
 .ctab td.num-in{min-width:120px}
 
+.stab.grid th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong)}
+.stab.grid th.r{text-align:right}
+.stab.grid td.c{width:132px}
+.stab td.gv{font-family:var(--f-num);text-align:right;padding-right:14px;color:var(--muted)}
+
 /* Walk me through it */
 .walk{margin-top:12px;border:1px solid var(--gold);background:var(--gold-soft);border-radius:8px;padding:10px 12px}
 .walk .wtitle{font-family:var(--f-display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--gold-ink)}

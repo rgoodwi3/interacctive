@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Master Budget Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M5 Lab 10: Master Budget. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-master-budget), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-master-budget.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => (n < 0 ? "−" : "") + "$" + fmt(n);
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^[−–]/, "-").replace(/(units|lbs|pounds)$/i, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const pct = x => x + "%";
+
+// ---------- Problem generator ----------
+// Sales in hundreds of units, percentages in fives, so every schedule is whole units and whole dollars. Q1 needs a
+// loan to keep the minimum cash balance; Q2 has enough cash to repay it with interest.
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  for (let t = 0; t < 50000; t++) {
+    const s = [R(8, 20) * 500, R(8, 20) * 500, R(8, 20) * 500], c1 = pick([60, 70, 75, 80]), ar = R(20, 80) * 1000;
+    const fgp = pick([10, 20, 25, 30]), begFG = s[0] * fgp / 100;
+    const lbs = pick([2, 3, 4]), rmp = pick([10, 20, 25]), prod3 = s[2] + R(-4, 4) * 100, cpp = R(15, 30) / 10, p1 = pick([50, 60, 70]), ap = R(10, 40) * 1000;
+    const hrs = pick([0.5, 1, 1.5]), wage = R(16, 22), vr = R(2, 8), fo = R(20, 60) * 1000, dep = R(5, 15) * 1000;
+    // Budgeted cost per guidebook: materials + labor + variable overhead + a fixed overhead share; the price covers it.
+    const uc = Math.round((lbs * cpp + hrs * wage + hrs * vr + R(100, 400) / 100) * 100) / 100, price = Math.ceil(uc * R(130, 170) / 100);
+    const sa = [R(20, 60) * 1000, R(20, 60) * 1000], equip = R(40, 300) * 1000, cash0 = R(20, 60) * 1000, minCash = R(20, 40) * 1000, iq = pick([1, 1.5, 2]);
+    const P = { s, price, c1, ar, fgp, begFG, lbs, rmp, prod3, cpp, p1, ap, hrs, wage, vr, fo, dep, sa, equip, cash0, minCash, iq, uc };
+    const X = solve(P);
+    if (X.prod.some(x => x <= 0) || X.buy.some(x => x <= 0) || X.purch.some(x => !Number.isInteger(x)) || X.pay.some(x => !Number.isInteger(x))) continue;
+    if (X.bor <= 0 || X.bor > 200000 || X.ex2 - X.bor - X.int < minCash || !Number.isInteger(X.int) || X.oi <= 0) continue;
+    return P;
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const s = P.s, sales = [s[0] * P.price, s[1] * P.price], salesT = sales[0] + sales[1];
+  const coll = [P.ar + sales[0] * P.c1 / 100, sales[0] * (100 - P.c1) / 100 + sales[1] * P.c1 / 100];
+  const endFG = [s[1] * P.fgp / 100, s[2] * P.fgp / 100], begFG = [P.begFG, endFG[0]], prod = [s[0] + endFG[0] - begFG[0], s[1] + endFG[1] - begFG[1]];
+  const need = [prod[0] * P.lbs, prod[1] * P.lbs], endRM = [prod[1] * P.lbs * P.rmp / 100, P.prod3 * P.lbs * P.rmp / 100], begRM = [prod[0] * P.lbs * P.rmp / 100, prod[1] * P.lbs * P.rmp / 100];
+  const buy = [need[0] + endRM[0] - begRM[0], need[1] + endRM[1] - begRM[1]], purch = buy.map(b => Math.round(b * P.cpp * 100) / 100);
+  const pay = [P.ap + purch[0] * P.p1 / 100, purch[0] * (100 - P.p1) / 100 + purch[1] * P.p1 / 100];
+  const dlh = prod.map(x => x * P.hrs), dl = dlh.map(h => h * P.wage), coh = dlh.map(h => h * P.vr + P.fo - P.dep);
+  const disb = [pay[0] + dl[0] + coh[0] + P.sa[0] + P.equip, pay[1] + dl[1] + coh[1] + P.sa[1]];
+  const ex1 = P.cash0 + coll[0] - disb[0], bor = ex1 < P.minCash ? Math.ceil((P.minCash - ex1) / 1000) * 1000 : 0, end1 = ex1 + bor;
+  const ex2 = end1 + coll[1] - disb[1], int = bor * P.iq * 2 / 100, end2 = ex2 - bor - int;
+  const c2 = x => Math.round(x * 100) / 100, cogs = c2((s[0] + s[1]) * P.uc), gm = c2(salesT - cogs), saT = P.sa[0] + P.sa[1], oi = c2(gm - saT);
+  return { sales, salesT, coll, collT: coll[0] + coll[1], endFG, begFG, prod, need, endRM, begRM, buy, purch, pay, dlh, dl, coh, disb, ex1, bor, end1, ex2, int, end2, cogs, gm, saT, oi };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, wrong, work }, extra || {}); }
+const U = (v) => ({ v, u: true }), V = (v) => ({ v }), F = (f) => ({ f });
+function buildParts(P) {
+  const X = solve(P), s = P.s, parts = [], Y = YEAR;
+  const title = n => ["Problem Solvers, Inc.", n, "For the first two quarters of " + Y];
+  parts.push({ id: "sales", phase: "op", tick: "1", layout: "sched", title: "Sales budget",
+    desc: "Start the master budget with the sales budget for the first two quarters.",
+    hint: "Budgeted sales = budgeted units × selling price.",
+    why: "Every other budget starts from the sales forecast: production, purchases, labor, overhead and cash all follow from how many guidebooks the company expects to sell.",
+    sched: { title: title("Sales Budget"), cols: ["Q1", "Q2", "Total"], lines: [{ t: "line", label: "Budgeted sales (units)", cells: [U(s[0]), U(s[1]), U(s[0] + s[1])] }, { t: "line", label: "Selling price per unit", cells: [V(P.price), V(P.price), null] }, { t: "total", label: "Budgeted sales", cells: [F("s1"), F("s2"), F("sT")] }] },
+    fields: [
+      num("s1", "Q1 budgeted sales", X.sales[0], v => v === s[0] ? "That is units. Multiply by the " + money(P.price) + " price." : "Sales = " + fmt(s[0]) + " units × " + money(P.price) + ".", fmt(s[0]) + " × " + money(P.price) + " = " + money(X.sales[0])),
+      num("s2", "Q2 budgeted sales", X.sales[1], v => v === s[1] ? "That is units. Multiply by the " + money(P.price) + " price." : "Sales = " + fmt(s[1]) + " units × " + money(P.price) + ".", fmt(s[1]) + " × " + money(P.price) + " = " + money(X.sales[1])),
+      num("sT", "Total budgeted sales", X.salesT, (v, n) => n.s1 != null && n.s2 != null && v === n.s1 + n.s2 && (n.s1 !== X.sales[0] || n.s2 !== X.sales[1]) ? "Your addition is right, but a quarter is not. Fix it first." : "Total = Q1 + Q2.", money(X.sales[0]) + " + " + money(X.sales[1]) + " = " + money(X.salesT))],
+    walk: [{ keys: ["s1", "s2", "sT"], text: "Units × price for each quarter, then add.", formula: money(X.sales[0]) + " + " + money(X.sales[1]) + " = " + money(X.salesT) }] });
+
+  parts.push({ id: "coll", phase: "op", tick: "2", layout: "sched", title: "Schedule of expected cash collections",
+    desc: "Customers pay " + pct(P.c1) + " of each quarter's sales in the quarter of the sale and the other " + pct(100 - P.c1) + " the next quarter. Accounts receivable of " + money(P.ar) + " at the start of Q1 will be collected in Q1. Sales: Q1 " + money(X.sales[0]) + ", Q2 " + money(X.sales[1]) + " (given).",
+    hint: "Q1 collections = beginning A/R + Q1 sales × " + pct(P.c1) + ". Q2 collections = Q1 sales × " + pct(100 - P.c1) + " + Q2 sales × " + pct(P.c1) + ".",
+    why: "Cash comes in after the sale, so the cash budget needs collections, not sales.",
+    sched: { title: title("Schedule of Expected Cash Collections"), cols: ["Q1", "Q2", "Total"], lines: [{ t: "total", label: "Total cash collections", cells: [F("c1"), F("c2"), F("cT")] }] },
+    fields: [
+      num("c1", "Q1 cash collections", X.coll[0], v => v === X.sales[0] * P.c1 / 100 ? "Add the beginning accounts receivable, collected in Q1." : v === X.sales[0] ? "Only " + pct(P.c1) + " of Q1 sales is collected in Q1. Add beginning A/R." : "Q1 collections = " + money(P.ar) + " beginning A/R + " + pct(P.c1) + " × " + money(X.sales[0]) + ".", money(P.ar) + " + " + money(X.sales[0] * P.c1 / 100) + " = " + money(X.coll[0])),
+      num("c2", "Q2 cash collections", X.coll[1], v => v === X.sales[1] * P.c1 / 100 ? "Add the " + pct(100 - P.c1) + " of Q1 sales collected in Q2." : v === X.sales[1] ? "Only " + pct(P.c1) + " of Q2 sales is collected in Q2; " + pct(100 - P.c1) + " of Q1 sales comes in too." : "Q2 collections = " + pct(100 - P.c1) + " × Q1 sales + " + pct(P.c1) + " × Q2 sales.", money(X.sales[0] * (100 - P.c1) / 100) + " + " + money(X.sales[1] * P.c1 / 100) + " = " + money(X.coll[1])),
+      num("cT", "Total cash collections", X.collT, (v, n) => n.c1 != null && n.c2 != null && v === n.c1 + n.c2 && (n.c1 !== X.coll[0] || n.c2 !== X.coll[1]) ? "Your addition is right, but a quarter is not. Fix it first." : v === X.salesT ? "That is total sales. Collections lag sales." : "Total = Q1 + Q2 collections.", money(X.coll[0]) + " + " + money(X.coll[1]) + " = " + money(X.collT))],
+    walk: [{ keys: ["c1", "c2", "cT"], text: "Each quarter collects part of this quarter's sales and the rest of last quarter's.", formula: money(X.coll[0]) + " + " + money(X.coll[1]) + " = " + money(X.collT) }] });
+
+  parts.push({ id: "prod", phase: "op", tick: "3", layout: "sched", title: "Production budget",
+    desc: "Problem Solvers wants ending finished goods each quarter equal to " + pct(P.fgp) + " of the next quarter's sales units. Q3 sales are budgeted at " + fmt(s[2]) + " units. Finished goods at the start of Q1: " + fmt(P.begFG) + " units.",
+    hint: "Units to produce = budgeted sales + desired ending finished goods − beginning finished goods. Ending FG = " + pct(P.fgp) + " × next quarter's sales.",
+    why: "Production covers this quarter's sales plus the inventory cushion for next quarter, less what is already on hand.",
+    sched: { title: title("Production Budget"), cols: ["Q1", "Q2"], lines: [{ t: "line", label: "Budgeted sales (units)", cells: [U(s[0]), U(s[1])] }, { t: "line", label: "Add: Desired ending finished goods", cells: [F("e1"), F("e2")] }, { t: "line", label: "Less: Beginning finished goods", cells: [U(P.begFG), { v: "Q1 ending" }] }, { t: "total", label: "Units to produce", cells: [F("p1"), F("p2")] }] },
+    fields: [
+      num("e1", "Q1 desired ending finished goods (units)", X.endFG[0], v => v === s[0] * P.fgp / 100 ? "Use next quarter's sales: " + pct(P.fgp) + " × Q2 sales (" + fmt(s[1]) + ")." : "Ending FG = " + pct(P.fgp) + " × Q2 sales units.", pct(P.fgp) + " × " + fmt(s[1]) + " = " + fmt(X.endFG[0]), { kind: "n" }),
+      num("e2", "Q2 desired ending finished goods (units)", X.endFG[1], v => v === s[1] * P.fgp / 100 ? "Use next quarter's sales: " + pct(P.fgp) + " × Q3 sales (" + fmt(s[2]) + ")." : "Ending FG = " + pct(P.fgp) + " × Q3 sales units.", pct(P.fgp) + " × " + fmt(s[2]) + " = " + fmt(X.endFG[1]), { kind: "n" }),
+      num("p1", "Q1 units to produce", X.prod[0], (v, n) => v === s[0] + X.endFG[0] ? "Subtract the beginning finished goods already on hand." : v === s[0] - X.endFG[0] + P.begFG ? "Add the desired ending inventory and subtract the beginning inventory." : n.e1 != null && v === s[0] + n.e1 - P.begFG && n.e1 !== X.endFG[0] ? "Your formula is right, but your ending finished goods is not. Fix it first." : "Units to produce = sales + desired ending FG − beginning FG.", fmt(s[0]) + " + " + fmt(X.endFG[0]) + " − " + fmt(P.begFG) + " = " + fmt(X.prod[0]), { kind: "n" }),
+      num("p2", "Q2 units to produce", X.prod[1], (v, n) => v === s[1] + X.endFG[1] ? "Subtract Q2's beginning finished goods, which is Q1's ending finished goods." : v === s[1] + X.endFG[1] - P.begFG ? "Q2 starts with Q1's ending finished goods (" + fmt(X.endFG[0]) + "), not Q1's beginning." : n.e2 != null && n.e1 != null && v === s[1] + n.e2 - n.e1 && (n.e2 !== X.endFG[1] || n.e1 !== X.endFG[0]) ? "Your formula is right, but an ending finished goods figure is not. Fix it first." : "Units to produce = sales + desired ending FG − beginning FG (Q1's ending).", fmt(s[1]) + " + " + fmt(X.endFG[1]) + " − " + fmt(X.endFG[0]) + " = " + fmt(X.prod[1]), { kind: "n" })],
+    walk: [{ keys: ["e1", "e2"], text: "Ending inventory is a share of the NEXT quarter's sales.", formula: fmt(X.endFG[0]) + ", " + fmt(X.endFG[1]) }, { keys: ["p1", "p2"], text: "Sales + ending − beginning; Q2 begins with Q1's ending.", formula: fmt(X.prod[0]) + ", " + fmt(X.prod[1]) }] });
+
+  parts.push({ id: "mat", phase: "op", tick: "4", layout: "sched", title: "Direct materials purchases budget",
+    desc: "Units to produce (given): Q1 " + fmt(X.prod[0]) + ", Q2 " + fmt(X.prod[1]) + "; Q3 is planned at " + fmt(P.prod3) + ". Each guidebook uses " + P.lbs + " pounds of paper. Desired ending raw materials = " + pct(P.rmp) + " of the next quarter's production needs; Q1 starts with " + fmt(X.begRM[0]) + " pounds. Paper costs " + money(P.cpp) + " a pound.",
+    hint: "Pounds to buy = production × pounds per unit + desired ending raw materials − beginning raw materials. Cost = pounds to buy × cost per pound.",
+    why: "Materials are bought for production, not for sales, and the company keeps a cushion of paper for next quarter's production.",
+    sched: { title: title("Direct Materials Purchases Budget"), cols: ["Q1", "Q2"], lines: [{ t: "line", label: "Units to produce", cells: [U(X.prod[0]), U(X.prod[1])] }, { t: "line", label: "Pounds needed for production", cells: [U(X.need[0]), U(X.need[1])] }, { t: "line", label: "Add: Desired ending raw materials (pounds)", cells: [U(X.endRM[0]), U(X.endRM[1])] }, { t: "line", label: "Less: Beginning raw materials (pounds)", cells: [U(X.begRM[0]), U(X.begRM[1])] }, { t: "sub", label: "Pounds to purchase", cells: [F("b1"), F("b2")] }, { t: "total", label: "Cost of purchases", cells: [F("m1"), F("m2")] }] },
+    fields: [
+      num("b1", "Q1 pounds to purchase", X.buy[0], v => v === s[0] * P.lbs + X.endRM[0] - X.begRM[0] ? "Use production units, not sales units: materials are bought for what is produced." : v === X.need[0] ? "Add the desired ending raw materials and subtract the beginning raw materials." : "Pounds to purchase = pounds needed + desired ending − beginning raw materials.", fmt(X.need[0]) + " + " + fmt(X.endRM[0]) + " − " + fmt(X.begRM[0]) + " = " + fmt(X.buy[0]), { kind: "n" }),
+      num("b2", "Q2 pounds to purchase", X.buy[1], v => v === s[1] * P.lbs + X.endRM[1] - X.begRM[1] ? "Use production units, not sales units: materials are bought for what is produced." : v === X.need[1] ? "Add the desired ending raw materials and subtract the beginning raw materials." : "Pounds to purchase = pounds needed + desired ending − beginning raw materials.", fmt(X.need[1]) + " + " + fmt(X.endRM[1]) + " − " + fmt(X.begRM[1]) + " = " + fmt(X.buy[1]), { kind: "n" }),
+      num("m1", "Q1 cost of purchases", X.purch[0], (v, n) => n.b1 != null && Math.abs(v - n.b1 * P.cpp) < 0.01 && n.b1 !== X.buy[0] ? "Your multiplication is right, but your pounds to purchase is not. Fix it first." : Math.abs(v - X.need[0] * P.cpp) < 0.01 ? "Multiply the pounds to purchase, not the pounds used, by the cost per pound." : "Cost = pounds to purchase × " + money(P.cpp) + ".", fmt(X.buy[0]) + " × " + money(P.cpp) + " = " + money(X.purch[0])),
+      num("m2", "Q2 cost of purchases", X.purch[1], (v, n) => n.b2 != null && Math.abs(v - n.b2 * P.cpp) < 0.01 && n.b2 !== X.buy[1] ? "Your multiplication is right, but your pounds to purchase is not. Fix it first." : Math.abs(v - X.need[1] * P.cpp) < 0.01 ? "Multiply the pounds to purchase, not the pounds used, by the cost per pound." : "Cost = pounds to purchase × " + money(P.cpp) + ".", fmt(X.buy[1]) + " × " + money(P.cpp) + " = " + money(X.purch[1]))],
+    walk: [{ keys: ["b1", "b2"], text: "Pounds needed + ending − beginning.", formula: fmt(X.buy[0]) + ", " + fmt(X.buy[1]) }, { keys: ["m1", "m2"], text: "Times the cost per pound.", formula: money(X.purch[0]) + ", " + money(X.purch[1]) }] });
+
+  parts.push({ id: "pay", phase: "op", tick: "5", layout: "sched", title: "Cash paid for materials",
+    desc: "Problem Solvers pays " + pct(P.p1) + " of each quarter's purchases in that quarter and the rest the next quarter. Accounts payable of " + money(P.ap) + " at the start of Q1 is paid in Q1. Purchases (given): Q1 " + money(X.purch[0]) + ", Q2 " + money(X.purch[1]) + ".",
+    hint: "Q1 payments = beginning A/P + " + pct(P.p1) + " of Q1 purchases. Q2 = " + pct(100 - P.p1) + " of Q1 purchases + " + pct(P.p1) + " of Q2 purchases.",
+    why: "Like collections, payments lag purchases. The cash budget needs the cash paid, not the purchases made.",
+    sched: { title: title("Schedule of Expected Cash Payments for Materials"), cols: ["Q1", "Q2"], lines: [{ t: "total", label: "Total cash payments for materials", cells: [F("y1"), F("y2")] }] },
+    fields: [
+      num("y1", "Q1 cash paid for materials", X.pay[0], v => v === X.purch[0] * P.p1 / 100 ? "Add the beginning accounts payable, paid in Q1." : v === X.purch[0] ? "Only " + pct(P.p1) + " of Q1 purchases is paid in Q1. Add beginning A/P." : "Q1 payments = " + money(P.ap) + " + " + pct(P.p1) + " × " + money(X.purch[0]) + ".", money(P.ap) + " + " + money(X.purch[0] * P.p1 / 100) + " = " + money(X.pay[0])),
+      num("y2", "Q2 cash paid for materials", X.pay[1], v => v === X.purch[1] * P.p1 / 100 ? "Add the " + pct(100 - P.p1) + " of Q1 purchases paid in Q2." : v === X.purch[1] ? "Only " + pct(P.p1) + " of Q2 purchases is paid in Q2; the rest of Q1's purchases is paid too." : "Q2 payments = " + pct(100 - P.p1) + " × Q1 purchases + " + pct(P.p1) + " × Q2 purchases.", money(X.purch[0] * (100 - P.p1) / 100) + " + " + money(X.purch[1] * P.p1 / 100) + " = " + money(X.pay[1]))],
+    walk: [{ keys: ["y1", "y2"], text: "Part of this quarter's purchases plus the rest of last quarter's.", formula: money(X.pay[0]) + ", " + money(X.pay[1]) }] });
+
+  parts.push({ id: "labor", phase: "op", tick: "6", layout: "sched", title: "Direct labor and cash overhead",
+    desc: "Each guidebook takes " + fmt(P.hrs) + " direct labor hours at " + money(P.wage) + " an hour. Overhead is " + money(P.vr) + " per direct labor hour plus " + money(P.fo) + " fixed per quarter, which includes " + money(P.dep) + " of depreciation. Units to produce (given): Q1 " + fmt(X.prod[0]) + ", Q2 " + fmt(X.prod[1]) + ".",
+    hint: "Direct labor = units × hours per unit × wage. Cash overhead = variable rate × hours + fixed overhead − depreciation (depreciation uses no cash).",
+    why: "The cash budget includes only cash payments. Depreciation is an expense, but no cash leaves the company for it.",
+    sched: { title: title("Direct Labor and Overhead Budget"), cols: ["Q1", "Q2"], lines: [{ t: "line", label: "Direct labor hours", cells: [U(X.dlh[0]), U(X.dlh[1])] }, { t: "line", label: "Direct labor cost", cells: [F("l1"), F("l2")] }, { t: "line", label: "Cash paid for overhead", cells: [F("o1"), F("o2")] }] },
+    fields: [
+      num("l1", "Q1 direct labor cost", X.dl[0], v => v === s[0] * P.hrs * P.wage ? "Use units produced, not units sold." : v === X.dlh[0] ? "That is hours. Multiply by the " + money(P.wage) + " wage." : "Direct labor = " + fmt(X.dlh[0]) + " hours × " + money(P.wage) + ".", fmt(X.dlh[0]) + " × " + money(P.wage) + " = " + money(X.dl[0])),
+      num("l2", "Q2 direct labor cost", X.dl[1], v => v === s[1] * P.hrs * P.wage ? "Use units produced, not units sold." : v === X.dlh[1] ? "That is hours. Multiply by the " + money(P.wage) + " wage." : "Direct labor = " + fmt(X.dlh[1]) + " hours × " + money(P.wage) + ".", fmt(X.dlh[1]) + " × " + money(P.wage) + " = " + money(X.dl[1])),
+      num("o1", "Q1 cash paid for overhead", X.coh[0], v => v === X.coh[0] + P.dep ? "Subtract depreciation: it is a non-cash cost." : v === X.dlh[0] * P.vr ? "Add the fixed overhead (less depreciation)." : "Cash overhead = " + money(P.vr) + " × " + fmt(X.dlh[0]) + " + " + money(P.fo) + " − " + money(P.dep) + ".", money(X.dlh[0] * P.vr) + " + " + money(P.fo) + " − " + money(P.dep) + " = " + money(X.coh[0])),
+      num("o2", "Q2 cash paid for overhead", X.coh[1], v => v === X.coh[1] + P.dep ? "Subtract depreciation: it is a non-cash cost." : v === X.dlh[1] * P.vr ? "Add the fixed overhead (less depreciation)." : "Cash overhead = " + money(P.vr) + " × " + fmt(X.dlh[1]) + " + " + money(P.fo) + " − " + money(P.dep) + ".", money(X.dlh[1] * P.vr) + " + " + money(P.fo) + " − " + money(P.dep) + " = " + money(X.coh[1]))],
+    walk: [{ keys: ["l1", "l2"], text: "Hours × wage.", formula: money(X.dl[0]) + ", " + money(X.dl[1]) }, { keys: ["o1", "o2"], text: "Variable + fixed − depreciation.", formula: money(X.coh[0]) + ", " + money(X.coh[1]) }] });
+
+  parts.push({ id: "cash", phase: "fin", tick: "7", layout: "sched", title: "Cash budget",
+    desc: "Problem Solvers must keep at least " + money(P.minCash) + " of cash at the end of each quarter. It borrows at the start of a quarter, in multiples of $1,000, only what it needs to reach the minimum, and repays the loan at the end of Q2 with interest of " + P.iq + "% per quarter for the two quarters. Cash at the start of Q1: " + money(P.cash0) + ". The givens come from the earlier budgets; Q1 also includes a " + money(P.equip) + " equipment purchase.",
+    hint: "Excess (deficiency) = beginning cash + collections − disbursements. If that's below the minimum, borrow enough (rounded up to $1,000) to reach it. Ending cash = excess + borrowing − repayment − interest.",
+    why: "The cash budget shows when the company will run short and how much it needs to borrow, before the shortfall happens.",
+    sched: { title: title("Cash Budget"), cols: ["Q1", "Q2"], lines: [
+      { t: "line", label: "Beginning cash balance", cells: [V(P.cash0), F("g2")] }, { t: "line", label: "Add: Cash collections", cells: [V(X.coll[0]), V(X.coll[1])] },
+      { t: "head", label: "Less: Disbursements" }, { t: "line", label: "Materials", ind: 1, cells: [V(X.pay[0]), V(X.pay[1])] }, { t: "line", label: "Direct labor", ind: 1, cells: [V(X.dl[0]), V(X.dl[1])] },
+      { t: "line", label: "Overhead", ind: 1, cells: [V(X.coh[0]), V(X.coh[1])] }, { t: "line", label: "Selling and administrative", ind: 1, cells: [V(P.sa[0]), V(P.sa[1])] }, { t: "line", label: "Equipment purchase", ind: 1, cells: [V(P.equip), null] },
+      { t: "sub", label: "Excess (deficiency) of cash available over disbursements", cells: [F("x1"), F("x2")] }, { t: "line", label: "Borrowing", cells: [F("bo"), null] },
+      { t: "line", label: "Repayment", cells: [null, F("rp")] }, { t: "line", label: "Interest", cells: [null, F("in")] }, { t: "total", label: "Ending cash balance", cells: [F("n1"), F("n2")] }] },
+    fields: [
+      num("x1", "Q1 excess (deficiency) — enter a deficiency as negative", X.ex1, v => v === -X.ex1 ? "Check the sign: beginning cash + collections − disbursements." : v === X.ex1 + P.equip ? "Include the equipment purchase in Q1's disbursements." : v === P.cash0 + X.coll[0] - X.disb[0] + P.dep ? "Depreciation isn't a disbursement; use the cash overhead given." : "Excess (deficiency) = beginning cash + collections − total disbursements.", money(P.cash0) + " + " + money(X.coll[0]) + " − " + money(X.disb[0]) + " = " + money(X.ex1)),
+      num("bo", "Q1 borrowing", X.bor, (v, n) => v === P.minCash - X.ex1 ? "Borrow in multiples of $1,000: round up to " + money(X.bor) + "." : v === -X.ex1 && X.ex1 < 0 ? "Borrowing only to zero leaves cash below the " + money(P.minCash) + " minimum. Borrow enough to reach it." : n.x1 != null && n.x1 !== X.ex1 && v === Math.ceil((P.minCash - n.x1) / 1000) * 1000 ? "Your borrowing rule is right, but your excess (deficiency) is not. Fix it first." : "Borrow the amount needed to reach " + money(P.minCash) + ", rounded up to a multiple of $1,000.", money(P.minCash) + " − " + money(X.ex1) + " → " + money(X.bor)),
+      num("n1", "Q1 ending cash balance", X.end1, (v, n) => n.x1 != null && n.bo != null && v === n.x1 + n.bo && (n.x1 !== X.ex1 || n.bo !== X.bor) ? "Your addition is right, but a line above is not. Fix it first." : v === P.minCash && X.end1 !== P.minCash ? "Borrowing in $1,000 multiples leaves a little more than the minimum: ending cash = excess + borrowing." : "Ending cash = excess (deficiency) + borrowing.", money(X.ex1) + " + " + money(X.bor) + " = " + money(X.end1)),
+      num("g2", "Q2 beginning cash balance", X.end1, v => v === P.cash0 ? "Q2 starts with Q1's ending cash." : "Q2's beginning cash = Q1's ending cash.", money(X.end1)),
+      num("x2", "Q2 excess (deficiency)", X.ex2, (v, n) => n.g2 != null && v === n.g2 + X.coll[1] - X.disb[1] && n.g2 !== X.end1 ? "Your formula is right, but your beginning cash is not. Fix it first." : "Excess = beginning cash + collections − disbursements.", money(X.end1) + " + " + money(X.coll[1]) + " − " + money(X.disb[1]) + " = " + money(X.ex2)),
+      num("rp", "Q2 repayment of the loan", X.bor, v => v === X.bor + X.int ? "Enter the principal here; interest goes on its own line." : "Repay the full " + money(X.bor) + " borrowed in Q1; there's enough cash to stay above the minimum.", money(X.bor)),
+      num("in", "Q2 interest paid", X.int, v => v === X.bor * P.iq / 100 ? "The loan was outstanding for two quarters: " + P.iq + "% × 2." : v === X.bor * P.iq ? "Use the rate as a percent: " + money(X.bor) + " × " + P.iq + "% × 2 quarters." : "Interest = " + money(X.bor) + " × " + P.iq + "% × 2 quarters.", money(X.bor) + " × " + P.iq + "% × 2 = " + money(X.int)),
+      num("n2", "Q2 ending cash balance", X.end2, (v, n) => n.x2 != null && n.rp != null && n.in != null && v === n.x2 - n.rp - n.in && (n.x2 !== X.ex2 || n.rp !== X.bor || n.in !== X.int) ? "Your subtraction is right, but a line above is not. Fix it first." : v === X.ex2 - X.bor ? "Subtract the interest too." : "Ending cash = excess − repayment − interest.", money(X.ex2) + " − " + money(X.bor) + " − " + money(X.int) + " = " + money(X.end2))],
+    walk: [{ keys: ["x1", "bo", "n1"], text: "Q1 falls below the minimum, so borrow up to it in $1,000s.", formula: money(X.ex1) + " + " + money(X.bor) + " = " + money(X.end1) },
+      { keys: ["g2", "x2", "rp", "in", "n2"], text: "Q2 repays the loan with two quarters of interest.", formula: money(X.ex2) + " − " + money(X.bor) + " − " + money(X.int) + " = " + money(X.end2) }] });
+
+  parts.push({ id: "is", phase: "fin", tick: "8", layout: "sched", title: "Budgeted income statement",
+    desc: "Prepare the budgeted income statement for the first two quarters together. The budgeted manufacturing cost is " + money(P.uc) + " per guidebook; selling and administrative expenses are Q1 " + money(P.sa[0]) + " and Q2 " + money(P.sa[1]) + ".",
+    hint: "Sales = units sold × price. Cost of goods sold = units sold × budgeted cost per unit. Operating income = gross margin − selling and administrative expenses.",
+    why: "The budgeted income statement shows whether the plan is profitable; the cash budget shows whether it can be paid for. A plan needs both.",
+    sched: { title: ["Problem Solvers, Inc.", "Budgeted Income Statement", "For the first two quarters of " + Y], lines: [{ t: "line", f: "is1", col: 2 }, { t: "line", f: "is2", col: 2 }, { t: "sub", f: "is3", col: 2 }, { t: "line", f: "is4", col: 2 }, { t: "total", f: "is5", col: 2 }] },
+    fields: [
+      num("is1", "Sales", X.salesT, v => v === (X.prod[0] + X.prod[1]) * P.price ? "Use units sold, not units produced." : "Sales = " + fmt(s[0] + s[1]) + " units × " + money(P.price) + ".", money(X.salesT)),
+      num("is2", "Cost of goods sold", X.cogs, v => Math.abs(v - (X.prod[0] + X.prod[1]) * P.uc) < 0.01 ? "Cost of goods sold uses units sold, not units produced." : "Cost of goods sold = " + fmt(s[0] + s[1]) + " units sold × " + money(P.uc) + ".", fmt(s[0] + s[1]) + " × " + money(P.uc) + " = " + money(X.cogs), { dec: 2 }),
+      num("is3", "Gross margin", X.gm, (v, n) => n.is1 != null && n.is2 != null && Math.abs(v - (n.is1 - n.is2)) < 0.01 && (n.is1 !== X.salesT || Math.abs(n.is2 - X.cogs) > 0.01) ? "Your subtraction is right, but a line above is not. Fix it first." : "Gross margin = sales − cost of goods sold.", money(X.gm), { dec: 2 }),
+      num("is4", "Selling and administrative expenses", X.saT, v => v === P.sa[0] || v === P.sa[1] ? "Add both quarters." : "Selling and administrative = Q1 + Q2.", money(P.sa[0]) + " + " + money(P.sa[1]) + " = " + money(X.saT)),
+      num("is5", "Operating income", X.oi, (v, n) => Math.abs(v - (X.oi - X.int)) < 0.01 ? "Operating income comes before interest expense." : n.is3 != null && n.is4 != null && Math.abs(v - (n.is3 - n.is4)) < 0.01 && (Math.abs(n.is3 - X.gm) > 0.01 || n.is4 !== X.saT) ? "Your subtraction is right, but a line above is not. Fix it first." : "Operating income = gross margin − selling and administrative expenses.", money(X.gm) + " − " + money(X.saT) + " = " + money(X.oi), { dec: 2 })],
+    walk: [{ keys: ["is1", "is2", "is3"], text: "Units sold drive sales and cost of goods sold.", formula: money(X.salesT) + " − " + money(X.cogs) + " = " + money(X.gm) }, { keys: ["is4", "is5"], text: "Subtract selling and administrative expenses.", formula: money(X.gm) + " − " + money(X.saT) + " = " + money(X.oi) }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const v = parse(vals[f.id]);
+    if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+    else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or −2,400." };
+    else res[f.id] = (f.dec ? Math.abs(v - f.ans) < 0.005 : v === f.ans) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> is building its master budget for the first two quarters of " + YEAR + ": operating budgets first, then the cash budget and budgeted income statement."; }
+function dataHTML(c) {
+  const P = c.P, row = (k, v) => '<tr><td>' + k + '</td><td class="r">' + v + '</td></tr>';
+  return { title: "Budget assumptions", html: '<div class="scroll"><table class="dtab"><tbody>' +
+    '<tr class="grp"><td colspan="2">Sales</td></tr>' + row("Budgeted sales, Q1 / Q2 / Q3 (units)", P.s.map(fmt).join(" / ")) + row("Selling price per guidebook", money(P.price)) + row("Collected in the quarter of sale", pct(P.c1)) + row("Accounts receivable, start of Q1", money(P.ar)) +
+    '<tr class="grp"><td colspan="2">Production and materials</td></tr>' + row("Ending finished goods target (of next quarter's sales)", pct(P.fgp)) + row("Finished goods, start of Q1 (units)", fmt(P.begFG)) + row("Paper per guidebook", P.lbs + " pounds") + row("Ending paper target (of next quarter's needs)", pct(P.rmp)) + row("Q3 planned production (units)", fmt(P.prod3)) + row("Cost per pound of paper", money(P.cpp)) + row("Purchases paid in the quarter of purchase", pct(P.p1)) + row("Accounts payable, start of Q1", money(P.ap)) +
+    '<tr class="grp"><td colspan="2">Labor and overhead</td></tr>' + row("Direct labor hours per guidebook", fmt(P.hrs)) + row("Wage per hour", money(P.wage)) + row("Variable overhead per direct labor hour", money(P.vr)) + row("Fixed overhead per quarter (incl. depreciation)", money(P.fo)) + row("Depreciation per quarter", money(P.dep)) +
+    '<tr class="grp"><td colspan="2">Cash and other</td></tr>' + row("Selling and administrative, Q1 / Q2", money(P.sa[0]) + " / " + money(P.sa[1])) + row("Equipment purchase in Q1", money(P.equip)) + row("Cash, start of Q1", money(P.cash0)) + row("Minimum ending cash", money(P.minCash)) + row("Interest per quarter", P.iq + "%") + row("Budgeted manufacturing cost per guidebook", money(P.uc)) +
+    '</tbody></table></div>' };
+}
+
+MAFrame.start({
+  slug: "ma-master-budget", key: "ma-mb1", module: "M5", title: "Master Budget Lab",
+  phases: [["op", "Operating budgets"], ["fin", "Financial budgets"]],
+  dataTitle: "Budget assumptions",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>

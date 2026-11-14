@@ -515,8 +515,31 @@ function jeHTML(p, s, lock) {
   });
   return h + '</tbody></table></div>';
 }
+// A schedule with several amount columns (Q1, Q2, Total): sched.cols names them and each line has cells,
+// each a field ({f}), a given amount ({v}) or nothing (null).
+function gridHTML(p, s, lock, hl) {
+  const S = p.sched, F = id => p.fields.find(x => x.id === id), n = S.cols.length;
+  let h = '<div class="sched"><div class="stitle">' + S.title.map((l, i) => i === 0 ? '<div>' + esc(l) + '</div>' : '<small>' + esc(l) + '</small>').join("") + '</div><div class="scroll"><table class="stab grid"><thead><tr><th scope="col"></th>' + S.cols.map(c => '<th scope="col" class="r">' + esc(c) + '</th>').join("") + '</tr></thead><tbody>';
+  S.lines.forEach(ln => {
+    const ind = ln.ind ? " ind" + ln.ind : "", cells = ln.cells || [];
+    if (ln.t === "head") { h += '<tr class="head"><td class="lbl' + ind + '">' + esc(ln.label) + '</td>' + '<td class="c e"></td>'.repeat(n) + '</tr>'; return; }
+    const fs = cells.map(c => c && c.f ? F(c.f) : null), msgs = [];
+    let state = "";
+    fs.forEach((f, k) => {
+      if (!f) return;
+      const r = s.fb && s.fb.res[f.id];
+      if (r && !r.ok && !(s.revealed && s.shown[f.id])) msgs.push('<li><b>' + esc(S.cols[k]) + ':</b> ' + esc(r.msg) + '</li>');
+    });
+    const hit = hl && fs.some(f => f && hl.indexOf(f.id) >= 0);
+    h += '<tr class="' + (ln.t || "line") + (hit ? " hl" : "") + (msgs.length ? " has-fb" : "") + '"><td class="lbl' + ind + '">' + esc(ln.label) + '</td>' +
+      cells.map((c, k) => !c ? '<td class="c e"></td>' : c.f ? '<td class="c">' + control(p, fs[k], s, lock, ln.label + ", " + S.cols[k]) + '</td>' : '<td class="c gv">' + esc(typeof c.v === "number" ? (c.u ? fmt(c.v) : "$" + fmt(c.v)) : String(c.v)) + '</td>').join("") + '</tr>';
+    if (msgs.length) h += '<tr class="fbrow"><td colspan="' + (n + 1) + '"><div class="fb no"><ul>' + msgs.join("") + '</ul></div></td></tr>';
+  });
+  return h + '</tbody></table></div></div>';
+}
 function schedHTML(p, s, lock, hl) {
   const S = p.sched;
+  if (S.cols) return gridHTML(p, s, lock, hl);
   let h = '<div class="sched"><div class="stitle">' + S.title.map((l, i) => i === 0 ? '<div>' + esc(l) + '</div>' : '<small>' + esc(l) + '</small>').join("") + '</div><table class="stab"><tbody>';
   S.lines.forEach(ln => {
     const ind = ln.ind ? " ind" + ln.ind : "";
