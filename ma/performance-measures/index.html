@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Performance Measures Lab · ACCT 1102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// M6 Lab 12: Performance Measures. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ma-performance-measures), which runs a copy of the code between the LAB markers below.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ma-performance-measures.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => (n < 0 ? "−" : "") + "$" + fmt(n);
+const c2 = x => Math.round(x * 100) / 100, r1 = x => Math.round(x * 10) / 10;
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,%\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^[−–]/, "-").replace(/(x|times)$/i, "");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const CTR = [["cost", "Cost center"], ["rev", "Revenue center"], ["profit", "Profit center"], ["inv", "Investment center"]];
+const CWHY = { cost: "Its manager controls costs but not revenues or investment, so it is a cost center.", rev: "Its manager is judged on revenue and doesn't control costs or investment, so it is a revenue center.", profit: "Its manager controls revenues and costs but not the investment in assets, so it is a profit center.", inv: "Its manager controls revenues, costs and the investment in assets, so it is an investment center." };
+const UNITS = [["The print shop's Binding department, judged on keeping its costs within budget", "cost"], ["The payroll office", "cost"], ["The IT help desk", "cost"], ["The building maintenance department", "cost"],
+  ["A regional sales office judged on the sales it brings in", "rev"], ["The online store's sales team, responsible for sales but not costs", "rev"],
+  ["The Consulting division manager, responsible for its revenues and expenses but not for buying assets", "profit"], ["A campus bookstore location whose manager sets prices and controls its costs", "profit"],
+  ["The Publishing division president, who sets prices, controls costs and decides on new presses", "inv"], ["The CEO, responsible for all of the company's revenues, costs and investments", "inv"]];
+const CTL = [["ctl", "Controllable"], ["not", "Not controllable"]];
+const COSTS = [["Printing supplies used by the Publishing division", "ctl"], ["Salaries of the Publishing division's own staff", "ctl"], ["Advertising for the division's guidebooks", "ctl"],
+  ["Depreciation on presses the division manager chose to buy", "ctl"], ["Overtime the division manager approved", "ctl"],
+  ["Corporate headquarters costs allocated to the division", "not"], ["The company president's salary", "not"], ["Interest on company-wide debt negotiated by the CFO", "not"],
+  ["Property taxes on the corporate office building", "not"], ["A change in the federal minimum wage", "not"]];
+const PERSP = [["fin", "Financial"], ["cust", "Customer"], ["proc", "Internal business process"], ["learn", "Learning and growth"]];
+const PWHY = { fin: "It measures financial results for the owners, so it belongs to the financial perspective.", cust: "It measures how customers see the company, so it belongs to the customer perspective.", proc: "It measures how well the company's own operations run, so it belongs to the internal business process perspective.", learn: "It measures the people, skills and systems that drive future improvement, so it belongs to the learning and growth perspective." };
+const MEAS = [["Return on investment", "fin"], ["Growth in operating income", "fin"], ["Cash flow from operations", "fin"], ["Revenue growth", "fin"],
+  ["Customer satisfaction survey score", "cust"], ["Percentage of clients who order again", "cust"], ["Market share in how-to guidebooks", "cust"], ["Number of customer complaints", "cust"],
+  ["Printing defect rate", "proc"], ["Time to fill an order (cycle time)", "proc"], ["Hours of press downtime", "proc"], ["Guidebooks printed right the first time", "proc"],
+  ["Training hours per employee", "learn"], ["Employee turnover rate", "learn"], ["Employee suggestions put into practice", "learn"], ["Staff certified on new design software", "learn"]];
+const DIV = ["Consulting", "Publishing"];
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const pick = xs => xs[Math.floor(r() * xs.length)];
+  const shuffle = xs => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } return a; };
+  const take = (list, kinds, per) => shuffle(kinds.flatMap(k => shuffle(list.map((x, i) => x[1] === k ? i : -1).filter(i => i >= 0)).slice(0, per(k))));
+  for (let t = 0; t < 50000; t++) {
+    const extra = R(0, 3), centers = take(UNITS, ["cost", "rev", "profit", "inv"], k => ["cost", "rev", "profit", "inv"][extra] === k ? 2 : 1).concat([]);
+    const c = shuffle(centers.concat(shuffle(UNITS.map((_, i) => i).filter(i => !centers.includes(i))).slice(0, 6 - centers.length)));
+    const nc = R(2, 4), costs = shuffle(take(COSTS, ["ctl"], () => nc).concat(take(COSTS, ["not"], () => 6 - nc)));
+    const meas = take(MEAS, ["fin", "cust", "proc", "learn"], () => 2);
+    const div = [0, 1].map(() => { const A = R(40, 200) * 10000, T = pick([1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.5]), m = R(5, 20), d = pick([-1, 1]) * R(2, 10) * 10000; return { beg: A - d, end: A + d, sales: Math.round(A * T), oi: Math.round(A * T * m / 100), cl: R(5, 30) * 10000 }; });
+    const roi = div.map(x => r1(x.oi / ((x.beg + x.end) / 2) * 100));
+    if (roi[0] === roi[1] || div.some(x => x.cl > x.end / 3)) continue;
+    const minRate = R(8, 14), tax = pick([20, 25, 30]), wacc = R(7, 12);
+    if (roi.some(x => x < minRate + 3)) continue;
+    const hi = roi[0] > roi[1] ? 0 : 1, pRoi = R(minRate + 1, Math.floor(roi[hi]) - 1), pInv = R(10, 50) * 10000;
+    if (pRoi <= minRate || pRoi >= roi[hi]) continue;
+    return { c, costs, meas, div, minRate, tax, wacc, hi, pRoi, pInv };
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const d = P.div.map(x => { const avg = (x.beg + x.end) / 2; return { avg, margin: r1(x.oi / x.sales * 100), turn: c2(x.sales / avg), roi: r1(x.oi / avg * 100), ri: x.oi - P.minRate / 100 * avg, nopat: c2(x.oi * (1 - P.tax / 100)), eva: c2(x.oi * (1 - P.tax / 100) - P.wacc / 100 * (x.end - x.cl)) }; });
+  const h = P.div[P.hi], pOi = P.pInv * P.pRoi / 100, newRoi = r1((h.oi + pOi) / (d[P.hi].avg + P.pInv) * 100), riChg = pOi - P.minRate / 100 * P.pInv;
+  return { d, pOi, newRoi, riChg };
+}
+
+// ---------- Parts ----------
+function num(id, label, ans, tol, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, tol, wrong, work }, extra || {}); }
+function sel(id, label, opts, ans, wrong, work, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, wrong, work }, extra || {}); }
+function buildParts(P) {
+  const X = solve(P), parts = [];
+  parts.push({ id: "centers", phase: "resp", tick: "1", layout: "table", title: "Responsibility centers",
+    desc: "Classify each part of Problem Solvers by what its manager controls.",
+    itemLabel: "Unit or manager", items: P.c.map(i => ({ text: UNITS[i][0] })), cols: [{ key: "c", label: "Type of center" }],
+    why: "A manager should be judged only on what they control: costs, revenues, profit, or profit and the assets used to earn it.",
+    fields: P.c.map((i, k) => sel("c" + k, "Center type: " + UNITS[i][0], CTR, UNITS[i][1], () => CWHY[UNITS[i][1]], CWHY[UNITS[i][1]], { row: k, col: "c" })),
+    walk: [{ keys: P.c.map((_, k) => "c" + k), text: "Costs only: cost center. Revenue only: revenue center. Revenue and costs: profit center. Add control of assets: investment center." }] });
+
+  parts.push({ id: "ctl", phase: "resp", tick: "2", layout: "table", title: "Controllable or not?",
+    desc: "From the Publishing division manager's point of view, which costs can the manager control?",
+    itemLabel: "Cost", items: P.costs.map(i => ({ text: COSTS[i][0] })), cols: [{ key: "k", label: "Division manager" }],
+    why: "Holding managers responsible for costs they can't influence is unfair and gives them no useful signal. Allocated and company-wide costs belong to someone else.",
+    fields: P.costs.map((i, k) => sel("k" + k, "Controllable? " + COSTS[i][0], CTL, COSTS[i][1], () => COSTS[i][1] === "ctl" ? "The division manager makes the decisions that drive this cost, so it is controllable." : "The division manager can't change this cost; it is set elsewhere in the company or outside it.", COSTS[i][1] === "ctl" ? "Controllable" : "Not controllable", { row: k, col: "k" })),
+    walk: [{ keys: P.costs.map((_, k) => "k" + k), text: "Can the division manager's own decisions change it? If not, it isn't controllable." }] });
+
+  const roiF = [];
+  P.div.forEach((x, i) => {
+    const D = X.d[i], nm = DIV[i];
+    roiF.push(num("m" + i, nm + ": margin (%)", D.margin, 0.05, v => Math.abs(v - D.roi) < 0.05 ? "That is ROI. Margin = operating income ÷ sales." : Math.abs(v - D.margin / 100) < 0.0005 ? "Enter it as a percent." : Math.abs(v - c2(x.sales / x.oi)) < 0.005 ? "Flip it: margin = operating income ÷ sales." : "Margin = operating income ÷ sales, as a percent to 1 decimal.", money(x.oi) + " ÷ " + money(x.sales) + " = " + fmt(D.margin) + "%", { post: "%" }));
+    roiF.push(num("t" + i, nm + ": turnover", D.turn, 0.005, v => Math.abs(v - c2(x.sales / x.end)) < 0.005 && x.end !== D.avg ? "Use average operating assets, (" + money(x.beg) + " + " + money(x.end) + ") ÷ 2, not ending assets." : Math.abs(v - c2(D.avg / x.sales)) < 0.005 ? "Flip it: turnover = sales ÷ average operating assets." : "Turnover = sales ÷ average operating assets, to 2 decimals.", money(x.sales) + " ÷ " + money(D.avg) + " = " + fmt(D.turn), { post: "×" }));
+    roiF.push(num("r" + i, nm + ": ROI (%)", D.roi, 0.05, (v, n) => Math.abs(v - r1(x.oi / x.end * 100)) < 0.05 && x.end !== D.avg ? "Use average operating assets, not ending assets." : Math.abs(v - D.roi / 100) < 0.0005 ? "Enter it as a percent." : Math.abs(v - c2(D.margin + D.turn)) < 0.05 ? "Multiply margin by turnover; don't add them." : n["m" + i] != null && n["t" + i] != null && Math.abs(v - r1(n["m" + i] * n["t" + i])) < 0.05 && (Math.abs(n["m" + i] - D.margin) >= 0.05 || Math.abs(n["t" + i] - D.turn) >= 0.005) ? "Your multiplication is right, but margin or turnover is not. Fix it first." : "ROI = margin × turnover = operating income ÷ average operating assets.", fmt(D.margin) + "% × " + fmt(D.turn) + " = " + fmt(D.roi) + "%", { post: "%" }));
+  });
+  parts.push({ id: "roi", phase: "measure", tick: "3", title: "Return on investment",
+    desc: "Compute each division's margin, turnover and return on investment, using average operating assets. Margin and ROI are percents to 1 decimal; turnover is to 2 decimals.",
+    hint: "Average operating assets = (beginning + ending) ÷ 2. Margin = operating income ÷ sales. Turnover = sales ÷ average operating assets. ROI = margin × turnover.",
+    why: "ROI shows how well a division uses its assets to earn income. Splitting it into margin and turnover shows whether to work on profitability or on asset use.",
+    fields: roiF, walk: P.div.map((x, i) => ({ keys: ["m" + i, "t" + i, "r" + i], text: DIV[i] + ": average assets " + money(X.d[i].avg) + ".", formula: fmt(X.d[i].margin) + "% × " + fmt(X.d[i].turn) + " = " + fmt(X.d[i].roi) + "%" })) });
+
+  parts.push({ id: "ri", phase: "measure", tick: "4", title: "Residual income",
+    desc: "Problem Solvers requires a minimum return of " + P.minRate + "% on average operating assets. Compute each division's residual income.",
+    hint: "Residual income = operating income − minimum required rate × average operating assets.",
+    why: "Residual income is the income earned above the minimum return the company requires. Unlike ROI, it rises with any investment that beats the minimum.",
+    fields: P.div.map((x, i) => num("ri" + i, DIV[i] + ": residual income", X.d[i].ri, 0.5, v => Math.abs(v) < 0.5 ? "That uses the division's own ROI. Use the company's minimum rate, " + P.minRate + "%." : Math.abs(v - (x.oi - P.minRate / 100 * x.end)) < 0.5 && x.end !== X.d[i].avg ? "Use average operating assets, not ending assets." : Math.abs(v - (x.oi - P.minRate * X.d[i].avg)) < 0.5 ? "Use the rate as a percent: " + P.minRate + "% × " + money(X.d[i].avg) + "." : "Residual income = " + money(x.oi) + " − " + P.minRate + "% × " + money(X.d[i].avg) + ".", money(x.oi) + " − " + P.minRate + "% × " + money(X.d[i].avg) + " = " + money(X.d[i].ri))),
+    walk: P.div.map((x, i) => ({ keys: ["ri" + i], text: DIV[i] + ": subtract the minimum return on average assets.", formula: money(x.oi) + " − " + money(P.minRate / 100 * X.d[i].avg) + " = " + money(X.d[i].ri) })) });
+
+  parts.push({ id: "eva", phase: "measure", tick: "5", title: "Economic value added",
+    desc: "The tax rate is " + P.tax + "% and Problem Solvers' weighted-average cost of capital is " + P.wacc + "%. Compute each division's economic value added (OpenStax 12.3), using year-end total assets and current liabilities.",
+    hint: "EVA = after-tax operating income − WACC × (total assets − current liabilities).",
+    why: "EVA charges each division for all the capital it uses, at the company's cost of capital, after taxes. A positive EVA means the division created value for the owners.",
+    fields: P.div.map((x, i) => num("eva" + i, DIV[i] + ": EVA", X.d[i].eva, 0.5, v => Math.abs(v - c2(x.oi - P.wacc / 100 * (x.end - x.cl))) < 0.5 ? "Use after-tax operating income: " + money(x.oi) + " × (1 − " + P.tax + "%)." : Math.abs(v - c2(X.d[i].nopat - P.wacc / 100 * x.end)) < 0.5 ? "Subtract current liabilities from total assets before applying the WACC." : Math.abs(v - c2(X.d[i].nopat - P.minRate / 100 * (x.end - x.cl))) < 0.5 ? "Use the weighted-average cost of capital (" + P.wacc + "%), not the minimum rate." : "EVA = " + money(X.d[i].nopat) + " − " + P.wacc + "% × (" + money(x.end) + " − " + money(x.cl) + ").", money(X.d[i].nopat) + " − " + P.wacc + "% × " + money(x.end - x.cl) + " = " + money(X.d[i].eva))),
+    walk: P.div.map((x, i) => ({ keys: ["eva" + i], text: DIV[i] + ": after-tax income minus the capital charge.", formula: money(X.d[i].nopat) + " − " + money(c2(P.wacc / 100 * (x.end - x.cl))) + " = " + money(X.d[i].eva) })) });
+
+  const hn = DIV[P.hi];
+  parts.push({ id: "invest", phase: "measure", tick: "6", title: "Will the manager invest?",
+    desc: "The " + hn + " manager can invest " + money(P.pInv) + " in a project that would earn " + P.pRoi + "% a year: above the company's " + P.minRate + "% minimum, but below " + hn + "'s current ROI. Would a manager evaluated on each measure accept it?",
+    why: "ROI can make a manager turn down a project that is good for the company, because it lowers the division's average. Residual income doesn't have that problem: any project above the minimum raises it.",
+    fields: [
+      sel("roiE", "Evaluated on ROI, would the manager accept the project?", [["accept", "Accept"], ["reject", "Reject"]], "reject", () => "The project earns less than " + hn + "'s current ROI, so taking it would pull the division's ROI down (to about " + fmt(X.newRoi) + "%). A manager judged on ROI would reject it.", "Reject: division ROI would fall to " + fmt(X.newRoi) + "%"),
+      sel("riE", "Evaluated on residual income, would the manager accept the project?", [["accept", "Accept"], ["reject", "Reject"]], "accept", () => "The project earns more than the " + P.minRate + "% minimum, so it adds " + money(X.riChg) + " to residual income. A manager judged on residual income would accept it.", "Accept: residual income rises " + money(X.riChg))],
+    walk: [{ keys: ["roiE", "riE"], text: "ROI falls because " + P.pRoi + "% is below the division's ROI; residual income rises because " + P.pRoi + "% beats the " + P.minRate + "% minimum." }] });
+
+  parts.push({ id: "bsc", phase: "bsc", tick: "7", layout: "table", title: "Balanced scorecard",
+    desc: "Place each measure in its balanced scorecard perspective.",
+    itemLabel: "Measure", items: P.meas.map(i => ({ text: MEAS[i][0] })), cols: [{ key: "p", label: "Perspective" }],
+    why: "The balanced scorecard pairs financial results with the customer, process and learning measures that drive them, so managers don't chase short-term profit alone.",
+    fields: P.meas.map((i, k) => sel("p" + k, "Perspective: " + MEAS[i][0], PERSP, MEAS[i][1], () => PWHY[MEAS[i][1]], PWHY[MEAS[i][1]], { row: k, col: "p" })),
+    walk: [{ keys: P.meas.map((_, k) => "p" + k), text: "Owners: financial. Clients: customer. Operations: internal business process. People and systems: learning and growth." }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 12.5 or 24,000." };
+      else res[f.id] = Math.abs(v - f.ans) < f.tol ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+function bizHTML() { return "<b>Problem Solvers, Inc.</b> now has two divisions, <b>Consulting</b> and <b>Publishing</b>. Evaluate their managers and performance. Year: " + YEAR + "."; }
+function dataHTML(c) {
+  const P = c.P, id = c.part.id;
+  if (id === "centers") return { title: "Responsibility centers", html: '<div class="defs">' + CTR.map(x => '<div class="def"><b>' + x[1] + '</b>' + CWHY[x[0]].replace(/, so it is an? .*$/, ".").replace(/^Its manager/, "The manager") + '</div>').join("") + '</div>' };
+  if (id === "ctl") return { title: "Controllable costs", html: '<div class="defs"><div class="def"><b>Controllable</b>A cost the manager can significantly influence within the period.</div><div class="def"><b>Not controllable</b>A cost set by someone else, such as allocated corporate costs or company-wide decisions.</div></div>' };
+  if (id === "bsc") return { title: "Balanced scorecard", html: '<div class="defs">' + PERSP.map(x => '<div class="def"><b>' + x[1] + '</b>' + PWHY[x[0]].replace(/^It measures /, "Measures ").replace(/, so it belongs.*$/, ".") + '</div>').join("") + '</div>' };
+  const row = (k, a, b) => '<tr><td>' + k + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td></tr>', D = P.div;
+  return { title: "Division data for " + YEAR, html: '<div class="scroll"><table class="dtab"><thead><tr><th scope="col"></th><th scope="col" class="r">Consulting</th><th scope="col" class="r">Publishing</th></tr></thead><tbody>' +
+    row("Sales", money(D[0].sales), money(D[1].sales)) + row("Operating income", money(D[0].oi), money(D[1].oi)) + row("Operating assets, January 1", money(D[0].beg), money(D[1].beg)) + row("Operating assets, December 31", money(D[0].end), money(D[1].end)) + row("Current liabilities, December 31", money(D[0].cl), money(D[1].cl)) +
+    '</tbody></table></div><div class="facts"><div class="fact"><span class="k">Minimum return</span><span>' + P.minRate + '% on average operating assets</span></div><div class="fact"><span class="k">Tax and WACC</span><span>' + P.tax + '% tax rate; ' + P.wacc + '% weighted-average cost of capital</span></div></div><p class="note">Total assets at year-end equal year-end operating assets.</p>' };
+}
+
+MAFrame.start({
+  slug: "ma-performance-measures", key: "ma-perf1", module: "M6", title: "Performance Measures Lab",
+  phases: [["resp", "Responsibility"], ["measure", "Divisional measures"], ["bsc", "Balanced scorecard"]],
+  dataTitle: "Division data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
