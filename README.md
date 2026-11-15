@@ -25,5 +25,12 @@ carry over to the labs, which share a session with this page only on rgoodwi3.gi
 
 ## Limits
 
-- The Canvas CSV is out of 100 points, for graded activities only, and puts the email in the
-  SIS Login ID column. Check it against a real Canvas export before importing.
+- The Canvas CSV is out of 100 points and puts the email in the SIS Login ID column. Check it
+  against a real Canvas export before importing. In the gradebook's Scores view it has graded
+  activities only. In the Completion view it has percent complete for graded labs and games, in
+  columns named "… completion" so an import doesn't overwrite the score columns.
+- Deleting a class deletes its assignments, students, roster, scores and lab attempts. The
+  delete dialog offers every grade as a CSV first.
+- Copy for Canvas (each assigned lab) and Copy student instructions for Canvas (under the join
+  code) build their HTML in the instructor's school name and colors. Canvas keeps inline styles
+  only, so every element carries its own.
