@@ -92,6 +92,14 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
 .cprev{border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px;background:#fff;max-height:560px;overflow:auto}
 .cpaste{width:100%;margin-top:8px;font:13px/1.4 var(--mono);padding:8px;border:1px solid #aab4c4;border-radius:6px}
 details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
+.btn.danger{border-color:var(--bad);color:var(--bad)}.btn.danger:hover{background:var(--bad-bg)}
+.btn.danger.solid{background:var(--bad);color:#fff}.btn.danger.solid:hover{background:#8f1e18}
+#cmsg:empty{display:none}#cmsg{margin:-4px 0 12px}
+dialog.dlg{border:0;border-radius:10px;padding:0;width:min(560px,calc(100% - 32px));box-shadow:0 18px 50px rgba(0,20,60,.3);color:var(--ink)}
+dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
+.dlg .dh{background:var(--bad);color:#fff;padding:14px 20px}.dlg .dh h2{font:700 22px/1.2 var(--head);margin:0;color:#fff}
+.dlg .db{padding:16px 20px 18px}.dlg .db p{margin:0 0 12px}
+.dlg .acts{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="platform.js"></script>
@@ -121,9 +129,8 @@ details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
   const toLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
   const pct = (s, t) => t ? Math.round(1000 * s / t) / 10 : 0;   // one decimal, so a percent can be turned back into points
   // Which subjects a class includes (courses.subjects) and the labels instructors see.
-  const SUBJECTS = [['financial', 'Financial accounting'], ['managerial', 'Managerial accounting'], ['ais', 'Accounting information systems']];
-  const subjectName = v => (SUBJECTS.find(([k]) => k === v) || [null, 'Financial accounting'])[1];
-  const SUBJECT_SHORT = { financial: 'financial', managerial: 'managerial', ais: 'AIS' };
+  const SUBJECTS = [['financial', 'Financial accounting'], ['managerial', 'Managerial accounting'], ['ais', 'Accounting information systems'], ['games', 'Accounting games']];
+  const SUBJECT_SHORT = { financial: 'financial', managerial: 'managerial', ais: 'AIS', games: 'games' };
   const subjectsText = list => { const n = (list || ['financial']).map(v => SUBJECT_SHORT[v] || v);
     return n.length < 3 ? n.join(' and ') : n.slice(0, -1).join(', ') + ' and ' + n.at(-1); };
   const subjectBoxes = (name, checked) => SUBJECTS.map(([v, n]) => `<label class="check"><input type="checkbox" name="${name}" value="${v}"${checked.includes(v) ? ' checked' : ''}> ${n}</label>`).join('');
@@ -366,7 +373,10 @@ details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
           ${courses.length > 1 ? `<label>Class<select id="pickc">${courses.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.term ? ' · ' + esc(x.term) : ''}</option>`).join('')}</select></label>` : `<h2>${esc(c.name)}</h2><p class="lead">${esc(c.term || '')}</p>`}
           <fieldset class="subjects" id="csubj" style="margin-top:8px"><legend>Content</legend>${subjectBoxes('csubj', c.subjects || ['financial'])}</fieldset>
           <label class="check" style="margin-top:8px"><input type="checkbox" id="showans"${c.show_answers ? ' checked' : ''}> Show answers after each lab step</label>
-        </div><div><div class="small muted">Students join with this code</div><span class="code">${esc(c.join_code)}</span></div></div>
+          <div style="margin-top:12px"><button class="btn sm danger" type="button" id="delc">Delete class</button></div>
+        </div><div><div class="small muted">Students join with this code</div><span class="code">${esc(c.join_code)}</span>
+          <div style="margin-top:8px"><button class="btn sm" type="button" id="copyjoin">Copy student instructions for Canvas</button></div></div></div>
+        <div id="cmsg"></div><dialog class="dlg" id="deldlg" aria-labelledby="delh"></dialog>
         <div class="tabs" role="tablist">${[['assign', 'Assignments'], ['roster', 'Students'], ['grades', 'Gradebook']].map(([k, n]) => `<button class="tab" role="tab" type="button" data-tab="${k}" aria-selected="${state.tab === k}">${n}</button>`).join('')}</div>
         <div id="pane"><p class="muted">Loading…</p></div></div>` : '<div class="card"><p class="empty">Create your first class above.</p></div>'}`;
     document.getElementById('newc').addEventListener('submit', async e => {
@@ -374,7 +384,7 @@ details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
       const f = new FormData(e.target), name = String(f.get('name') || '').trim();
       if (!name) return;
       const subjects = f.getAll('subj').map(String).filter(v => SUBJECTS.some(([k]) => k === v));
-      if (!subjects.length) { instructorView(msg('bad', 'Choose the class content: check at least one of financial, managerial or AIS.')); return; }
+      if (!subjects.length) { instructorView(msg('bad', 'Choose the class content: check at least one of financial, managerial, AIS or games.')); return; }
       const { data, error } = await sb.from('courses').insert({ instructor_id: me.id, name, term: String(f.get('term') || '').trim() || null, show_answers: f.get('show') === 'on', subjects }).select('id').single();
       if (error) { instructorView(msg('bad', esc(error.message))); return; }
       state.course = data.id; state.tab = 'assign'; instructorView(msg('good', 'Class created. Assign activities below, then share the join code.'));
@@ -392,6 +402,9 @@ details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
       const { error } = await sb.from('courses').update({ show_answers: e.target.checked }).eq('id', c.id);
       instructorView(error ? msg('bad', esc(error.message)) : msg('good', `Show answers is now ${e.target.checked ? 'on' : 'off'} for ${esc(c.name)}.`));
     });
+    document.getElementById('copyjoin').addEventListener('click', () => showCopy(document.getElementById('cmsg'), studentInstructions(c),
+      `the student instructions for ${esc(c.name)}`, 'In Canvas, create a page (for example, <b>Register for InterACCtive</b>), click the HTML editor button (<b>&lt;/&gt;</b>) at the bottom right of the text box, paste, and save. If you change your school name or colors, copy it again.'));
+    document.getElementById('delc').addEventListener('click', () => deleteDialog(c));
     app.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; instructorView(); }));
     ({ assign: assignPane, roster: rosterPane, grades: gradesPane })[state.tab](c).catch(e => {
       document.getElementById('pane').innerHTML = msg('bad', esc(e.message));
@@ -480,11 +493,15 @@ details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
   // mode as saved, and leaves the due date and attempt limit to the class page, so they can't go out of date.
   const SUBJECT_TITLE = { financial: 'Financial Accounting', managerial: 'Managerial Accounting', ais: 'Accounting Information Systems' };
   const LAB_NOTES = { 'tvm-bonds': 'You may use a financial calculator or Excel.' };   // lab-specific line for the integrity box
-  function canvasInstructions(a, c, x) {
+  // This instructor's school name (escaped) and colors, or the default look; small text in the accent color
+  // goes on the main color only where it's readable there.
+  function brandLook() {
     const custom = hexOk(me.brand_primary) && hexOk(me.brand_accent);
     const P = custom ? me.brand_primary : BRAND_DEFAULT.primary, A = custom ? me.brand_accent : BRAND_DEFAULT.accent;
-    const school = esc((me.brand_institution || '').trim() || BRAND_DEFAULT.school);
-    const kickerColor = contrastOf(A, P) >= 4.5 ? A : '#ffffff';
+    return { P, A, school: esc((me.brand_institution || '').trim() || BRAND_DEFAULT.school), kickerColor: contrastOf(A, P) >= 4.5 ? A : '#ffffff' };
+  }
+  function canvasInstructions(a, c, x) {
+    const { P, A, school, kickerColor } = brandLook();
     const graded = x.mode === 'graded', pts = a.points_possible;
     const link = esc(activityLink(a, c.id, x.chapters)), home = esc(location.origin + location.pathname);
     const short = esc(a.title.replace(/ Lab$/, '')), cls = esc(c.name), code = esc(c.join_code);
@@ -574,6 +591,95 @@ ${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You c
     }
     try { await navigator.clipboard.writeText(html); return true; } catch (e) { return false; }
   }
+  // Copies the HTML and says so in `out`, with how to paste it and a preview. If the browser blocks the
+  // clipboard, it shows the code, selected, to copy by hand.
+  async function showCopy(out, html, what, how) {
+    const preview = `<details class="copied"><summary>See what you copied</summary><div class="cprev">${html}</div></details>`;
+    if (await copyHtml(html)) out.innerHTML = msg('good', `Copied ${what}. ${how}`) + preview;
+    else {
+      out.innerHTML = msg('info', `Your browser didn't allow copying. Select all the code below and copy it (Ctrl+C, or ⌘C on a Mac). ${how}`) +
+        `<textarea class="cpaste" rows="8" readonly aria-label="HTML to copy">${esc(html)}</textarea>` + preview;
+      const ta = out.querySelector('textarea'); ta.focus(); ta.select();
+    }
+    out.scrollIntoView({ block: 'nearest' });
+  }
+
+  // The Canvas page that tells students how to register, confirm their email and join this class.
+  // Based on the Register for InterACCtive page first written for ACCT 1101.
+  function studentInstructions(c) {
+    const { P, A, school, kickerColor } = brandLook();
+    const subs = c.subjects && c.subjects.length ? c.subjects : ['financial'];
+    const labs = subs.some(v => v !== 'games'), games = subs.includes('games');
+    const what = labs && games ? 'labs and games' : labs ? 'labs' : 'accounting games';
+    const home = esc(location.origin + location.pathname), cls = esc(c.name), code = esc(c.join_code), term = c.term ? ` (${esc(c.term)})` : '';
+    const H3 = `style="color: ${P}; border-bottom: 2px solid ${A}; padding-bottom: 4px;"`;
+    const each = labs ? [
+      `<li><strong>Open ${what} from your class page on InterACCtive</strong>, or from the buttons in our Canvas assignments. Those links save your results to our class. A bookmark or an old link may not.</li>`,
+      '<li>If a lab asks you to sign in, use the same email. It will send you a sign-in code.</li>',
+      '<li>A graded attempt is saved on the server as you go, so you can leave and come back, even on another computer. The clock keeps running while you\'re away.</li>',
+      '<li>Practice mode is never graded. Use it as much as you like before you start a graded attempt.</li>'
+    ] : ['<li><strong>Open the games from your class page on InterACCtive</strong>, not from a bookmark or an old link. Opening them from your class page is what saves your results to our class.</li>'];
+    return `<div style="max-width: 820px; font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #111b2e;">
+
+<div style="background: ${P}; color: #ffffff; padding: 18px 22px; border-bottom: 4px solid ${A}; border-radius: 6px 6px 0 0;">
+<p style="margin: 0; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; font-weight: bold; color: ${kickerColor};">${school} · Getting started</p>
+<h2 style="margin: 4px 0 0; color: #ffffff;">Register for InterACCtive</h2>
+<p style="margin: 4px 0 0; color: #ffffff; font-size: 15px;">${cls}${term}</p>
+</div>
+
+<div style="border: 1px solid #d8dfea; border-top: 0; padding: 18px 22px; border-radius: 0 0 6px 6px;">
+<p style="margin-top: 0;">This course's ${what} run on <strong>InterACCtive</strong>. Register once, join our class, and your ${labs ? 'graded lab scores are' : 'results are'} saved to the class automatically. You won't need to copy or submit anything. Setup takes about five minutes.</p>
+
+<p style="text-align: center; margin: 20px 0;"><a href="${home}" target="_blank" rel="noopener" style="display: inline-block; background: ${P}; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 26px; border-radius: 6px; border-bottom: 3px solid ${A};">Open InterACCtive ↗</a></p>
+<p style="text-align: center; font-size: 14px; color: #56617a; margin-top: -8px;">Opens in a new window. Use a laptop or desktop.</p>
+
+<div style="background: #eff2f7; border: 2px dashed #a9b6cc; border-radius: 6px; padding: 14px 16px; text-align: center; margin: 18px 0;">
+<p style="margin: 0; font-size: 14px; color: #56617a; text-transform: uppercase; letter-spacing: .1em; font-weight: bold;">Our class code</p>
+<p style="margin: 4px 0 0; font-family: 'IBM Plex Mono', Consolas, monospace; font-size: 34px; font-weight: bold; letter-spacing: .2em; color: ${P};">${code}</p>
+</div>
+
+<h3 ${H3}>1. Create your account</h3>
+<ol>
+<li>Open InterACCtive and click <strong>Create account</strong>.</li>
+<li>Enter your <strong>full name</strong> as it appears in Canvas, your <strong>school email address</strong>, and a password of at least 8 characters. Use the email address Canvas has for you: that's how your scores are matched to you in Canvas.</li>
+<li>Click <strong>Create account</strong>.</li>
+</ol>
+
+<h3 ${H3}>2. Confirm your email</h3>
+<ol>
+<li>Check your school email for a message from <strong>InterACCtive</strong> with a code. <strong>Check your Junk folder</strong> if you don't see it within a few minutes.</li>
+<li>Type the code into <strong>Code from the email</strong> and click <strong>Confirm email</strong>.</li>
+<li>If the code doesn't work or has expired, click <strong>Send a new code</strong> and use the newest one. Only the most recent code works.</li>
+</ol>
+
+<h3 ${H3}>3. Join our class</h3>
+<ol>
+<li>Once you're signed in, find <strong>Join a class</strong>. If our class already appears on your page, you're in, and you can skip this step.</li>
+<li>Enter <strong>${code}</strong> in the <strong>Join code</strong> box and click <strong>Join</strong>.</li>
+<li>You'll see <strong>You joined the class.</strong> Our class, ${cls}${term}, now appears on your page. Assigned ${what} show up there with their due dates.</li>
+</ol>
+
+<h3 ${H3}>Each time you ${labs ? 'do a lab' : 'play'}</h3>
+<ul>
+${each.join('\n')}
+</ul>
+
+<h3 ${H3}>If something goes wrong</h3>
+<ul>
+<li><strong>No code arrived:</strong> check Junk, wait a few minutes, then click <strong>Send a new code</strong>.</li>
+<li><strong>Forgot your password:</strong> on the sign-in screen, click <strong>Forgot your password?</strong>. You'll get a code by email, and then you can choose a new password.</li>
+<li><strong>"That code didn't work":</strong> make sure you're using the newest code and that it's for the same email you typed.</li>
+<li><strong>Registered with the wrong email, or something else:</strong> email me and describe what happened. Please write <strong>before</strong> a due date.</li>
+</ul>
+
+<div style="background: #f3f5f9; color: #111b2e; border-left: 4px solid ${P}; border-radius: 0 6px 6px 0; padding: 12px 16px; margin-top: 20px;">
+<p style="margin: 0 0 6px; font-weight: bold; font-size: 17px;">What InterACCtive keeps</p>
+<p style="margin: 0;">InterACCtive stores your name, email address, ${labs ? 'the answers you submit in graded labs and how you entered them, ' : ''}and your scores, so that I can see your results and enter your grades. Your classmates can't see any of it.</p>
+</div>
+</div>
+</div>
+`;
+  }
 
   async function assignPane(c, note = '') {
     const pane = document.getElementById('pane');
@@ -585,7 +691,7 @@ ${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You c
     const empty = subs.filter(v => !catalog.some(a => (a.subject || 'financial') === v));
     const emptyNote = empty.length ? `<p class="small muted">No ${esc(subjectsText(empty))} activities are available yet. They'll appear here as they're added.</p>` : '';
     if (!list.length) { pane.innerHTML = emptyNote + note; return; }
-    const TAG = { financial: 'Financial', managerial: 'Managerial', ais: 'AIS' };
+    const TAG = { financial: 'Financial', managerial: 'Managerial', ais: 'AIS', games: 'Game' };
     const subjTag = a => subs.length > 1 ? ` <span class="tag">${TAG[a.subject || 'financial']}</span>` : '';
     pane.innerHTML = `<p class="lead">This class includes <b>${esc(subjectsText(subs))}</b> content. Check an activity to assign it, set its options, and click <b>Save</b>. Graded activities stop accepting work after the due date or the attempt limit. A graded lab still open at the due date is scored on the steps submitted so far. Each assigned lab has a <b>Copy for Canvas</b> button: it copies instructions for the Canvas assignment, in your school's name and colors, with the link that opens the lab for this class.</p>
       <div class="scroll"><table><thead><tr><th>Assign</th><th>Activity</th><th>Mode</th><th>Chapters</th><th>Due</th><th>Attempts</th><th></th></tr></thead><tbody>
@@ -621,16 +727,7 @@ ${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You c
       if (sel && sel.value !== (x.mode || 'practice')) { out.innerHTML = msg('bad', `Save ${esc(a.title)} first, so the instructions match its mode.`); out.scrollIntoView({ block: 'nearest' }); return; }
       const html = canvasInstructions(a, c, x), graded = x.mode === 'graded';
       const how = `In Canvas, edit the assignment, click the HTML editor button (<b>&lt;/&gt;</b>) at the bottom right of the text box, and paste.${graded ? ' Set the submission type to <b>No Submission</b>: scores come from the gradebook here.' : ''} If you change this lab's mode, or your school name or colors, copy it again.`;
-      const preview = `<details class="copied"><summary>See what you copied</summary><div class="cprev">${html}</div></details>`;
-      if (await copyHtml(html)) {
-        out.innerHTML = msg('good', `Copied the ${graded ? 'graded' : 'practice'} instructions for ${esc(a.title)}. ${how}`) + preview;
-      } else {
-        // The browser blocked the clipboard: show the code to copy by hand.
-        out.innerHTML = msg('info', `Your browser didn't allow copying. Select all the code below and copy it (Ctrl+C, or ⌘C on a Mac). ${how}`) +
-          `<textarea class="cpaste" rows="8" readonly aria-label="Canvas instructions for ${esc(a.title)}">${esc(html)}</textarea>` + preview;
-        const ta = out.querySelector('textarea'); ta.focus(); ta.select();
-      }
-      out.scrollIntoView({ block: 'nearest' });
+      showCopy(out, html, `the ${graded ? 'graded' : 'practice'} instructions for ${esc(a.title)}`, how);
     }));
   }
 
@@ -652,26 +749,58 @@ ${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You c
     }));
   }
 
-  async function gradesPane(c) {
-    const pane = document.getElementById('pane');
+  // ---------- gradebook ----------
+  // CSV files. A leading = + - or @ would run as a formula in a spreadsheet, and students type their own names.
+  const csvText = v => (/^[=+\-@\t\r]/.test(String(v)) ? "'" : '') + String(v);
+  const csvName = (c, what) => `${c.name.replace(/[^\w -]/g, '')} ${what}.csv`;
+  function downloadCsv(rows, filename) {
+    const lines = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const url = URL.createObjectURL(new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/csv' }));
+    const link = document.createElement('a'); link.href = url; link.download = filename;
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // Everything the gradebook knows about one class. For each student and activity, cell() gives the best
+  // finished score, how many attempts finished, how much of the activity is done, and any open lab attempt.
+  async function gradeData(c) {
     const [people, asg, att, labs] = await Promise.all([
       roster(c),
       fetchAll(() => sb.from('course_activities').select('activity_id,mode').eq('course_id', c.id).order('activity_id')),
       fetchAll(() => sb.from('attempts').select('id,student_id,activity_id,score,total').eq('course_id', c.id).order('id')),
-      fetchAll(() => sb.from('lab_attempts').select('id,student_id,activity_id,started_at,finished_at,auto_closed,steps').eq('course_id', c.id).order('id'))
+      fetchAll(() => sb.from('lab_attempts').select('id,student_id,activity_id,started_at,finished_at,auto_closed,steps,possible,total').eq('course_id', c.id).order('id'))
     ]);
     const acts = catalog.filter(a => a.scored && asg.some(x => x.activity_id === a.id));
-    if (!people.length || !acts.length) { pane.innerHTML = `<p class="empty">${!acts.length ? 'Assign a scored activity first.' : 'No students yet.'}</p>`; return; }
-    const cell = (sid, aid) => {
-      const done = att.filter(t => t.student_id === sid && t.activity_id === aid);
-      const mine = labs.filter(l => l.student_id === sid && l.activity_id === aid);
+    const graded = a => asg.some(x => x.activity_id === a.id && x.mode === 'graded');
+    // A lab records work only in Graded mode. A game saves its rounds in either mode.
+    const tracked = a => !a.server_graded || graded(a);
+    // How much of a lab attempt is done: the points of the steps submitted (right or wrong), out of the attempt's points.
+    const labDone = (l, a) => {
+      const possible = l.possible || l.total || a.points_possible;
+      const done = Object.values(l.steps || {}).reduce((s, v) => s + (Number(v && v.maxPoints) || 0), 0);
+      return possible ? Math.min(100, pct(done, possible)) : (l.finished_at ? 100 : 0);
+    };
+    const cell = (sid, a) => {
+      const done = att.filter(t => t.student_id === sid && t.activity_id === a.id);
+      const mine = labs.filter(l => l.student_id === sid && l.activity_id === a.id);
       return {
         best: done.length ? Math.max(...done.map(t => pct(t.score, t.total))) : null,
         n: done.length,
+        // A lab: its furthest attempt. A game: done once a round is saved.
+        complete: a.server_graded ? (mine.length ? Math.max(...mine.map(l => labDone(l, a))) : null) : (done.length ? 100 : null),
         open: mine.find(l => !l.finished_at),
         autoClosed: mine.some(l => l.auto_closed)
       };
     };
+    return { people, asg, att, labs, acts, graded, tracked, cell };
+  }
+
+  async function gradesPane(c) {
+    const pane = document.getElementById('pane');
+    const { people, labs, acts, graded, tracked, cell } = await gradeData(c);
+    if (!people.length || !acts.length) { pane.innerHTML = `<p class="empty">${!acts.length ? 'Assign a scored activity first.' : 'No students yet.'}</p>`; return; }
+    const view = state.gview === 'complete' ? 'complete' : 'score';
+    // Labs assigned as Practice never record work, so the completion view leaves them out.
+    const cols = view === 'complete' ? acts.filter(tracked) : acts;
     // Activity flags saved by the grading server with each step's first submission (see integrity.js).
     // Strong flags send an attempt to review on their own; fast and paste only when repeated.
     const FLAG_TEXT = {
@@ -694,12 +823,15 @@ ${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You c
     };
     const flaggedLabs = labs.map(l => ({ l, r: review(l) })).filter(x => x.r.flagged);
     const cellHtml = (b, sid, aid) => {
-      const score = b.best === null ? (b.open ? '' : '—') : `${b.best}% <span class="small muted">(${b.n})</span>`;
       const closed = b.autoClosed ? '<div><span class="tag auto">Closed at due date</span></div>' : '';
-      const open = b.open ? `<div><span class="tag">In progress · ${Object.keys(b.open.steps || {}).length} steps</span></div>` : '';
       const flag = flaggedLabs.some(x => x.l.student_id === sid && x.l.activity_id === aid) ? '<div><button type="button" class="tag flag" data-flags style="border:0;cursor:pointer">Review</button></div>' : '';
+      if (view === 'complete') return (b.complete === null ? '—' : `${b.complete}%`) + closed + (b.open ? '<div><span class="tag">In progress</span></div>' : '') + flag;
+      const score = b.best === null ? (b.open ? '' : '—') : `${b.best}% <span class="small muted">(${b.n})</span>`;
+      const open = b.open ? `<div><span class="tag">In progress · ${Object.keys(b.open.steps || {}).length} steps</span></div>` : '';
       return score + closed + open + flag;
     };
+    // Overall completion: the average over the columns shown, counting anything not started as 0%.
+    const overall = sid => cols.length ? Math.round(10 * cols.reduce((s, a) => s + (cell(sid, a).complete || 0), 0) / cols.length) / 10 : null;
     const steps = list => list.length > 6 ? `steps ${list.slice(0, 6).join(', ')} and ${list.length - 6} more` : (list.length === 1 ? 'step ' : 'steps ') + list.join(', ');
     const nameOf = id => (people.find(p => p.id === id) || {}).name || 'Unknown student';
     const titleOf = id => (catalog.find(a => a.id === id) || {}).title || 'Lab';
@@ -711,26 +843,75 @@ ${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You c
         <td class="small">Started ${esc(when(l.started_at))}<br>${l.finished_at ? 'Finished ' + esc(when(l.finished_at)) : 'In progress'}</td>
         <td><ul>${Object.keys(FLAG_TEXT).filter(f => r.by[f]).map(f => `<li${STRONG.includes(f) ? ' style="font-weight:600"' : ''}>${esc(FLAG_TEXT[f])}: ${steps(r.by[f])}</li>`).join('')}</ul></td></tr>`).join('')}
       </tbody></table></div>`;
-    pane.innerHTML = `${flaggedLabs.length ? `<div class="msg bad" style="margin:0 0 12px"><b>${flaggedLabs.length} lab attempt${flaggedLabs.length === 1 ? '' : 's'} to review.</b> <button type="button" class="linkbtn" data-flags>See what the lab saw</button></div>` : ''}<p class="lead">Best finished score on each activity, as a percent. The small number is how many attempts finished. <b>In progress</b> means a lab attempt is still open. <b>Closed at due date</b> means an attempt was still open at the due date and was scored on the steps submitted. <b>Review</b> means the lab saw signs of AI tools, automation or copying (details below the table).</p>
-      <div class="scroll"><table><thead><tr><th>Student</th>${acts.map(a => `<th class="n">${esc(a.title)}</th>`).join('')}</tr></thead><tbody>
-      ${people.map(p => `<tr><td>${esc(p.name)}<div class="small muted">${esc(p.email)}</div></td>${acts.map(a => `<td class="n">${cellHtml(cell(p.id, a.id), p.id, a.id)}</td>`).join('')}</tr>`).join('')}
+    const lead = view === 'score'
+      ? '<p class="lead">Best finished score on each activity, as a percent. The small number is how many attempts finished. <b>In progress</b> means a lab attempt is still open. <b>Closed at due date</b> means an attempt was still open at the due date and was scored on the steps submitted. <b>Review</b> means the lab saw signs of AI tools, automation or copying (details below the table).</p>'
+      : `<p class="lead">How much of each activity each student has done, as a percent, whether or not the answers were right. For a lab, it's the share of the lab's points in the steps submitted, on the student's furthest graded attempt. A game counts as 100% once a round is saved. <b>Overall</b> averages the activities shown, counting anything not started as 0%.${cols.length < acts.length ? ' Labs assigned as Practice don\'t record work, so they aren\'t shown.' : ''}</p>`;
+    const csvNote = view === 'score' ? 'Graded activities only, out of 100 points. Blank means no finished attempt.' : 'The activities shown, as percent complete out of 100 points. Not started counts as 0.';
+    pane.innerHTML = `<div class="seg" role="group" aria-label="Show in the gradebook"><button type="button" data-gview="score" aria-pressed="${view === 'score'}">Scores</button><button type="button" data-gview="complete" aria-pressed="${view === 'complete'}">Completion</button></div>
+      ${flaggedLabs.length ? `<div class="msg bad" style="margin:0 0 12px"><b>${flaggedLabs.length} lab attempt${flaggedLabs.length === 1 ? '' : 's'} to review.</b> <button type="button" class="linkbtn" data-flags>See what the lab saw</button></div>` : ''}${lead}
+      ${cols.length ? `<div class="scroll"><table><thead><tr><th>Student</th>${cols.map(a => `<th class="n">${esc(a.title)}</th>`).join('')}${view === 'complete' ? '<th class="n">Overall</th>' : ''}</tr></thead><tbody>
+      ${people.map(p => `<tr><td>${esc(p.name)}<div class="small muted">${esc(p.email)}</div></td>${cols.map(a => `<td class="n">${cellHtml(cell(p.id, a), p.id, a.id)}</td>`).join('')}${view === 'complete' ? `<td class="n"><b>${overall(p.id)}%</b></td>` : ''}</tr>`).join('')}
       </tbody></table></div>
-      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download CSV for Canvas</button><span class="small muted">Graded activities only, out of 100 points. Blank means no finished attempt.</span></div><div id="csvmsg"></div>${flagsHtml}`;
+      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download ${view === 'score' ? 'scores' : 'completion'} CSV for Canvas</button><span class="small muted">${csvNote}</span></div><div id="csvmsg"></div>`
+      : '<p class="empty">Nothing here records completion yet: assign a lab as Graded, or assign a game.</p>'}${flagsHtml}`;
+    pane.querySelectorAll('[data-gview]').forEach(b => b.addEventListener('click', () => { state.gview = b.dataset.gview; gradesPane(c).catch(e => { pane.innerHTML = msg('bad', esc(e.message)); }); }));
     pane.querySelectorAll('[data-flags]').forEach(b => b.addEventListener('click', () => document.getElementById('flags').scrollIntoView({ behavior: 'smooth' })));
-    document.getElementById('csv').addEventListener('click', () => {
-      const gradedActs = acts.filter(a => asg.some(x => x.activity_id === a.id && x.mode === 'graded'));
-      if (!gradedActs.length) { document.getElementById('csvmsg').innerHTML = msg('bad', 'No activity in this class is set to Graded.'); return; }
-      // A leading = + - or @ would run as a formula in a spreadsheet, and students type their own names.
-      const text = v => (/^[=+\-@\t\r]/.test(String(v)) ? "'" : '') + String(v);
-      const quote = v => `"${String(v).replace(/"/g, '""')}"`;
-      const lines = [
-        ['Student', 'ID', 'SIS User ID', 'SIS Login ID', 'Section', ...gradedActs.map(a => text(a.title))],
-        ['Points Possible', '', '', '', '', ...gradedActs.map(() => 100)],
-        ...people.map(p => [text(p.name), '', '', text(p.email), text(c.name), ...gradedActs.map(a => { const b = cell(p.id, a.id).best; return b === null ? '' : b; })])
-      ].map(r => r.map(quote).join(','));
-      const url = URL.createObjectURL(new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/csv' }));
-      const link = document.createElement('a'); link.href = url; link.download = `${c.name.replace(/[^\w -]/g, '')} grades.csv`;
-      document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const csv = document.getElementById('csv'); if (!csv) return;
+    csv.addEventListener('click', () => {
+      const out = view === 'score' ? acts.filter(graded) : cols;
+      if (!out.length) { document.getElementById('csvmsg').innerHTML = msg('bad', 'No activity in this class is set to Graded.'); return; }
+      // Completion columns get their own names, so importing them doesn't overwrite score columns in Canvas.
+      const head = out.map(a => csvText(view === 'score' ? a.title : a.title + ' completion'));
+      const value = (p, a) => { const b = cell(p.id, a); return view === 'score' ? (b.best === null ? '' : b.best) : (b.complete || 0); };
+      downloadCsv([
+        ['Student', 'ID', 'SIS User ID', 'SIS Login ID', 'Section', ...head],
+        ['Points Possible', '', '', '', '', ...out.map(() => 100)],
+        ...people.map(p => [csvText(p.name), '', '', csvText(p.email), csvText(c.name), ...out.map(a => value(p, a))])
+      ], csvName(c, view === 'score' ? 'grades' : 'completion'));
+    });
+  }
+
+  // ---------- delete a class ----------
+  // Deleting a class also deletes its assignments, students, roster, scores and lab attempts (the database
+  // cascades from courses). The dialog shows what will go and offers every grade as a CSV first.
+  async function deleteDialog(c) {
+    const dlg = document.getElementById('deldlg');
+    dlg.innerHTML = `<div class="dh"><h2 id="delh">Delete ${esc(c.name)}?</h2></div><div class="db" id="delbody"><p class="muted">Checking what's in this class…</p></div>`;
+    dlg.showModal();
+    const body = document.getElementById('delbody');
+    let g;
+    try { g = await gradeData(c); } catch (e) { body.innerHTML = msg('bad', esc(e.message)) + '<div class="acts"><button class="btn" type="button" data-close>Close</button></div>'; body.querySelector('[data-close]').addEventListener('click', () => dlg.close()); return; }
+    const n = g.people.length, s = g.att.length, l = g.labs.length;
+    const plural = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;
+    const has = n && g.acts.length;
+    body.innerHTML = `<p>This permanently deletes <b>${esc(c.name)}</b>${c.term ? ' (' + esc(c.term) + ')' : ''} and everything in it: its assignments, its student list and roster, and every saved score and lab attempt (${plural(n, 'student')}, ${plural(s, 'saved score')}, ${plural(l, 'lab attempt')}). Students will no longer see the class, and its join code stops working.</p>
+      <p><b>This can't be undone.</b> ${has ? 'Download the grades first if you may need them.' : 'This class has no grades to download.'}</p>
+      ${has ? '<div class="row"><button class="btn gold" type="button" id="delcsv">Download all grades (CSV)</button></div>' : ''}<div id="delmsg"></div>
+      <div class="acts"><button class="btn" type="button" id="delno">Cancel</button><button class="btn danger solid" type="button" id="delyes">Delete class</button></div>`;
+    document.getElementById(has ? 'delcsv' : 'delno').focus();   // never start on the delete button
+    const say = h => { document.getElementById('delmsg').innerHTML = h; };
+    if (has) document.getElementById('delcsv').addEventListener('click', () => {
+      // Every scored activity in the class, graded or practice: best score and percent complete.
+      const file = csvName(c, 'all grades');
+      downloadCsv([
+        ['Student', 'Email', ...g.acts.flatMap(a => [csvText(a.title + ' best score %'), csvText(a.title + ' completion %')])],
+        ...g.people.map(p => [csvText(p.name), csvText(p.email), ...g.acts.flatMap(a => { const b = g.cell(p.id, a); return [b.best === null ? '' : b.best, b.complete === null ? '' : b.complete]; })])
+      ], file);
+      say(msg('good', `Downloaded ${esc(file)}. Check that it opened before you delete the class.`));
+    });
+    document.getElementById('delno').addEventListener('click', () => dlg.close());
+    document.getElementById('delyes').addEventListener('click', async () => {
+      body.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      say(msg('info', 'Deleting…'));
+      const { data, error } = await sb.from('courses').delete().eq('id', c.id).select('id');
+      if (error || !data || !data.length) {
+        say(msg('bad', esc(error ? error.message : 'The class could not be deleted. Reload the page and try again.')));
+        body.querySelectorAll('button').forEach(b => { b.disabled = false; });
+        return;
+      }
+      dlg.close();
+      state.course = null; state.tab = 'assign';
+      instructorView(msg('good', `Deleted ${esc(c.name)}.`));
     });
   }
 
