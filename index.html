@@ -89,6 +89,9 @@ details .lead{margin-top:10px}
 .bchecks{list-style:none;padding:0;margin:10px 0 0;font-size:14px}.bchecks li{margin:3px 0}.bchecks .ok{color:#14532f}.bchecks .no{color:#7a1a14}
 fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}fieldset.subjects legend{font-weight:600;font-size:14px;padding:0;margin-bottom:4px;width:100%}
 .flags td{vertical-align:top}.flags ul{margin:0;padding-left:18px}
+.cprev{border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px;background:#fff;max-height:560px;overflow:auto}
+.cpaste{width:100%;margin-top:8px;font:13px/1.4 var(--mono);padding:8px;border:1px solid #aab4c4;border-radius:6px}
+details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="platform.js"></script>
@@ -147,7 +150,7 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
     return data;
   }
   async function loadCatalog() {
-    const { data } = await sb.from('activities').select('id,slug,title,url,scored,server_graded,chapter,description,sort_order,subject').order('sort_order');
+    const { data } = await sb.from('activities').select('id,slug,title,url,scored,server_graded,chapter,description,sort_order,subject,points_possible').order('sort_order');
     catalog = data || [];
   }
   // Labs take ?course=&lab=. Games take ?course=&act=&ch=. Game urls are relative to this page.
@@ -470,6 +473,108 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
     });
   }
 
+  // ---------- Canvas instructions for an assigned lab ----------
+  // The description for a Canvas assignment, in this instructor's school name and colors, with the link that
+  // opens the lab for this class. Canvas drops <style> blocks but keeps inline styles, so every element carries
+  // its own. The graded version follows the graded lab pages first written for ACCT 1101. It reads the lab's
+  // mode as saved, and leaves the due date and attempt limit to the class page, so they can't go out of date.
+  const SUBJECT_TITLE = { financial: 'Financial Accounting', managerial: 'Managerial Accounting', ais: 'Accounting Information Systems' };
+  const LAB_NOTES = { 'tvm-bonds': 'You may use a financial calculator or Excel.' };   // lab-specific line for the integrity box
+  function canvasInstructions(a, c, x) {
+    const custom = hexOk(me.brand_primary) && hexOk(me.brand_accent);
+    const P = custom ? me.brand_primary : BRAND_DEFAULT.primary, A = custom ? me.brand_accent : BRAND_DEFAULT.accent;
+    const school = esc((me.brand_institution || '').trim() || BRAND_DEFAULT.school);
+    const kickerColor = contrastOf(A, P) >= 4.5 ? A : '#ffffff';
+    const graded = x.mode === 'graded', pts = a.points_possible;
+    const link = esc(activityLink(a, c.id, x.chapters)), home = esc(location.origin + location.pathname);
+    const short = esc(a.title.replace(/ Lab$/, '')), cls = esc(c.name), code = esc(c.join_code);
+    const kicker = [school, SUBJECT_TITLE[a.subject] || SUBJECT_TITLE.financial, a.chapter ? 'Chapter ' + a.chapter : ''].filter(Boolean).join(' · ');
+    const H3 = `style="color: ${P}; border-bottom: 2px solid ${A}; padding-bottom: 4px;"`;
+    const site = `<a href="${home}" target="_blank" rel="noopener" style="color: ${P};">InterACCtive</a>`;
+    const head = `<div style="max-width: 820px; font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #111b2e;">
+
+<div style="background: ${P}; color: #ffffff; padding: 18px 22px; border-bottom: 4px solid ${A}; border-radius: 6px 6px 0 0;">
+<p style="margin: 0; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; font-weight: bold; color: ${kickerColor};">${kicker}</p>
+<h2 style="margin: 4px 0 0; color: #ffffff;">${esc(a.title)}</h2>
+<p style="margin: 4px 0 0; color: #ffffff; font-size: 15px;">${graded ? 'Graded lab' + (pts ? ` · ${pts} points` : '') : 'Practice lab · not graded'}</p>
+</div>
+
+<div style="border: 1px solid #d8dfea; border-top: 0; padding: 18px 22px; border-radius: 0 0 6px 6px;">
+${a.description ? `<p style="margin-top: 0;">${esc(a.description)}</p>\n` : ''}`;
+    const button = note => `<p style="text-align: center; margin: 20px 0;"><a href="${link}" target="_blank" rel="noopener" style="display: inline-block; background: ${P}; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 26px; border-radius: 6px; border-bottom: 3px solid ${A};">Open the ${short} Lab ↗</a></p>
+<p style="text-align: center; font-size: 14px; color: #56617a; margin-top: -8px;">${note}</p>`;
+    if (!graded) return `${head}<p${a.description ? '' : ' style="margin-top: 0;"'}>This lab is for practice. It isn't graded, and nothing you do in it affects your grade, so use it as often as you like.</p>
+
+${button('Opens in a new window. Use a laptop or desktop.')}
+
+<h3 ${H3}>How to practice</h3>
+<ol>
+<li>Open the lab and make sure <strong>Practice</strong> is selected at the top. You don't need to sign in to practice.</li>
+<li>Work through each step and check your answers as you go. The lab tells you what's wrong and why.</li>
+<li>Stuck? Use the lab's hint and answer buttons, then work through the step until it makes sense.</li>
+<li>Start a new problem set to try again with new numbers, until you can finish without help.</li>
+</ol>
+<p>Your practice work is saved in your browser, so you can pick up where you left off on the same computer.</p>
+</div>
+</div>
+`;
+    return `${head}<p${a.description ? '' : ' style="margin-top: 0;"'}>Complete this lab in <strong>Graded</strong> mode on InterACCtive. Your score is saved to our class automatically when you finish. There is nothing to copy, paste or submit in Canvas, and I'll enter your grade from InterACCtive.</p>
+
+${button(`Opens in a new window for our class. Use a laptop or desktop.<br>You can also open it from your class page on ${site}.`)}
+
+<h3 ${H3}>Before you start</h3>
+<ul>
+<li><strong>Register and join our class first.</strong> On ${site}, create an account with your school email, then join <strong>${cls}</strong> with the class code <strong>${code}</strong>. You need to be in the class for your score to count.</li>
+<li><strong>Practice first.</strong> Practice mode is never graded, and you can use hints and answers there as often as you like.</li>
+<li><strong>Plan your time.</strong> Your progress is saved on the server, so you can stop and come back later, even on another computer. The clock keeps running while you're away, and the start and finish times go to me.</li>
+<li><strong>Check the due date and attempts.</strong> Your class page on InterACCtive shows the due date and how many graded attempts you have left. You can't start or submit steps after the due date. An attempt still open at the due date is scored on the steps you've submitted.</li>
+</ul>
+
+<h3 ${H3}>Complete the graded lab</h3>
+<ol>
+<li>Open the lab and click <strong>Graded</strong> at the top.</li>
+<li>If you're asked to sign in, use the same email as your InterACCtive account. A sign-in code will be emailed to you.</li>
+<li>Read the rules, check the honor statement, and click <strong>Start graded attempt</strong>.</li>
+<li>Work through every step. Hints and answers are turned off. Only your <strong>first submission</strong> on each step counts${pts ? ` (${pts} points in all)` : ', and the lab shows the total before you start'}. Fill in every line before you submit.</li>
+<li>After you submit, you'll see what's wrong and why${c.show_answers ? ', along with the correct answers' : ''}. Fix it to move on. Retries don't change your score, so take your time on the first try.</li>
+<li>After the last step, click <strong>Finish and see your score</strong>. Your score and finish time are saved to our class right away.</li>
+</ol>
+<p>When you're done, your class page on InterACCtive shows your score. There's nothing else to turn in.</p>
+
+<h3 ${H3}>If something goes wrong</h3>
+<ul>
+<li><strong>The lab says you're not in a class, or it doesn't offer a graded attempt:</strong> make sure you joined ${cls} on InterACCtive with the class code ${code}, then open the lab from the button above or from your class page.</li>
+<li><strong>You lost your connection or closed the window:</strong> open the lab again and click <strong>Graded</strong>. You'll pick up where you left off.</li>
+<li><strong>Anything else:</strong> email me <strong>before the due date</strong> and describe what happened.</li>
+</ul>
+
+<div style="background: #fbe2df; color: #8a1c15; border-left: 4px solid #b3261e; border-radius: 0 6px 6px 0; padding: 12px 16px; margin-top: 20px;">
+<p style="margin: 0 0 6px; font-weight: bold; font-size: 17px;">Academic integrity</p>
+<p style="margin: 0 0 6px;">The graded lab is individual work.${LAB_NOTES[a.slug] ? ' ' + esc(LAB_NOTES[a.slug]) : ''} Each of these is academic dishonesty:</p>
+<ul style="margin: 0 0 8px;">
+<li>getting help from another person or an AI tool during your graded attempt, or having someone else complete it for you</li>
+<li>signing in to someone else's account, or letting someone else use yours</li>
+<li>sharing your answers or problem set with another student</li>
+</ul>
+<p style="margin: 0 0 6px;">Every graded attempt gets its own numbers. Your answers to every step, how you entered them, and your start and finish times are recorded on the server.</p>
+<p style="margin: 0;">Violations may result in a zero on this assignment and a referral under the ${school} Academic Integrity Policy.</p>
+</div>
+</div>
+</div>
+`;
+  }
+  // Puts the HTML on the clipboard twice over: as code (text/plain), for Canvas's HTML editor, and as
+  // formatted text (text/html), for pasting into the editor's normal view.
+  async function copyHtml(html) {
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([html], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]);
+        return true;
+      } catch (e) { /* fall back to plain text */ }
+    }
+    try { await navigator.clipboard.writeText(html); return true; } catch (e) { return false; }
+  }
+
   async function assignPane(c, note = '') {
     const pane = document.getElementById('pane');
     const { data: asg, error } = await sb.from('course_activities').select('*').eq('course_id', c.id);
@@ -482,7 +587,7 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
     if (!list.length) { pane.innerHTML = emptyNote + note; return; }
     const TAG = { financial: 'Financial', managerial: 'Managerial', ais: 'AIS' };
     const subjTag = a => subs.length > 1 ? ` <span class="tag">${TAG[a.subject || 'financial']}</span>` : '';
-    pane.innerHTML = `<p class="lead">This class includes <b>${esc(subjectsText(subs))}</b> content. Check an activity to assign it, set its options, and click <b>Save</b>. Graded activities stop accepting work after the due date or the attempt limit. A graded lab still open at the due date is scored on the steps submitted so far.</p>
+    pane.innerHTML = `<p class="lead">This class includes <b>${esc(subjectsText(subs))}</b> content. Check an activity to assign it, set its options, and click <b>Save</b>. Graded activities stop accepting work after the due date or the attempt limit. A graded lab still open at the due date is scored on the steps submitted so far. Each assigned lab has a <b>Copy for Canvas</b> button: it copies instructions for the Canvas assignment, in your school's name and colors, with the link that opens the lab for this class.</p>
       <div class="scroll"><table><thead><tr><th>Assign</th><th>Activity</th><th>Mode</th><th>Chapters</th><th>Due</th><th>Attempts</th><th></th></tr></thead><tbody>
       ${list.map(a => { const x = has[a.id] || {}; const ch = x.chapters || (a.chapter ? String(a.chapter) : '1-4'); return `<tr data-a="${a.id}">
         <td><input type="checkbox" name="on" aria-label="Assign ${esc(a.title)}"${has[a.id] ? ' checked' : ''}></td>
@@ -491,7 +596,8 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
         <td>${a.server_graded ? `<input type="hidden" name="ch" value="${esc(ch)}"><span class="muted">—</span>` : `<input class="ch" name="ch" value="${esc(ch)}" aria-label="Chapters for ${esc(a.title)}" placeholder="1-4">`}</td>
         <td><input type="datetime-local" name="due" value="${toLocalInput(x.due_at)}" aria-label="Due date for ${esc(a.title)}"></td>
         <td><input type="number" name="max" min="1" value="${x.max_attempts || ''}" placeholder="Any" aria-label="Attempt limit for ${esc(a.title)}"></td>
-        <td style="white-space:nowrap"><button class="btn sm primary" type="button" data-save>Save</button> ${has[a.id] ? `<a class="btn sm" href="${esc(activityLink(a, c.id, x.chapters))}" target="_blank" rel="noopener">Preview</a>` : ''}</td></tr>`; }).join('')}
+        <td style="white-space:nowrap"><button class="btn sm primary" type="button" data-save>Save</button> ${has[a.id] ? `<a class="btn sm" href="${esc(activityLink(a, c.id, x.chapters))}" target="_blank" rel="noopener">Preview</a>` : ''}
+          ${has[a.id] && a.server_graded ? `<div style="margin-top:6px"><button class="btn sm" type="button" data-canvas>Copy for Canvas</button></div>` : ''}</td></tr>`; }).join('')}
       </tbody></table></div>${emptyNote}<div id="amsg">${note}</div>`;
     pane.querySelectorAll('[data-save]').forEach(b => b.addEventListener('click', async () => {
       const tr = b.closest('tr'), aid = tr.dataset.a, a = catalog.find(x => x.id === aid);
@@ -508,6 +614,23 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
         }, { onConflict: 'course_id,activity_id' }));
       }
       assignPane(c, error ? msg('bad', esc(error.message)) : msg('good', `${esc(a.title)} ${v('on').checked ? 'saved' : 'removed'}.`));
+    }));
+    pane.querySelectorAll('[data-canvas]').forEach(b => b.addEventListener('click', async () => {
+      const tr = b.closest('tr'), a = catalog.find(x => x.id === tr.dataset.a), x = has[a.id], out = document.getElementById('amsg');
+      const sel = tr.querySelector('[name="mode"]');
+      if (sel && sel.value !== (x.mode || 'practice')) { out.innerHTML = msg('bad', `Save ${esc(a.title)} first, so the instructions match its mode.`); out.scrollIntoView({ block: 'nearest' }); return; }
+      const html = canvasInstructions(a, c, x), graded = x.mode === 'graded';
+      const how = `In Canvas, edit the assignment, click the HTML editor button (<b>&lt;/&gt;</b>) at the bottom right of the text box, and paste.${graded ? ' Set the submission type to <b>No Submission</b>: scores come from the gradebook here.' : ''} If you change this lab's mode, or your school name or colors, copy it again.`;
+      const preview = `<details class="copied"><summary>See what you copied</summary><div class="cprev">${html}</div></details>`;
+      if (await copyHtml(html)) {
+        out.innerHTML = msg('good', `Copied the ${graded ? 'graded' : 'practice'} instructions for ${esc(a.title)}. ${how}`) + preview;
+      } else {
+        // The browser blocked the clipboard: show the code to copy by hand.
+        out.innerHTML = msg('info', `Your browser didn't allow copying. Select all the code below and copy it (Ctrl+C, or ⌘C on a Mac). ${how}`) +
+          `<textarea class="cpaste" rows="8" readonly aria-label="Canvas instructions for ${esc(a.title)}">${esc(html)}</textarea>` + preview;
+        const ta = out.querySelector('textarea'); ta.focus(); ta.select();
+      }
+      out.scrollIntoView({ block: 'nearest' });
     }));
   }
 
