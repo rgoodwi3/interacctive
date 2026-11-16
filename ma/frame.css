@@ -262,6 +262,12 @@ footer{font-size:12.5px;color:var(--muted);padding-block:0 30px}
 .modesw button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
 .setchip.graded{border-color:var(--gold);color:var(--gold);font-weight:600}
 .timeline.locked .tick,.timeline.locked button{cursor:default}
+.timeline.locked .tick.can{cursor:pointer}
+.timeline.locked .tick.can:hover{border-color:var(--ink)}
+.rv-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;background:var(--gold-soft);color:var(--gold-ink)}
+.rv-sol{margin-top:12px;font-size:14px;border:1px solid var(--rule);border-radius:8px;padding:9px 12px}
+.rv-sol ul{margin:6px 0 0;padding-left:18px}
+.rv-sol li{margin:0 0 6px}
 .score.graded{background:var(--navy);color:#fff}
 :root[data-theme="dark"] .score.graded{background:var(--gold);color:#111b2e}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .score.graded{background:var(--gold);color:#111b2e}}

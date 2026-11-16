@@ -67,6 +67,7 @@ setYear(PYEAR);
 // ---------- state ----------
 let P = null, seed = 0, PARTS = [], cur = 0, st = [];
 let MODE = "practice", GS = null, PENDING = null, BUSY = false, STEPS = [];
+let VIEW = null; // graded mode: the submitted part being looked at (view only), or null for the current part
 function blank() { return { vals: {}, fb: null, tries: 0, revealed: false, shown: {}, walk: -1, status: null, warn: null }; }
 const graded = () => MODE === "graded";
 function save() {
@@ -173,7 +174,7 @@ function ownKey() { return KEY + ".own." + (GS && GS.id); }
 function ownLoad() { try { return JSON.parse(localStorage.getItem(ownKey()) || "{}") || {}; } catch (e) { return {}; } }
 function ownSave(i, a) { try { const o = ownLoad(); o[i] = a; localStorage.setItem(ownKey(), JSON.stringify(o)); } catch (e) { /* ignore */ } }
 async function enterAttempt(id) { const p = await api({ action: "problem", attempt_id: id }); applyProblem(p); render(); scrollPart(); gFocus(); }
-function exitGraded() { save(); MODE = "practice"; setYear(PYEAR); loadPractice(); }
+function exitGraded() { save(); VIEW = null; MODE = "practice"; setYear(PYEAR); loadPractice(); }
 function when(ms) { return new Date(ms).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).replace(/ /g, " "); }
 function markBusy(act, label) { document.querySelectorAll('#part [data-act="' + act + '"]').forEach(b => { b.disabled = true; b.setAttribute("aria-busy", "true"); if (label) b.textContent = label; }); }
 function onApiError(e) { if (e && e.code === "unauthorized") { USER = null; openGDlg(e.message); } }
@@ -221,7 +222,7 @@ function rulesHTML() {
   return '<ul>' +
     '<li><b>No walk-throughs or answers.</b> Walk me through it and Show answers are turned off.</li>' +
     '<li><b>Only your first submission counts.</b> Each answer is worth 1 point' + (pts ? ' (' + pts + ' points in all)' : '') + '. After you submit, you\'ll see what is wrong and why, and you must fix it to move on, but retries don\'t change your score.</li>' +
-    '<li><b>No going back.</b> You can\'t return to earlier parts or start over during the attempt.</li>' +
+    '<li><b>Look back, but no changes.</b> Click an earlier part in the timeline to see what you submitted and its feedback. You can\'t change a submitted part or start over during the attempt.</li>' +
     '<li><b>Saved to your account.</b> You get a new problem set, graded and saved on the server as you go. You can leave and come back, even on another device, but the clock keeps running.</li>' +
     '<li><b>Your score goes to your class.</b> When you finish, your score and finish time are recorded for your instructor. There is nothing to copy or paste.</li>' +
     '<li><b>Work on your own.</b> Getting help from another person or an AI tool, or sharing your answers, is academic dishonesty. Every attempt has its own numbers.</li>' +
@@ -350,12 +351,13 @@ function applyProblem(pr) {
   setYear(pr.lab_year); // every date and label follows the attempt, even if it is finished after New Year
   PARTS = JSON.parse(JSON.stringify(pr.steps)); STEPS = PARTS;
   GS = { id: pr.attempt_id, course: COURSE, info: pr.info, startedAt: pr.started_at, finishedAt: pr.finished_at || null, atEnd: false,
-    score: pr.score == null ? null : pr.score, total: pr.total == null ? null : pr.total, max: pr.max_points.slice(), pts: [], done: [], err: null };
+    score: pr.score == null ? null : pr.score, total: pr.total == null ? null : pr.total, max: pr.max_points.slice(), pts: [], done: [], ans: [], fb: [], err: null };
+  VIEW = null;
   st = PARTS.map(blank);
   const ownSaved = ownLoad();
   Object.keys(pr.progress || {}).forEach(key => {
     const i = +key, r = pr.progress[key], pt = PARTS[i]; if (!pt) return;
-    GS.done[i] = true; GS.pts[i] = r.points; st[i].status = r.points === r.maxPoints ? "first" : "retry";
+    GS.done[i] = true; GS.pts[i] = r.points; GS.ans[i] = r.answer; GS.fb[i] = r.feedback; st[i].status = r.points === r.maxPoints ? "first" : "retry";
     const a = r.points === r.maxPoints ? r.answer : ownSaved[i];
     if (a && a.vals) st[i].vals = a.vals;
     if (r.solution) applySol(i, r.solution); else if (a) ownCalc(pt, a.vals);
@@ -384,6 +386,7 @@ async function submitPart() {
   try {
     const r = await api({ action: "submit-step", attempt_id: GS.id, step: i, answer: answer, signals: window.IACSignals ? window.IACSignals.take() : null });
     if (!graded() || cur !== i) return;
+    if (r.first && GS.ans[i] === undefined) { GS.ans[i] = answer; GS.fb[i] = JSON.parse(JSON.stringify(r.feedback)); } // the scored submission, for looking back
     s.tries++; s.fb = r.feedback; GS.done[i] = true; GS.pts[i] = r.points;
     if (r.next && PARTS[i + 1] && PARTS[i + 1].locked) PARTS[i + 1] = r.next; // the server sends each part's text when it is reached
     if (r.solution) applySol(i, r.solution);
@@ -409,6 +412,55 @@ function gPartCard(h, s, lock) {
   return h + controls(prim);
 }
 
+// ---------- graded mode: look back at submitted parts (view only) ----------
+// Any submitted part can be opened from the timeline. It is drawn in its own layout, locked, with the scored
+// first submission and its feedback, plus the correct answers when the class shows them. Nothing can be changed.
+function rvIsCur(i) { return !GS.atEnd && i === cur; }
+function rvCan(i) { return graded() && !!GS && i >= 0 && i < PARTS.length && (rvIsCur(i) || !!GS.done[i]); }
+function rvFocus() {
+  const c = $("part").querySelector(VIEW != null ? '[data-act="rvBack"]' : '[data-act="next"],[data-act="finishG"],input:not([disabled]),select:not([disabled])');
+  if (c) c.focus({ preventScroll: true });
+}
+function rvGo(i) {
+  if (!graded() || BUSY || !rvCan(i)) return;
+  VIEW = rvIsCur(i) ? null : i; render(); scrollPart(); rvFocus();
+}
+function rvLabel(p, f) {
+  if (f.label) return f.label;
+  if (p.items && f.row != null) { const c = (p.cols || []).find(c => c.key === f.col); return p.items[f.row].text + (c ? " · " + c.label : ""); }
+  if (p.lines) { const k = p.lines.findIndex(ln => ln.a === f.id || ln.v === f.id); if (k >= 0) return "Line " + (k + 1) + (p.lines[k].a === f.id ? " account" : " amount"); }
+  if (p.sched) { const ln = p.sched.lines.find(ln => ln.f === f.id || (ln.cells || []).some(c => c && c.f === f.id)); if (ln) return ln.label; }
+  return f.id;
+}
+function rvAns(f) {
+  if (isSel(f)) { const o = (f.opts || []).find(o => o[0] === f.ans); return o ? o[1] : String(f.ans); }
+  if (typeof f.ans !== "number") return String(f.ans);
+  const n = f.ans.toLocaleString("en-US", { maximumFractionDigits: 4 }), pre = f.pre != null ? f.pre : f.kind === "$" ? "$" : "", post = f.post != null ? f.post : f.kind === "pct" ? "%" : "";
+  return (f.ans < 0 ? "−" + pre + n.replace("-", "") : pre + n) + post;
+}
+function rvRender(i) {
+  const p = PARTS[i], a = GS.ans[i], fb = GS.fb[i] || null, pts = GS.pts[i] || 0, mx = GS.max[i];
+  const s = Object.assign(blank(), { vals: a && a.vals ? a.vals : {}, fb: fb && fb.res ? fb : null });
+  $("partH").textContent = "Looking back"; $("partSub").textContent = "View only";
+  const ph = PH[p.phase] || { i: 0, label: "" };
+  let h = '<div class="rv-note"><b>View only.</b> You already submitted this part, so it can\'t be changed. Your first submission earned ' + pts + ' of ' + mx + (mx === 1 ? " point" : " points") + '.</div>' +
+    '<div class="meta"><span class="pill ph-' + (ph.i % 3) + '">Part ' + (i + 1) + ' of ' + PARTS.length + '</span><span>' + esc(ph.label) + '</span></div>' +
+    '<h3 class="part-title">' + esc(p.title) + '</h3>' + (p.desc ? '<p class="part-desc">' + esc(p.desc) + '</p>' : '') +
+    '<p class="note" style="margin-top:0">' + (a ? "Your first submission (the one that was scored):" : "Your first submission isn\'t available.") + '</p>';
+  h += p.layout === "table" ? tableHTML(p, s, true) : p.layout === "sched" ? schedHTML(p, s, true, null) : p.layout === "je" ? jeHTML(p, s, true) : listHTML(p, s, true);
+  const res = s.fb ? s.fb.res : {}, miss = (p.fields || []).filter(f => f.ans != null && !(res[f.id] && res[f.id].ok));
+  if (miss.length) h += '<div class="rv-sol"><b>Correct answers</b><ul>' + miss.map(f => '<li><b>' + esc(rvLabel(p, f)) + ':</b> ' + esc(rvAns(f)) + (f.work ? '<div class="work">' + esc(f.work) + '</div>' : '') + '</li>').join("") + '</ul></div>';
+  if (p.why) h += '<div class="why"><b>Why it matters</b><br>' + esc(p.why) + '</div>';
+  let prev = -1, next = -1;
+  for (let j = i - 1; j >= 0; j--) if (GS.done[j] && !rvIsCur(j)) { prev = j; break; }
+  for (let j = i + 1; j < PARTS.length; j++) if (GS.done[j] && !rvIsCur(j)) { next = j; break; }
+  const lab = j => esc(PARTS[j].tick || String(j + 1));
+  const back = GS.atEnd ? (GS.finishedAt ? "Back to your score" : "Back to finishing") : "Back to part " + (cur + 1);
+  h += '<div class="actions"><div class="grp">' + (prev >= 0 ? '<button class="btn small" data-act="rvGo" data-i="' + prev + '">← ' + lab(prev) + '</button>' : '') + (next >= 0 ? '<button class="btn small" data-act="rvGo" data-i="' + next + '">' + lab(next) + ' →</button>' : '') + '</div>' +
+    '<div class="grp"><button class="btn primary" data-act="rvBack">' + back + ' →</button></div></div>';
+  $("part").innerHTML = h;
+}
+
 // ---------- timeline ----------
 function buildTimeline() {
   let h = "";
@@ -421,7 +473,7 @@ function buildTimeline() {
   });
   $("timeline").innerHTML = h;
 }
-$("timeline").addEventListener("click", e => { if (graded()) return; const t = e.target.closest(".tick"); if (t) { cur = +t.dataset.i; render(); scrollPart(); } });
+$("timeline").addEventListener("click", e => { if (graded()) { const t = e.target.closest(".tick[data-i]"); if (t) rvGo(+t.dataset.i); return; } const t = e.target.closest(".tick"); if (t) { cur = +t.dataset.i; render(); scrollPart(); } });
 const SLAB = { first: "correct on first try", retry: "correct after retrying", shown: "answer shown" };
 function renderBar() {
   const n = st.filter(s => s.status).length, first = st.filter(s => s.status === "first").length;
@@ -429,10 +481,12 @@ function renderBar() {
   const sc = $("score"); sc.hidden = n === 0; sc.textContent = "First-try correct: " + first + " of " + n; gBar();
   document.querySelectorAll(".tick").forEach(t => {
     const i = +t.dataset.i;
-    t.className = "tick" + (st[i].status ? " done" : "") + (i === cur ? " cur" : "") + (st[i].status ? " s-" + st[i].status : "");
+    const g = graded(), here = g && VIEW != null ? i === VIEW : i === cur, can = g && rvCan(i);
+    t.className = "tick" + (st[i].status ? " done" : "") + (here ? " cur" : "") + (st[i].status ? " s-" + st[i].status : "") + (can ? " can" : "");
+    if (g) t.setAttribute("aria-disabled", String(!can)); else t.removeAttribute("aria-disabled");
     t.title = (PARTS[i].title || "") + (st[i].status ? " (" + SLAB[st[i].status] + ")" : "");
     t.setAttribute("aria-label", "Part " + (i + 1) + ": " + (PARTS[i].title || "") + (st[i].status ? ", " + SLAB[st[i].status] : ""));
-    if (i === cur) t.setAttribute("aria-current", "step"); else t.removeAttribute("aria-current");
+    if (here) t.setAttribute("aria-current", "step"); else t.removeAttribute("aria-current");
   });
 }
 
@@ -561,6 +615,7 @@ function controls(primary) {
   return '<div class="actions"><div class="grp">' + nav + '</div><div class="grp">' + primary + '</div></div>';
 }
 function renderPart() {
+  if (graded() && VIEW != null) { rvRender(VIEW); return; }
   if (graded() && GS.atEnd) { renderGradedDone(); return; }
   const p = PARTS[cur], s = st[cur], lock = !!s.status;
   $("partH").textContent = "Your work";
@@ -605,6 +660,8 @@ $("part").addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
   const act = b.dataset.act, s = st[cur], p = PARTS[cur];
   if (act === "exitGraded") { exitGraded(); render(); scrollPart(); return; }
+  if (act === "rvGo") { rvGo(+b.dataset.i); return; }
+  if (act === "rvBack") { if (graded()) { VIEW = null; render(); scrollPart(); rvFocus(); } return; }
   if (graded()) {
     if (BUSY) return;
     if (act === "check") submitPart();
