@@ -92,6 +92,9 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
 .cprev{border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px;background:#fff;max-height:560px;overflow:auto}
 .cpaste{width:100%;margin-top:8px;font:13px/1.4 var(--mono);padding:8px;border:1px solid #aab4c4;border-radius:6px}
 details.copied summary{font:600 15px/1.3 var(--body);margin-top:8px}
+details.topics{margin-top:8px}details.topics summary{font:600 14px/1.3 var(--body);color:var(--navy)}
+details.topics .tlist{list-style:none;padding:0;margin:8px 0 6px;display:grid;gap:4px}details.topics .tlist label{display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.35}
+details.topics .tlist input{margin-top:3px;flex:none}details.topics .tall{display:flex;gap:6px;margin:4px 0}
 .btn.danger{border-color:var(--bad);color:var(--bad)}.btn.danger:hover{background:var(--bad-bg)}
 .btn.danger.solid{background:var(--bad);color:#fff}.btn.danger.solid:hover{background:#8f1e18}
 #cmsg:empty{display:none}#cmsg{margin:-4px 0 12px}
@@ -103,6 +106,8 @@ dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="platform.js"></script>
+<!-- The concepts in each lab, so a class can be assigned only some of them (built from fa-lab-platform topics.js) -->
+<script src="topics.js"></script>
 </head>
 <body>
 <header class="masthead"><div class="wrap">
@@ -681,6 +686,31 @@ ${each.join('\n')}
 `;
   }
 
+  // ---------- concepts in a lab ----------
+  // A lab's concepts come from topics.js. The instructor can leave some out: those steps are done for the
+  // students (filled in, worth no points) in graded attempts and in practice opened from the class page.
+  // course_activities.topics holds the keys assigned; null means the whole lab.
+  const labTopics = a => (window.IAC_TOPICS && window.IAC_TOPICS.TOPICS[a.slug]) || null;
+  function topicsSummary(def, on) {
+    const n = on.length, all = def.topics.length;
+    return n === all ? `Concepts: all ${all} included` : `Concepts: ${n} of ${all} included`;
+  }
+  function topicsBox(a, x) {
+    const def = labTopics(a); if (!def) return '';
+    const on = x.topics && x.topics.length ? def.topics.filter(t => x.topics.includes(t.key)).map(t => t.key) : def.topics.map(t => t.key);
+    return `<details class="topics"><summary data-tsum>${topicsSummary(def, on)}</summary>
+      <ul class="tlist">${def.topics.map(t => `<li><label><input type="checkbox" data-topic="${esc(t.key)}"${on.includes(t.key) ? ' checked' : ''}> ${esc(t.label)}</label></li>`).join('')}</ul>
+      <div class="tall"><button class="btn sm" type="button" data-tall="1">Include all</button><button class="btn sm" type="button" data-tall="0">Clear all</button></div>
+      <p class="small muted" style="margin:4px 0 0">Steps for concepts you leave out are done for your students: they see them filled in with the correct answers, worth no points, so the rest of the lab still makes sense. Click <b>Save</b> to apply. Graded attempts already started keep the concepts they started with.</p></details>`;
+  }
+  // The keys to save: null when every concept is checked (the whole lab, including concepts added later).
+  function topicsValue(tr, a) {
+    const def = labTopics(a); if (!def) return { ok: true, value: null };
+    const on = [...tr.querySelectorAll('[data-topic]')].filter(b => b.checked).map(b => b.dataset.topic);
+    if (!on.length) return { ok: false };
+    return { ok: true, value: on.length === def.topics.length ? null : on };
+  }
+
   async function assignPane(c, note = '') {
     const pane = document.getElementById('pane');
     const { data: asg, error } = await sb.from('course_activities').select('*').eq('course_id', c.id);
@@ -697,7 +727,7 @@ ${each.join('\n')}
       <div class="scroll"><table><thead><tr><th>Assign</th><th>Activity</th><th>Mode</th><th>Chapters</th><th>Due</th><th>Attempts</th><th></th></tr></thead><tbody>
       ${list.map(a => { const x = has[a.id] || {}; const ch = x.chapters || (a.chapter ? String(a.chapter) : '1-4'); return `<tr data-a="${a.id}">
         <td><input type="checkbox" name="on" aria-label="Assign ${esc(a.title)}"${has[a.id] ? ' checked' : ''}></td>
-        <td><b>${esc(a.title)}</b>${subjTag(a)}<div class="small muted">${esc(a.description || '')}</div></td>
+        <td><b>${esc(a.title)}</b>${subjTag(a)}<div class="small muted">${esc(a.description || '')}</div>${topicsBox(a, x)}</td>
         <td>${a.scored ? `<select name="mode" aria-label="Mode for ${esc(a.title)}"><option value="practice"${x.mode !== 'graded' ? ' selected' : ''}>Practice</option><option value="graded"${x.mode === 'graded' ? ' selected' : ''}>Graded</option></select>` : '<span class="tag">Class game</span>'}</td>
         <td>${a.server_graded ? `<input type="hidden" name="ch" value="${esc(ch)}"><span class="muted">—</span>` : `<input class="ch" name="ch" value="${esc(ch)}" aria-label="Chapters for ${esc(a.title)}" placeholder="1-4">`}</td>
         <td><input type="datetime-local" name="due" value="${toLocalInput(x.due_at)}" aria-label="Due date for ${esc(a.title)}"></td>
@@ -713,14 +743,22 @@ ${each.join('\n')}
       else {
         const ch = v('ch').value.replace(/\s/g, '');
         if (!CH_OK.test(ch)) { document.getElementById('amsg').innerHTML = msg('bad', `Chapters for ${esc(a.title)} must look like 1-4 or 2,5,7-9.`); return; }
+        const tp = topicsValue(tr, a);
+        if (!tp.ok) { const out = document.getElementById('amsg'); out.innerHTML = msg('bad', `Include at least one concept in ${esc(a.title)}.`); out.scrollIntoView({ block: 'nearest' }); return; }
         ({ error } = await sb.from('course_activities').upsert({
-          course_id: c.id, activity_id: aid, mode: v('mode') ? v('mode').value : 'practice', chapters: ch,
+          course_id: c.id, activity_id: aid, mode: v('mode') ? v('mode').value : 'practice', chapters: ch, topics: tp.value,
           due_at: v('due').value ? new Date(v('due').value).toISOString() : null,
           max_attempts: v('max').value ? Math.max(1, parseInt(v('max').value, 10)) : null
         }, { onConflict: 'course_id,activity_id' }));
       }
       assignPane(c, error ? msg('bad', esc(error.message)) : msg('good', `${esc(a.title)} ${v('on').checked ? 'saved' : 'removed'}.`));
     }));
+    pane.querySelectorAll('details.topics').forEach(d => {
+      const tr = d.closest('tr'), a = catalog.find(x => x.id === tr.dataset.a), def = labTopics(a);
+      const sync = () => { d.querySelector('[data-tsum]').textContent = topicsSummary(def, [...d.querySelectorAll('[data-topic]')].filter(b => b.checked)); };
+      d.addEventListener('change', e => { if (e.target.matches('[data-topic]')) sync(); });
+      d.querySelectorAll('[data-tall]').forEach(b => b.addEventListener('click', () => { d.querySelectorAll('[data-topic]').forEach(x => { x.checked = b.dataset.tall === '1'; }); sync(); }));
+    });
     pane.querySelectorAll('[data-canvas]').forEach(b => b.addEventListener('click', async () => {
       const tr = b.closest('tr'), a = catalog.find(x => x.id === tr.dataset.a), x = has[a.id], out = document.getElementById('amsg');
       const sel = tr.querySelector('[name="mode"]');
