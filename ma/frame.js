@@ -68,6 +68,20 @@ setYear(PYEAR);
 let P = null, seed = 0, PARTS = [], cur = 0, st = [];
 let MODE = "practice", GS = null, PENDING = null, BUSY = false, STEPS = [];
 let VIEW = null; // graded mode: the submitted part being looked at (view only), or null for the current part
+// The concepts the instructor assigned for this lab in this class (practice opened from the class page), or
+// null for the whole lab. A part outside them is "done for you": filled in with the answers, nothing to do.
+// Graded attempts get the same from the server (each part's doneForYou flag).
+let PTOPICS = null;
+const TOPIC_LIB = () => window.IAC_TOPICS || null;
+function markGiven() {
+  const T = TOPIC_LIB();
+  PARTS.forEach((p, i) => {
+    const g = !!(T && PTOPICS && T.isGiven(LAB_SLUG, p, PTOPICS));
+    p.doneForYou = g;
+    if (g) { const v = T.answerKey(p).vals || {}; st[i] = Object.assign(blank(), { vals: v, status: "given" }); st[i].fb = L.grade(p, v); }
+    else if (st[i] && st[i].status === "given") st[i] = blank();
+  });
+}
 function blank() { return { vals: {}, fb: null, tries: 0, revealed: false, shown: {}, walk: -1, status: null, warn: null }; }
 const graded = () => MODE === "graded";
 function save() {
@@ -77,7 +91,7 @@ function save() {
     if (P) localStorage.setItem(KEY, JSON.stringify({ seed: seed, cur: cur, year: YEAR, st: st.map(s => ({ vals: s.vals, tries: s.tries, revealed: s.revealed, shown: s.shown, status: s.status })) }));
   } catch (e) { /* storage unavailable */ }
 }
-function buildSet(sd) { seed = sd; P = L.gen(sd); PARTS = L.parts(P); st = PARTS.map(blank); cur = 0; setChip(); buildTimeline(); }
+function buildSet(sd) { seed = sd; P = L.gen(sd); PARTS = L.parts(P); st = PARTS.map(blank); cur = 0; markGiven(); setChip(); buildTimeline(); }
 function urlSet() {
   try {
     const m = /^#set(\d{1,10})$/.exec(location.hash || ""); if (m) return +m[1];
@@ -100,7 +114,8 @@ function loadPractice() {
   if (o && o.seed) {
     try {
       buildSet(o.seed);
-      if (Array.isArray(o.st) && o.st.length === PARTS.length) o.st.forEach((x, i) => { Object.assign(st[i], x); st[i].shown = x.shown || {}; if (x.status && !x.revealed) st[i].fb = L.grade(PARTS[i], st[i].vals); });
+      if (Array.isArray(o.st) && o.st.length === PARTS.length) o.st.forEach((x, i) => { if (x.status === "given") return; Object.assign(st[i], x); st[i].shown = x.shown || {}; if (x.status && !x.revealed) st[i].fb = L.grade(PARTS[i], st[i].vals); });
+      markGiven();
       cur = Math.max(0, Math.min(PARTS.length - 1, o.cur | 0)); return;
     } catch (e) { /* fall through to a new set */ }
   }
@@ -357,6 +372,7 @@ function applyProblem(pr) {
   const ownSaved = ownLoad();
   Object.keys(pr.progress || {}).forEach(key => {
     const i = +key, r = pr.progress[key], pt = PARTS[i]; if (!pt) return;
+    if (r.doneForYou) { gGiven(i, r); return; }
     GS.done[i] = true; GS.pts[i] = r.points; GS.ans[i] = r.answer; GS.fb[i] = r.feedback; st[i].status = r.points === r.maxPoints ? "first" : "retry";
     const a = r.points === r.maxPoints ? r.answer : ownSaved[i];
     if (a && a.vals) st[i].vals = a.vals;
@@ -364,8 +380,19 @@ function applyProblem(pr) {
   });
   const nx = pr.next_step | 0;
   GS.atEnd = !!GS.finishedAt || nx >= PARTS.length; cur = Math.max(0, Math.min(PARTS.length - 1, nx));
+  // Done-for-you parts just before the next part are shown first, so the story reads in order.
+  if (!GS.atEnd) while (cur > 0 && PARTS[cur - 1].doneForYou && GS.done[cur - 1]) cur--;
   P = L.fromInfo ? L.fromInfo(pr.info || {}) : (pr.info || {});
   setChip(); buildTimeline();
+}
+// A done-for-you part the server has released: the answers filled in, worth no points.
+function gGiven(i, r) {
+  if (r.public && (!PARTS[i] || PARTS[i].locked)) PARTS[i] = r.public;
+  const pt = PARTS[i]; if (!pt) return;
+  pt.doneForYou = true;
+  GS.done[i] = true; GS.pts[i] = 0; GS.ans[i] = r.answer; GS.fb[i] = r.feedback;
+  if (r.solution) applySol(i, r.solution);
+  st[i] = Object.assign(blank(), { vals: r.answer && r.answer.vals ? r.answer.vals : {}, fb: r.feedback && r.feedback.res ? r.feedback : null, status: "given" });
 }
 function incompletePart(pt, s) {
   for (const f of pt.fields) {
@@ -389,6 +416,9 @@ async function submitPart() {
     if (r.first && GS.ans[i] === undefined) { GS.ans[i] = answer; GS.fb[i] = JSON.parse(JSON.stringify(r.feedback)); } // the scored submission, for looking back
     s.tries++; s.fb = r.feedback; GS.done[i] = true; GS.pts[i] = r.points;
     if (r.next && PARTS[i + 1] && PARTS[i + 1].locked) PARTS[i + 1] = r.next; // the server sends each part's text when it is reached
+    (r.doneForYou || []).forEach(g => gGiven(g.step, g));
+    if (r.after && PARTS[r.after.step] && PARTS[r.after.step].locked) PARTS[r.after.step] = r.after.public;
+    if (r.doneForYou) buildTimeline();
     if (r.solution) applySol(i, r.solution);
     if (r.correct || (r.feedback && r.feedback.all)) {
       if (!r.solution) { ownCalc(pt, answer.vals); ownSave(i, answer); }
@@ -410,6 +440,26 @@ function gPartCard(h, s, lock) {
   const prim = lock ? (cur < PARTS.length - 1 ? '<button class="btn primary" data-act="next">Next part →</button>' : '<button class="btn primary" data-act="finishG">Finish and see your score →</button>') :
     '<button class="btn primary" data-act="check">' + (GS.done[cur] ? "Check my answers" : "Submit answers") + '</button>';
   return h + controls(prim);
+}
+
+// ---------- done for you: a part outside the assigned concepts ----------
+const DFY_NOTE = '<div class="dfy-note"><b>Done for you.</b> Your instructor didn\'t include this part in the assignment, so it\'s filled in with the correct answers. Read it, then go on. It isn\'t scored.</div>';
+function dfyBody(i) {
+  const p = PARTS[i], s = st[i], ph = PH[p.phase] || { i: 0, label: "" };
+  const v = Object.assign(blank(), { vals: s.vals, fb: s.fb && s.fb.res ? s.fb : null });
+  let h = DFY_NOTE + '<div class="meta"><span class="pill ph-' + (ph.i % 3) + '">Part ' + (i + 1) + ' of ' + PARTS.length + '</span><span>' + esc(ph.label) + '</span></div>' +
+    '<h3 class="part-title">' + esc(p.title) + '</h3>' + (p.desc ? '<p class="part-desc">' + esc(p.desc) + '</p>' : '');
+  h += p.layout === "table" ? tableHTML(p, v, true) : p.layout === "sched" ? schedHTML(p, v, true, null) : p.layout === "je" ? jeHTML(p, v, true) : listHTML(p, v, true);
+  if (p.why) h += '<div class="why"><b>Why it matters</b><br>' + esc(p.why) + '</div>';
+  return h;
+}
+function renderGiven() {
+  $("partH").textContent = "Done for you"; $("partSub").textContent = "Not part of this assignment";
+  let prim;
+  if (cur < PARTS.length - 1) prim = '<button class="btn primary" data-act="next">Next part →</button>';
+  else if (graded()) prim = '<button class="btn primary" data-act="finishG">Finish and see your score →</button>';
+  else prim = st.every(x => x.status) ? '<button class="btn primary" data-act="newset">New numbers →</button>' : '<button class="btn primary" data-act="todo">Go to the unfinished part →</button>';
+  $("part").innerHTML = dfyBody(cur) + controls(prim);
 }
 
 // ---------- graded mode: look back at submitted parts (view only) ----------
@@ -438,7 +488,17 @@ function rvAns(f) {
   const n = f.ans.toLocaleString("en-US", { maximumFractionDigits: 4 }), pre = f.pre != null ? f.pre : f.kind === "$" ? "$" : "", post = f.post != null ? f.post : f.kind === "pct" ? "%" : "";
   return (f.ans < 0 ? "−" + pre + n.replace("-", "") : pre + n) + post;
 }
+function rvNav(i) {
+  let prev = -1, next = -1;
+  for (let j = i - 1; j >= 0; j--) if (GS.done[j] && !rvIsCur(j)) { prev = j; break; }
+  for (let j = i + 1; j < PARTS.length; j++) if (GS.done[j] && !rvIsCur(j)) { next = j; break; }
+  const lab = j => esc(PARTS[j].tick || String(j + 1));
+  const back = GS.atEnd ? (GS.finishedAt ? "Back to your score" : "Back to finishing") : "Back to part " + (cur + 1);
+  return '<div class="actions"><div class="grp">' + (prev >= 0 ? '<button class="btn small" data-act="rvGo" data-i="' + prev + '">← ' + lab(prev) + '</button>' : '') + (next >= 0 ? '<button class="btn small" data-act="rvGo" data-i="' + next + '">' + lab(next) + ' →</button>' : '') + '</div>' +
+    '<div class="grp"><button class="btn primary" data-act="rvBack">' + back + ' →</button></div></div>';
+}
 function rvRender(i) {
+  if (PARTS[i].doneForYou) { $("partH").textContent = "Looking back"; $("partSub").textContent = "Done for you"; $("part").innerHTML = dfyBody(i) + rvNav(i); return; }
   const p = PARTS[i], a = GS.ans[i], fb = GS.fb[i] || null, pts = GS.pts[i] || 0, mx = GS.max[i];
   const s = Object.assign(blank(), { vals: a && a.vals ? a.vals : {}, fb: fb && fb.res ? fb : null });
   $("partH").textContent = "Looking back"; $("partSub").textContent = "View only";
@@ -451,14 +511,7 @@ function rvRender(i) {
   const res = s.fb ? s.fb.res : {}, miss = (p.fields || []).filter(f => f.ans != null && !(res[f.id] && res[f.id].ok));
   if (miss.length) h += '<div class="rv-sol"><b>Correct answers</b><ul>' + miss.map(f => '<li><b>' + esc(rvLabel(p, f)) + ':</b> ' + esc(rvAns(f)) + (f.work ? '<div class="work">' + esc(f.work) + '</div>' : '') + '</li>').join("") + '</ul></div>';
   if (p.why) h += '<div class="why"><b>Why it matters</b><br>' + esc(p.why) + '</div>';
-  let prev = -1, next = -1;
-  for (let j = i - 1; j >= 0; j--) if (GS.done[j] && !rvIsCur(j)) { prev = j; break; }
-  for (let j = i + 1; j < PARTS.length; j++) if (GS.done[j] && !rvIsCur(j)) { next = j; break; }
-  const lab = j => esc(PARTS[j].tick || String(j + 1));
-  const back = GS.atEnd ? (GS.finishedAt ? "Back to your score" : "Back to finishing") : "Back to part " + (cur + 1);
-  h += '<div class="actions"><div class="grp">' + (prev >= 0 ? '<button class="btn small" data-act="rvGo" data-i="' + prev + '">← ' + lab(prev) + '</button>' : '') + (next >= 0 ? '<button class="btn small" data-act="rvGo" data-i="' + next + '">' + lab(next) + ' →</button>' : '') + '</div>' +
-    '<div class="grp"><button class="btn primary" data-act="rvBack">' + back + ' →</button></div></div>';
-  $("part").innerHTML = h;
+  $("part").innerHTML = h + rvNav(i);
 }
 
 // ---------- timeline ----------
@@ -468,21 +521,21 @@ function buildTimeline() {
     const idx = PARTS.map((p, i) => p.phase === ph[0] ? i : -1).filter(i => i >= 0);
     if (!idx.length) return;
     h += '<div class="phase ph-' + (k % 3) + '"><div class="phase-label">' + esc(ph[1]) + '</div><div class="ticks">';
-    idx.forEach(i => { h += '<button type="button" class="tick" data-i="' + i + '">' + esc(PARTS[i].tick || String(i + 1)) + '</button>'; });
+    idx.forEach(i => { h += '<button type="button" class="tick' + (PARTS[i].doneForYou ? " dfy" : "") + '" data-i="' + i + '">' + esc(PARTS[i].tick || String(i + 1)) + '</button>'; });
     h += '</div></div>';
   });
   $("timeline").innerHTML = h;
 }
 $("timeline").addEventListener("click", e => { if (graded()) { const t = e.target.closest(".tick[data-i]"); if (t) rvGo(+t.dataset.i); return; } const t = e.target.closest(".tick"); if (t) { cur = +t.dataset.i; render(); scrollPart(); } });
-const SLAB = { first: "correct on first try", retry: "correct after retrying", shown: "answer shown" };
+const SLAB = { first: "correct on first try", retry: "correct after retrying", shown: "answer shown", given: "done for you, not in this assignment" };
 function renderBar() {
-  const n = st.filter(s => s.status).length, first = st.filter(s => s.status === "first").length;
+  const n = st.filter(s => s.status).length, first = st.filter(s => s.status === "first").length, own = st.filter(s => s.status && s.status !== "given").length;
   $("where").innerHTML = '<b>' + n + ' of ' + PARTS.length + '</b> parts finished · now on ' + esc(PARTS[cur].title || "");
-  const sc = $("score"); sc.hidden = n === 0; sc.textContent = "First-try correct: " + first + " of " + n; gBar();
+  const sc = $("score"); sc.hidden = own === 0; sc.textContent = "First-try correct: " + first + " of " + own; gBar();
   document.querySelectorAll(".tick").forEach(t => {
     const i = +t.dataset.i;
     const g = graded(), here = g && VIEW != null ? i === VIEW : i === cur, can = g && rvCan(i);
-    t.className = "tick" + (st[i].status ? " done" : "") + (here ? " cur" : "") + (st[i].status ? " s-" + st[i].status : "") + (can ? " can" : "");
+    t.className = "tick" + (PARTS[i].doneForYou ? " dfy" : "") + (st[i].status ? " done" : "") + (here ? " cur" : "") + (st[i].status ? " s-" + st[i].status : "") + (can ? " can" : "");
     if (g) t.setAttribute("aria-disabled", String(!can)); else t.removeAttribute("aria-disabled");
     t.title = (PARTS[i].title || "") + (st[i].status ? " (" + SLAB[st[i].status] + ")" : "");
     t.setAttribute("aria-label", "Part " + (i + 1) + ": " + (PARTS[i].title || "") + (st[i].status ? ", " + SLAB[st[i].status] : ""));
@@ -617,6 +670,7 @@ function controls(primary) {
 function renderPart() {
   if (graded() && VIEW != null) { rvRender(VIEW); return; }
   if (graded() && GS.atEnd) { renderGradedDone(); return; }
+  if (PARTS[cur].doneForYou && st[cur].status === "given") { renderGiven(); return; }
   const p = PARTS[cur], s = st[cur], lock = !!s.status;
   $("partH").textContent = "Your work";
   const ph = PH[p.phase] || { i: 0, label: "" };
@@ -650,7 +704,7 @@ function renderPart() {
     '<button class="btn small" data-act="clear">Clear</button><button class="btn primary" data-act="check">Check answers</button>';
   if (!graded() && allDone && cur === PARTS.length - 1) {
     const c = x => st.filter(v => v.status === x).length;
-    h += '<div class="effects"><span class="eff up">First try ' + c("first") + '</span><span class="eff none">Retried ' + c("retry") + '</span><span class="eff none">Answer shown ' + c("shown") + '</span></div>';
+    h += '<div class="effects"><span class="eff up">First try ' + c("first") + '</span><span class="eff none">Retried ' + c("retry") + '</span><span class="eff none">Answer shown ' + c("shown") + '</span>' + (c("given") ? '<span class="eff none">Done for you ' + c("given") + '</span>' : '') + '</div>';
   }
   $("part").innerHTML = graded() ? gPartCard(h, s, lock) : h.replace("<!--fields-->", "") + controls(prim);
   $("partSub").textContent = lock ? (s.status === "shown" ? "Answers shown" : "Complete") : "Enter your answers";
@@ -683,7 +737,7 @@ $("part").addEventListener("click", e => {
   } else if (act === "walkBack" && s.walk > 0) {
     walkSteps(p)[s.walk].keys.forEach(id => { delete s.vals[id]; delete s.shown[id]; }); s.walk--; render(); focusAct("walkNext");
   } else if (act === "walkEnd") { s.walk = -1; render(); }
-  else if (act === "clear") { st[cur] = blank(); render(); const f = $("part").querySelector("input,select"); if (f) f.focus({ preventScroll: true }); }
+  else if (act === "clear") { if (st[cur].status === "given") return; st[cur] = blank(); render(); const f = $("part").querySelector("input,select"); if (f) f.focus({ preventScroll: true }); }
   else if (act === "next") { cur++; render(); scrollPart(); const f = $("part").querySelector("input:not([disabled]),select:not([disabled])"); if (f) f.focus({ preventScroll: true }); }
   else if (act === "back") { cur--; render(); scrollPart(); }
   else if (act === "todo") { cur = st.findIndex(x => !x.status); render(); scrollPart(); }
@@ -727,10 +781,24 @@ measure();
 
 load();
 render();
+// Practice opened from a class page follows the concepts the instructor assigned (signed-in students only;
+// otherwise, or if anything fails, practice is the whole lab).
+async function loadTopics() {
+  if (!COURSE || !TOPIC_LIB()) return;
+  try {
+    if (!(await currentUser())) return;
+    const r = await sb().from("course_activities").select("topics, activities!inner(slug)").eq("course_id", COURSE).eq("activities.slug", LAB_SLUG).maybeSingle();
+    const t = r && r.data ? TOPIC_LIB().cleanTopics(LAB_SLUG, r.data.topics) : null;
+    if (JSON.stringify(t) === JSON.stringify(PTOPICS)) return;
+    PTOPICS = t;
+    if (!graded() && P) { markGiven(); buildTimeline(); render(); }
+  } catch (e) { /* practice stays the whole lab */ }
+}
 // Graded mode: once the Supabase library has loaded (it is deferred), resume a graded attempt from the server,
 // or reopen the Graded dialog after the student follows the sign-in link from their email.
 (function () {
   const go = async () => {
+    loadTopics();
     const fromEmail = /(^#|&)(access_token|error_description)=/.test(location.hash);
     if (PENDING) {
       const id = PENDING;

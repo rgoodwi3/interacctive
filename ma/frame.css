@@ -265,6 +265,10 @@ footer{font-size:12.5px;color:var(--muted);padding-block:0 30px}
 .timeline.locked .tick.can{cursor:pointer}
 .timeline.locked .tick.can:hover{border-color:var(--ink)}
 .rv-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;background:var(--gold-soft);color:var(--gold-ink)}
+/* A part outside the concepts the instructor assigned: filled in for the student, not scored */
+.dfy-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;border:1px dashed var(--rule-strong);background:var(--paper);color:var(--ink)}
+.tick.dfy{border-style:dashed}
+.phase .tick.dfy.done{background:var(--paper);border-color:var(--muted);color:var(--muted)}
 .rv-sol{margin-top:12px;font-size:14px;border:1px solid var(--rule);border-radius:8px;padding:9px 12px}
 .rv-sol ul{margin:6px 0 0;padding-left:18px}
 .rv-sol li{margin:0 0 6px}
