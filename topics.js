@@ -365,6 +365,16 @@ const TOPICS = {
     ],
     of: ids([["centers", ["centers"]], ["ctl", ["ctl"]], ["roi", ["roi"]], ["ri", ["ri"]], ["eva", ["eva"]], ["invest", ["invest"]], ["bsc", ["bsc"]]]),
   },
+  // ---------- accounting information systems (ACCT 2250): one concept per part ----------
+  "ais-o2c-trail": {
+    topics: [
+      { key: "records", label: "Order-to-cash events and NetSuite records" },
+      { key: "postings", label: "Standard postings for each record" },
+      { key: "balances", label: "Effect on account balances" },
+      { key: "web", label: "Web store cash sales and card settlement" },
+    ],
+    of: ids([["records", ["records"]], ["postings", ["postings"]], ["balances", ["balances"]], ["web", ["web"]]]),
+  },
 };
 
 // The assigned concepts as a clean list for this lab: only known keys, in catalog order. null means the

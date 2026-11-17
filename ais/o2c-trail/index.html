@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Order-to-Cash Trail · ACCT 2250</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<script src="/interacctive/topics.js"></script>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// ACCT 2250 IL1: Order-to-Cash Trail. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ais-o2c-trail), which runs a copy of the code between the LAB markers below.
+// Trailhead Outfitters Co. is fictional. The lab prints no years: dates follow a fixed Jan-Feb calendar.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ais-o2c-trail.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+const money = n => (n < 0 ? "−" : "") + "$" + fmt(n);
+const cents = n => (n < 0 ? "−" : "") + "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,%\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^−/, "-");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+const near = (a, b) => Math.abs(a - b) < 0.005;
+// A cents answer against an amount that can carry a fraction of a cent (2.9% of an odd total).
+const close = (a, b) => Math.abs(a - b) < 0.0051;
+const r2 = x => Math.round(x * 100) / 100;
+
+// Trailhead's wholesale customers, all on net 30 (C-900 Web Store Sales takes the web store's cash sales).
+const CUSTOMERS = [
+  ["C-101", "Granite Peak Mercantile", "Burlington, VT"], ["C-102", "Northfork Adventure Co.", "Lake Placid, NY"],
+  ["C-103", "Summit & Stream Co.", "North Conway, NH"], ["C-104", "Harborview Outdoor Supply", "Portland, ME"],
+  ["C-105", "Laurel Ridge Outdoors", "State College, PA"], ["C-106", "Tidewater Trail Shop", "Annapolis, MD"],
+  ["C-107", "Blue Heron Sports", "Ithaca, NY"], ["C-108", "Stonewall Scout Supply", "Worcester, MA"],
+  ["C-109", "Pine Barrens Outfitters", "Toms River, NJ"], ["C-110", "Catamount Gear Exchange", "Montpelier, VT"],
+  ["C-111", "Elm City Bike & Hike", "New Haven, CT"], ["C-112", "Kettle Pond Camping", "Providence, RI"]];
+// The item records: SKU, description, standard cost, wholesale price, web price.
+const ITEMS = [
+  ["TNT-2P", "Two-person tent", 70, 120, 165], ["TNT-4P", "Four-person tent", 118, 199, 279], ["TRP-UL", "Ultralight tarp", 22, 39, 55],
+  ["SLB-20", "Sleeping bag, 20°F", 58, 99, 139], ["SLB-40", "Sleeping bag, 40°F", 36, 62, 89], ["PAD-IN", "Insulated sleeping pad", 31, 54, 75],
+  ["PCK-65", "Backpack, 65 L", 84, 145, 199], ["PCK-28", "Daypack, 28 L", 33, 58, 79], ["DRY-20", "Dry sack, 20 L", 7, 13, 18],
+  ["BT-MID", "Mid hiking boot", 62, 108, 149], ["BT-TRL", "Trail shoe", 48, 84, 119], ["SCK-3P", "Merino socks, 3-pack", 9, 17, 24],
+  ["STV-1B", "Single-burner stove", 24, 42, 59], ["CKS-2", "Two-person cook set", 19, 34, 48], ["FLT-SQ", "Squeeze water filter", 16, 29, 40],
+  ["BTL-1L", "Insulated bottle, 1 L", 8, 15, 22], ["JKT-RN", "Rain jacket", 44, 78, 109], ["HDL-30", "Headlamp", 11, 20, 28],
+  ["PLE-TK", "Trekking poles, pair", 27, 48, 68], ["FAK-1", "First-aid kit", 9, 16, 23]];
+// The accounts the selects offer (NetSuite's names), in chart order.
+const ACCTS = [["1000", "1000 Checking - First Harbor Bank"], ["1050", "1050 Undeposited Funds"], ["1100", "1100 Accounts Receivable"],
+  ["1200", "1200 Inventory"], ["2000", "2000 Accounts Payable"], ["2050", "2050 Inventory Received Not Billed"], ["4000", "4000 Sales - Wholesale"],
+  ["4100", "4100 Sales - Web Store"], ["5000", "5000 Cost of Goods Sold"], ["5200", "5200 Inventory Adjustments"], ["6600", "6600 Merchant Card Fees"],
+  ["6700", "6700 Freight Out"], ["6950", "6950 Professional Fees"]];
+const REC = [["so", "Sales order"], ["po", "Purchase order"], ["if", "Item fulfillment"], ["inv", "Invoice"], ["cs", "Cash sale"],
+  ["pmt", "Customer payment"], ["dep", "Deposit"], ["none", "No new record"]];
+const POST = [["yes", "Yes, it posts"], ["no", "No"]];
+// Trailhead's story runs in January and February on a fixed calendar (Jan 1 is a Friday), never a clock or a year.
+const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const day = (m, d) => WD[(5 + (m === 2 ? 31 : 0) + d - 1) % 7] + " " + (m === 2 ? "Feb " : "Jan ") + d;
+// A web store sale date and the card processor's settlement two business days later (Jan 18 is a holiday).
+const WEB_DAYS = [[19, 21], [20, 22], [21, 25], [22, 26], [26, 28], [27, 29]];
+// The step that creates no record, and what it is. It falls right after event a, b or c.
+const NRE = [["Ben Castellano prints the pick ticket for the order.", "Printing a pick ticket"],
+  ["Nor'easter Freight Lines collects the cartons that afternoon.", "A carrier pickup"],
+  ["Elena reviews the weekly AR aging report and sees the bill isn't due yet.", "Reading a report"]];
+const initials = name => name.split(" ").filter(w => w !== "&").map(w => w[0]).join("").toUpperCase();
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b, s) => { s = s || 1; return a + s * Math.floor(r() * (Math.floor((b - a) / s) + 1)); };
+  const draw = (n, k, skip) => { const out = []; while (out.length < k) { const i = Math.floor(r() * n); if (out.indexOf(i) < 0 && skip.indexOf(i) < 0) out.push(i); } return out; };
+  const qtyFor = it => it[3] >= 90 ? R(10, 48, 2) : it[3] >= 40 ? R(24, 120, 6) : R(48, 240, 12);
+  for (let t = 0; t < 50000; t++) {
+    const ci = Math.floor(r() * 12), cu = CUSTOMERS[ci];
+    const sk = draw(20, 4, []); // two SKUs for the wholesale order, two different ones for the web sale
+    const poLines = sk.slice(0, 2).map(i => ({ sku: ITEMS[i][0], qty: qtyFor(ITEMS[i]) }));
+    const webLines = sk.slice(2).map(i => ({ sku: ITEMS[i][0], qty: R(1, 3) }));
+    const od = R(11, 14), oldD = R(5, 8), pd = R(8, 11), wd = WEB_DAYS[Math.floor(r() * WEB_DAYS.length)];
+    const oldAmt = R(1200, 9800), nMorning = R(1, 2), oi = draw(12, nMorning + 1, [ci]);
+    const otherChecks = oi.map((i, k) => ({ id: CUSTOMERS[i][0], name: CUSTOMERS[i][1], amount: R(1500, 14000), mail: k < nMorning ? "morning" : "afternoon" }));
+    const beg = { b1100: R(330000, 560000), b1050: R(2000, 9000), b1200: R(340000, 530000), b4000: R(90000, 180000) };
+    const nre = Math.floor(r() * 3), poNo = R(2100, 9999); // four digits that never read as a year
+    const invNo = R(291000, 298000), oldNo = invNo - R(60, 900), csNo = invNo + R(60, 900); // the web sale comes later
+    const docs = { so: "SO-" + R(190000, 199999), sh: "SH-" + R(390000, 399999), inv: "INV-" + invNo, rc: "RC-" + R(490000, 499999), dep: "DEP-" + R(89000, 89999), cs: "CS-" + csNo };
+    const webTotal = webLines.reduce((s, l, i) => s + l.qty * ITEMS[sk[2 + i]][4], 0);
+    const total = Math.ceil((webTotal + R(1000, 4000)) / 10) * 10;
+    // Never C-105 and C-108 in the same problem; no document number that could be read as a year or a real record.
+    const ids = [cu[0]].concat(otherChecks.map(c => c.id));
+    if (ids.indexOf("C-105") >= 0 && ids.indexOf("C-108") >= 0) continue;
+    if (/7731/.test([docs.so, docs.sh, docs.inv, docs.rc, docs.dep, docs.cs, oldNo, poNo].join(" "))) continue;
+    const P = {
+      customer: { id: cu[0], name: cu[1], city: cu[2], terms: "Net 30" }, custPO: initials(cu[1]) + "-" + poNo,
+      orderDate: day(1, od), shipDate: day(1, od + 1), payDate: day(2, pd), poLines,
+      items: sk.map(i => ({ sku: ITEMS[i][0], desc: ITEMS[i][1], cost: ITEMS[i][2], wholesale: ITEMS[i][3], web: ITEMS[i][4] })),
+      older: { no: "INV-" + oldNo, date: day(1, oldD), amount: oldAmt }, otherChecks, beg,
+      web: { date: day(1, wd[0]), settleDate: day(1, wd[1]), lines: webLines, total }, nre, docs
+    };
+    const S = solve(P);
+    if (S.inv < 3000 || S.inv > 20000 || oldAmt === S.inv) continue;
+    if (!degenerateFree(P, S)) continue;
+    // "$102" is a price Trailhead must never show, so no printed amount reads $102, $102,xxx or $102.xx.
+    if (printed(P, S).some(x => /^102(\d{3})*$/.test(String(Math.floor(x))))) continue;
+    return P;
+  }
+  throw new Error("Could not generate a problem set");
+}
+function solve(P) {
+  const I = {}; ITEMS.forEach(x => { I[x[0]] = x; });
+  const tot = (ls, k) => ls.reduce((t, l) => t + l.qty * I[l.sku][k], 0);
+  const cogs = tot(P.poLines, 2), inv = tot(P.poLines, 3), invWeb = tot(P.poLines, 4), pmt = inv + P.older.amount;
+  const mor = P.otherChecks.filter(c => c.mail === "morning"), aft = P.otherChecks.filter(c => c.mail !== "morning");
+  const mSum = mor.reduce((t, c) => t + c.amount, 0), oSum = P.otherChecks.reduce((t, c) => t + c.amount, 0), dep = pmt + mSum;
+  const B = P.beg;
+  const e1100 = B.b1100 + inv - pmt - oSum, e1050 = B.b1050 + pmt + oSum - dep, e1200 = B.b1200 - cogs, e4000 = B.b4000 + inv;
+  const webTotal = tot(P.web.lines, 4), webWh = tot(P.web.lines, 3), webCost = tot(P.web.lines, 2);
+  const W = P.web.total, fee = r2(0.029 * W), net = r2(W - fee);
+  return { I, cogs, inv, invWeb, pmt, mor, aft, mSum, oSum, dep, e1100, e1050, e1200, e4000, webTotal, webWh, webCost, W, fee, net };
+}
+// Each answer differs from its listed slips, the slips differ from one another (including the follow-through on the
+// likeliest earlier slip: cost for the invoice, the invoice alone for the payment), and every ending balance is positive.
+function degenerateFree(P, S) {
+  const B = P.beg;
+  const sets = [[S.cogs, S.inv, S.invWeb], [S.inv, S.cogs, S.invWeb], [S.pmt, S.inv, P.older.amount, S.cogs + P.older.amount],
+    [S.dep, S.pmt + S.oSum, S.pmt, S.mSum, S.inv + S.mSum],
+    [S.e1100, B.b1100 + S.inv, B.b1100 + S.inv - S.pmt, B.b1100 - S.inv], [S.e1050, B.b1050, B.b1050 + S.pmt + S.oSum, B.b1050 - S.dep],
+    [S.e1200, B.b1200 + S.cogs, B.b1200 - S.inv], [S.e4000, B.b4000 - S.inv, B.b4000 + S.cogs],
+    [S.webTotal, S.webWh, S.webCost], [S.fee, r2(0.029 * S.webTotal), r2(0.29 * S.W), r2(2.9 * S.W)], [S.net, S.W, r2(S.W + S.fee), r2(S.webTotal * 0.971)]];
+  const distinct = xs => xs.every((x, i) => xs.every((y, j) => i === j || Math.abs(x - y) >= 0.01));
+  return sets.every(distinct) && [S.e1100, S.e1050, S.e1200, S.e4000].every(x => x > 0);
+}
+// Every amount the lab prints, apart from the fixed item prices.
+function printed(P, S) {
+  const lines = P.poLines.concat(P.web.lines).flatMap(l => [2, 3, 4].map(k => l.qty * S.I[l.sku][k]));
+  return [P.beg.b1100, P.beg.b1050, P.beg.b1200, P.beg.b4000, P.older.amount, S.cogs, S.inv, S.pmt, S.dep, S.mSum, S.oSum,
+    S.e1100, S.e1050, S.e1200, S.e4000, S.webTotal, S.W, S.fee, S.net].concat(P.otherChecks.map(c => c.amount), lines);
+}
+
+// ---------- Parts ----------
+const optLabel = (opts, v) => { const o = opts.find(x => x[0] === v); return o ? o[1] : String(v); };
+function sel(id, label, opts, ans, reason, traps, work, extra) {
+  return Object.assign({ id, label, kind: "sel", opts, ans, work,
+    wrong: v => "Not “" + optLabel(opts, v) + ".” " + (traps && Object.prototype.hasOwnProperty.call(traps, v) ? traps[v] : reason) }, extra || {});
+}
+function amt(id, label, ans, dec, wrong, work, extra) { return Object.assign({ id, label, kind: "$", ans, dec, wrong, work }, extra || {}); }
+function buildParts(P) {
+  const S = solve(P), D = P.docs, cu = P.customer.name, parts = [];
+  const line = l => l.qty + " " + l.sku;
+  const prod = (ls, k) => ls.map(l => l.qty + " × " + money(S.I[l.sku][k])).join(" + ");
+  const names = xs => xs.length === 1 ? xs[0] : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+
+  // Part 1: six events, one of which creates no record.
+  const SWAP = "Recording a check against invoices is a customer payment. The deposit is the later step that moves the money to the bank.";
+  const ev = [
+    { text: "On " + P.orderDate + ", " + cu + " emails purchase order " + P.custPO + ". Jordan Banks keys the order into NetSuite; prices fill in from the item records.",
+      rec: "so", post: "no", recWhy: "Keying a customer's order into NetSuite creates a sales order.",
+      recTraps: { po: "The customer's purchase order is their document. In Trailhead's NetSuite a purchase order goes to a vendor; a customer's order is entered as a sales order." },
+      postWhy: "A sales order is a promise to ship. Nothing has left the warehouse and nothing is owed yet, so it posts nothing (a non-posting transaction)." },
+    { text: "Luis Ortega picks and packs the goods on " + P.shipDate + ", records the shipment and puts a packing slip in each carton.",
+      rec: "if", post: "yes", recWhy: "Recording a shipment creates an item fulfillment.",
+      recTraps: { inv: "Shipping and billing are separate records. The warehouse records the item fulfillment; accounts receivable then creates the invoice." },
+      postWhy: "Goods left inventory, so the fulfillment posts: debit 5000 Cost of Goods Sold, credit 1200 Inventory." },
+    { text: "Elena Kowalczyk bills the shipment the same day and emails it with net 30 terms.",
+      rec: "inv", post: "yes", recWhy: "Billing a wholesale customer on net 30 creates an invoice.",
+      recTraps: { cs: "A cash sale is paid at the time of sale, like a web order. Wholesale customers buy on net 30, so they get an invoice." },
+      postWhy: "The invoice posts: debit 1100 Accounts Receivable, credit 4000 Sales - Wholesale." },
+    { text: "On " + P.payDate + " the customer's check arrives in the morning mail, paying this bill and older invoice " + P.older.no + ". Elena records it against both invoices.",
+      rec: "pmt", post: "yes", recWhy: "Recording a check against the invoices it pays creates a customer payment.", recTraps: { dep: SWAP },
+      postWhy: "The payment posts: debit 1050 Undeposited Funds, credit 1100 Accounts Receivable." },
+    { text: "At 2:00 PM Priya Raman takes the checks recorded so far that day to First Harbor Bank and records the bank deposit.",
+      rec: "dep", post: "yes", recWhy: "Recording the checks taken to the bank creates a deposit.", recTraps: { pmt: SWAP },
+      postWhy: "The deposit posts: debit 1000 Checking - First Harbor Bank, credit 1050 Undeposited Funds." }];
+  const nr = NRE[P.nre], nrWhy = nr[1] + " uses records already in NetSuite. It creates no new record and posts nothing.";
+  ev.splice(P.nre + 1, 0, { text: nr[0], rec: "none", post: "no", recWhy: nrWhy, recTraps: {}, postWhy: nrWhy });
+  parts.push({ id: "records", phase: "trail", tick: "1", title: "Which record, and does it post?", layout: "table", numbered: true,
+    desc: "From Marcus Oyelaran, Controller: Before you process orders in NetSuite next week, follow one order from the customer's email to the bank. " + cu + " sent us a purchase order for " + line(P.poLines[0]) + " and " + line(P.poLines[1]) + ". For each step, name the record NetSuite creates and say whether it posts. Then post each record the way our system does and work out what it did to four of our accounts. Last, do the same for one web store sale, where the card processor pays us two business days later, less its fee. (A record posts when it makes an entry in the general ledger, or GL.)",
+    itemLabel: "What happens", cols: [{ key: "rec", label: "NetSuite record" }, { key: "post", label: "Posts to the GL?" }],
+    items: ev.map(e => ({ text: e.text })),
+    fields: ev.flatMap((e, i) => [
+      sel("rec" + i, "Event " + (i + 1) + ": NetSuite record", REC, e.rec, e.recWhy, e.recTraps, e.recWhy, { row: i, col: "rec" }),
+      sel("post" + i, "Event " + (i + 1) + ": posts to the GL?", POST, e.post, e.postWhy, null, e.postWhy, { row: i, col: "post" })]),
+    hint: "A record is created when a person enters a new transaction. It posts when it changes what Trailhead owns or owes.",
+    why: "Each order-to-cash step leaves its own record, so an auditor can trace a sale from order to cash and back.",
+    walk: ev.map((e, i) => ({ keys: ["rec" + i, "post" + i], text: "Event " + (i + 1) + ": " + e.recWhy, formula: optLabel(REC, e.rec) + " · " + (e.post === "yes" ? "posts to the GL" : "posts nothing") })) });
+
+  // Part 2: the entry behind each posting record (given forward: the records are named).
+  const recs = [{ text: "Item fulfillment " + D.sh + ", " + P.shipDate, dr: "5000", cr: "1200", ans: S.cogs },
+    { text: "Invoice " + D.inv + ", " + P.shipDate, dr: "1100", cr: "4000", ans: S.inv },
+    { text: "Customer payment " + D.rc + ", " + P.payDate, dr: "1050", cr: "1100", ans: S.pmt },
+    { text: "Deposit " + D.dep + ", " + P.payDate, dr: "1000", cr: "1050", ans: S.dep }];
+  const REV = "Reversed: inventory goes down when goods ship, so credit 1200 and debit 5000.";
+  const INVA = "Those are the invoice's accounts. The fulfillment records the cost of the goods that left.";
+  const morNames = S.mor.map(c => c.name), aftName = S.aft[0].name;
+  const morList = (S.mor.length === 1 ? "the check from " : "the checks from ") + names(morNames);
+  const amtWork = [prod(P.poLines, 2) + " = " + money(S.cogs), prod(P.poLines, 3) + " = " + money(S.inv),
+    money(S.inv) + " + " + money(P.older.amount) + " for " + P.older.no + " = " + money(S.pmt),
+    money(S.pmt) + " + " + S.mor.map(c => money(c.amount) + " from " + c.name).join(" + ") + " = " + money(S.dep)];
+  const drWhy = ["The fulfillment records the cost of the goods that left: debit 5000 Cost of Goods Sold.", "Billing on net 30 creates a receivable: debit 1100 Accounts Receivable.",
+    "A recorded check waits in 1050 Undeposited Funds until it is deposited.", "The deposit puts the money in the bank: debit 1000 Checking - First Harbor Bank."];
+  const crWhy = ["Goods left the warehouse, so credit 1200 Inventory.", "The invoice records the sale: credit 4000 Sales - Wholesale.",
+    "The check pays the customer's invoices, so credit 1100 Accounts Receivable.", "The deposit moves the checks out of 1050 Undeposited Funds."];
+  const drTraps = [{ "1200": REV, "1100": INVA }, {}, { "1000": "At Trailhead a customer payment waits in 1050 Undeposited Funds until the deposit is recorded." }, {}];
+  const crTraps = [{ "5000": REV, "4000": INVA }, { "4100": "4100 is for web store sales; wholesale sales go to 4000.", "1200": "Inventory came off when the goods shipped. The invoice records the sale." }, {},
+    { "1100": "Receivables came down when the payment was recorded. The deposit moves the money from 1050 to the bank." }];
+  const amtWrong = [
+    v => v === S.inv || v === S.invWeb ? "The fulfillment posts at cost, not at the selling price." : "The fulfillment posts at cost: quantity × standard cost for each item.",
+    v => v === S.cogs ? "The invoice bills the customer at the wholesale price." : v === S.invWeb ? "Wholesale customers pay the wholesale price from the item record." : "The invoice bills each item at its wholesale price: quantity × wholesale price.",
+    (v, n) => v === S.inv ? "The check also pays " + P.older.no + " for " + money(P.older.amount) + "." :
+      v === P.older.amount ? "The check pays this invoice too, not only " + P.older.no + "." :
+      n.amt1 != null && n.amt1 !== S.inv && v === n.amt1 + P.older.amount ? "Your addition is right, but your invoice amount is not. Fix it first." :
+      "The check pays this invoice plus older invoice " + P.older.no + ".",
+    (v, n) => v === S.pmt + S.oSum ? aftName + "'s check arrived after the 2:00 PM bank run, so it waits in 1050 for tomorrow's deposit." :
+      v === S.pmt ? "The deposit takes every check recorded before the bank run: this one plus " + morList + "." :
+      v === S.mSum ? "Include this customer's check too." :
+      n.amt2 != null && n.amt2 !== S.pmt && v === n.amt2 + S.mSum ? "Your addition is right, but your payment amount is not. Fix it first." :
+      "The deposit takes every check recorded before the 2:00 PM bank run."];
+  parts.push({ id: "postings", phase: "trail", tick: "2", title: "Post each record", layout: "table",
+    desc: "NetSuite created these four posting records for the order; sales order " + D.so + " posted nothing. For each record, choose the account debited and the account credited, and enter the amount. Average cost on hand equals each item's standard cost.",
+    itemLabel: "Record", cols: [{ key: "dr", label: "Debit" }, { key: "cr", label: "Credit" }, { key: "amt", label: "Amount" }],
+    items: recs.map(x => ({ text: x.text })),
+    fields: recs.flatMap((x, i) => [
+      sel("dr" + i, x.text + ": account debited", ACCTS, x.dr, drWhy[i], drTraps[i], drWhy[i], { row: i, col: "dr" }),
+      sel("cr" + i, x.text + ": account credited", ACCTS, x.cr, crWhy[i], crTraps[i], crWhy[i], { row: i, col: "cr" }),
+      amt("amt" + i, x.text + ": amount", x.ans, 0, amtWrong[i], amtWork[i], { row: i, col: "amt" })]),
+    hint: "Follow the goods and the money: goods out → cost of goods sold; bill → receivable and sale; check received → undeposited funds; bank deposit → checking.",
+    why: "NetSuite posts each record automatically, so knowing the entry behind each record is how you trace a statement amount back to its source.",
+    walk: recs.map((x, i) => ({ keys: ["dr" + i, "cr" + i, "amt" + i], text: x.text + ": " + drWhy[i], formula: "Dr " + x.dr + ", Cr " + x.cr + ": " + amtWork[i] })) });
+
+  // Part 3: ending balances from the beginning balances and the entries (given forward: Part 2's entries are listed).
+  const B = P.beg;
+  const entries = [{ text: "Item fulfillment " + D.sh + ": Dr 5000 Cost of Goods Sold, Cr 1200 Inventory", amount: S.cogs },
+    { text: "Invoice " + D.inv + ": Dr 1100 Accounts Receivable, Cr 4000 Sales - Wholesale", amount: S.inv },
+    { text: "Customer payment " + D.rc + " from " + cu + ": Dr 1050 Undeposited Funds, Cr 1100 Accounts Receivable", amount: S.pmt },
+    { text: "Deposit " + D.dep + ": Dr 1000 Checking - First Harbor Bank, Cr 1050 Undeposited Funds", amount: S.dep }]
+    .concat(P.otherChecks.map(c => ({ text: "Customer payment from " + c.name + ", " + c.mail + " mail: Dr 1050, Cr 1100", amount: c.amount })));
+  const minus = P.otherChecks.map(c => " − " + money(c.amount)).join("");
+  const plus = P.otherChecks.map(c => " + " + money(c.amount)).join("");
+  parts.push({ id: "balances", phase: "trail", tick: "3", title: "What the trail did to four accounts", layout: "table",
+    desc: "Start from the balances in the data panel (before the order). Count only the entries listed here. Enter each ending balance as a positive amount on its normal side.",
+    itemLabel: "Entry", amountLabel: "Amount", cols: [], items: entries,
+    fields: [
+      amt("b1100", "1100 Accounts Receivable", S.e1100, 0, v => v === B.b1100 + S.inv ? "The customer payments reduced receivables too." :
+        v === B.b1100 + S.inv - S.pmt ? "The other customers' payments also credit 1100." :
+        v === B.b1100 - S.inv ? "Receivables are an asset, so the invoice's debit increases 1100." :
+        "1100 = beginning balance + the invoice − every customer payment listed.",
+        money(B.b1100) + " + " + money(S.inv) + " − " + money(S.pmt) + minus + " = " + money(S.e1100), { sub: "Ending balance" }),
+      amt("b1050", "1050 Undeposited Funds", S.e1050, 0, v => v === B.b1050 ? "The afternoon check is still waiting in 1050." :
+        v === B.b1050 + S.pmt + S.oSum ? "The deposit then took the morning checks out of 1050." :
+        v === B.b1050 - S.dep ? "The customer payments debited 1050 before the deposit credited it. Add them first." :
+        "1050 = beginning balance + every customer payment listed − the deposit.",
+        money(B.b1050) + " + " + money(S.pmt) + plus + " − " + money(S.dep) + " = " + money(S.e1050), { sub: "Ending balance" }),
+      amt("b1200", "1200 Inventory", S.e1200, 0, v => v === B.b1200 + S.cogs ? "Shipping goods lowers inventory." :
+        v === B.b1200 - S.inv ? "Inventory is carried at cost." : "1200 = beginning balance − the cost of the goods shipped.",
+        money(B.b1200) + " − " + money(S.cogs) + " = " + money(S.e1200), { sub: "Ending balance" }),
+      amt("b4000", "4000 Sales - Wholesale", S.e4000, 0, v => v === B.b4000 - S.inv ? "Sales has a credit balance, so a credit increases it." :
+        v === B.b4000 + S.cogs ? "Sales are recorded at the wholesale price, not at cost." : "4000 = beginning balance + the invoice.",
+        money(B.b4000) + " + " + money(S.inv) + " = " + money(S.e4000), { sub: "Ending balance" })],
+    hint: "Assets rise with debits; revenue rises with credits. Add up each account's debits and credits.",
+    why: "A balance is the running total of every record that posted to it; that is what a trial balance shows.",
+    walk: [{ keys: ["b1100"], text: "1100 Accounts Receivable rises with the invoice and falls with every customer payment.", formula: money(B.b1100) + " + " + money(S.inv) + " − " + money(S.pmt) + minus + " = " + money(S.e1100) },
+      { keys: ["b1050"], text: "1050 Undeposited Funds takes in every check recorded, then the deposit takes the morning checks out.", formula: money(B.b1050) + " + " + money(S.pmt) + plus + " − " + money(S.dep) + " = " + money(S.e1050) },
+      { keys: ["b1200"], text: "1200 Inventory falls by the cost of the goods shipped.", formula: money(B.b1200) + " − " + money(S.cogs) + " = " + money(S.e1200) },
+      { keys: ["b4000"], text: "4000 Sales - Wholesale rises by the invoice.", formula: money(B.b4000) + " + " + money(S.inv) + " = " + money(S.e4000) }] });
+
+  // Part 4: a web store cash sale and its card settlement.
+  const wl = P.web.lines.map(l => l.qty + " " + l.sku + " (" + S.I[l.sku][1] + ")"), W = S.W;
+  const webWork = prod(P.web.lines, 4) + " = " + money(S.webTotal), feeWork = "0.029 × " + money(W) + " = " + cents(S.fee), netWork = money(W) + " − " + cents(S.fee) + " = " + cents(S.net);
+  parts.push({ id: "web", phase: "web", tick: "4", title: "A web store sale and its card settlement", layout: "list",
+    desc: "On " + P.web.date + " a shopper buys " + names(wl) + " on the web store and pays by card. The web store sends NetSuite a cash sale, " + D.cs + ". Luis ships it the same day. On " + P.web.settleDate + ", two business days later, the card processor deposits all of " + P.web.date + "'s web sales, " + money(W) + ", less its 2.9% fee.",
+    fields: [
+      amt("csAmt", "Cash sale amount", S.webTotal, 0, v => v === S.webWh ? "Web orders use the item's web price." :
+        v === S.webCost ? "The cash sale records the sale at the web price, not at cost." : "Cash sale amount = quantity × web price for each item.", webWork),
+      sel("csDr", "Cash sale: account debited", ACCTS, "1050", "A card sale waits in 1050 Undeposited Funds until the processor settles.",
+        { "1100": "A cash sale is paid at checkout, so nothing is owed: no receivable.", "1000": "The money reaches the bank only when the processor settles. Until then the card sale waits in 1050 Undeposited Funds." },
+        "Debit 1050 Undeposited Funds: the card money arrives when the processor settles."),
+      sel("csCr", "Cash sale: account credited", ACCTS, "4100", "Web store sales are credited to 4100 Sales - Web Store.",
+        { "4000": "4000 is wholesale; web store sales go to 4100." }, "Credit 4100 Sales - Web Store at the web price."),
+      amt("fee", "Merchant card fee", S.fee, 2, v => close(v, 0.029 * S.webTotal) ? "The processor settles the whole day's web sales in one deposit, so the fee is 2.9% of " + money(W) + "." :
+        near(v, r2(0.29 * W)) || near(v, r2(2.9 * W)) ? "2.9% is 0.029." : "Fee = 2.9% × " + money(W) + ", the whole day's sales.", feeWork),
+      amt("net", "Cash deposited to 1000 Checking", S.net, 2, (v, n) => near(v, W) ? "Subtract the fee: the processor keeps it." :
+        near(v, r2(W + S.fee)) ? "The processor keeps the fee, so subtract it from " + money(W) + "." :
+        close(v, S.webTotal * 0.971) ? "Use the whole day's sales." :
+        n.fee != null && !near(n.fee, S.fee) && near(v, r2(W - n.fee)) ? "Your subtraction is right, but your fee is not. Fix it first." :
+        "Cash deposited = " + money(W) + " − the fee.", netWork),
+      sel("feeAcct", "Account debited for the fee", ACCTS, "6600", "Card processing fees are an expense in 6600 Merchant Card Fees.",
+        { "5000": "The fee is a cost of taking cards, not the cost of the goods.", "4100": "Trailhead records card fees as an expense in 6600, not as a reduction of sales.", "6950": "Professional fees are for accountants and lawyers." },
+        "Debit 6600 Merchant Card Fees for the processor's fee.")],
+    hint: "A cash sale is paid on the spot but the money takes two days to reach the bank. The settlement deposit clears the whole day's card sales from 1050.",
+    why: "Web and wholesale sales take different paths through NetSuite, so their records, accounts and timing differ.",
+    walk: [{ keys: ["csAmt", "csDr", "csCr"], text: "The cash sale records the web sale at web prices. Until the processor settles, the card money waits in 1050.", formula: webWork + "; Dr 1050, Cr 4100" },
+      { keys: ["fee", "feeAcct"], text: "The processor keeps 2.9% of the whole day's web sales as an expense to Trailhead.", formula: feeWork + "; Dr 6600" },
+      { keys: ["net"], text: "The bank receives the day's sales less the fee.", formula: netWork }] });
+  return parts;
+}
+
+// ---------- Grading ----------
+// Whole-dollar amounts match exactly; the fee and the net deposit match to the cent. A choice gets "Not “label.”" and the reason.
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or 12.50." };
+      else res[f.id] = (f.dec === 0 ? v === f.ans : near(v, f.ans)) ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Trailhead Outfitters Co.</b> sells camping and hiking gear to outdoor shops on net 30 and to shoppers through its web store, all in NetSuite. You are a staff accountant reporting to Marcus Oyelaran, the controller."; }
+// The data panel reads only the public problem facts (the server's publicInfo keys), so it is the same in both modes.
+function dtab(caption, cols, rows) {
+  return '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">' + esc(caption) + '</div></caption><thead><tr>' +
+    cols.map(c => '<th scope="col"' + (c.r ? ' class="r"' : '') + '>' + esc(c.label) + '</th>').join("") + '</tr></thead><tbody>' +
+    rows.map(row => '<tr>' + row.map((x, i) => '<td' + (cols[i].r ? ' class="r"' : '') + '>' + esc(x) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+const fact = (k, v) => '<div class="fact"><span class="k">' + esc(k) + '</span><span>' + esc(v) + '</span></div>';
+function custBlock(P) { const c = P.customer; return c ? '<div class="facts">' + fact("Customer", c.id + " " + c.name + ", " + c.city) + fact("Terms", c.terms) + '</div>' : ''; }
+function poBlock(P) { const d = {}; (P.items || []).forEach(x => { d[x.sku] = x.desc; }); return dtab("Customer's purchase order", [{ label: "SKU" }, { label: "Description" }, { label: "Quantity", r: 1 }], (P.poLines || []).map(l => [l.sku, d[l.sku] || "", fmt(l.qty)])); }
+function itemBlock(P) { return dtab("Item records (average cost on hand equals standard cost)", [{ label: "SKU" }, { label: "Description" }, { label: "Standard cost", r: 1 }, { label: "Wholesale price", r: 1 }, { label: "Web price", r: 1 }], (P.items || []).map(x => [x.sku, x.desc, money(x.cost), money(x.wholesale), money(x.web)])); }
+function olderBlock(P) { const o = P.older; return o ? '<div class="facts" style="margin-top:12px">' + fact("Older open invoice", o.no + ", dated " + o.date + ", for " + money(o.amount)) + '</div>' : ''; }
+function checksBlock(P) { return dtab("Other customer checks recorded the same day as this customer's check", [{ label: "Customer" }, { label: "Amount", r: 1 }, { label: "Arrived" }], (P.otherChecks || []).map(c => [c.id + " " + c.name, money(c.amount), c.mail === "morning" ? "Morning mail" : "Afternoon mail"])); }
+function begBlock(P) {
+  const b = P.beg || {}, A = { b1100: "1100 Accounts Receivable", b1050: "1050 Undeposited Funds", b1200: "1200 Inventory", b4000: "4000 Sales - Wholesale" };
+  return dtab("Beginning balances (before the order)", [{ label: "Account" }, { label: "Balance", r: 1 }], Object.keys(A).filter(k => b[k] != null).map(k => [A[k], money(b[k])])) +
+    '<p class="note">1050 holds card sales waiting for settlement; checks are deposited daily.</p>';
+}
+function webBlock(P) {
+  const w = P.web, d = {}; if (!w) return ''; (P.items || []).forEach(x => { d[x.sku] = x; });
+  return '<div class="facts">' + fact("Web order", w.date + ", paid by card") + fact("Processor settles", w.settleDate) + fact("Web sales that day", money(w.total)) + '</div>' +
+    dtab("Web order lines", [{ label: "SKU" }, { label: "Description" }, { label: "Quantity", r: 1 }], (w.lines || []).map(l => [l.sku, d[l.sku] ? d[l.sku].desc : "", fmt(l.qty)]));
+}
+function acctBlock() { return dtab("Accounts", [{ label: "Account" }], ACCTS.map(a => [a[1]])); }
+function dataHTML(c) {
+  const P = c.P || {}, id = c.part ? c.part.id : "";
+  if (id === "postings") return { sub: "Order, items and checks", html: custBlock(P) + poBlock(P) + itemBlock(P) + olderBlock(P) + checksBlock(P) + acctBlock() };
+  if (id === "balances") return { sub: "Balances before the order", html: begBlock(P) + checksBlock(P) };
+  if (id === "web") return { sub: "Web store sale", html: webBlock(P) + itemBlock(P) + acctBlock() };
+  return { sub: "Customer and order", html: custBlock(P) + poBlock(P) + itemBlock(P) + olderBlock(P) };
+}
+
+MAFrame.start({
+  slug: "ais-o2c-trail", key: "ais-o2c-trail1", module: "IL1", title: "Order-to-Cash Trail",
+  phases: [["trail", "Wholesale trail"], ["web", "Web store"]],
+  dataTitle: "Trailhead records",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>

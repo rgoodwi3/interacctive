@@ -1,4 +1,4 @@
-/* ACCT 1102 Managerial Accounting labs: shared page frame.
+/* ACCT 2250 Accounting Information Systems labs: shared page frame (copy of ma/frame.js).
  *
  * Built from the Financial Accounting labs' Inventory Costing Lab page (rgoodwi3/Inventory-Cost-Flows):
  * the same header, timeline of numbered parts, practice engine and graded-mode client. A lab page loads
@@ -45,7 +45,7 @@ const isSel = f => f.kind === "sel";
 document.body.insertAdjacentHTML("afterbegin",
   '<a class="skip" href="#pPart">Skip to the current part</a>' +
   '<header class="band1" id="band1"><div class="wrap"><div class="b1-row"><div>' +
-  '<div class="eyebrow">University of New Haven · ACCT 1102 · Introduction to Managerial Accounting · ' + esc(L.module) + ' Lab</div>' +
+  '<div class="eyebrow">University of New Haven · ACCT 2250 / ACCT 6641 · Accounting Information Systems · ' + esc(L.module) + '</div>' +
   '<h1>' + esc(L.title) + '</h1></div><p class="biz" id="biz"></p>' +
   '<div class="b1-right"><div class="setchip" id="setChip">Problem set <b>—</b></div><button type="button" class="newset" id="newSet">New numbers</button></div></div>' +
   '<div class="gk-row"><span class="gk-label">Mode</span><div class="modesw" id="modeSw" role="group" aria-label="Mode"><button type="button" data-mode="practice" aria-pressed="true">Practice</button><button type="button" data-mode="graded" aria-pressed="false">Graded</button></div></div>' +
@@ -57,9 +57,9 @@ document.body.insertAdjacentHTML("afterbegin",
   '<section class="panel" id="pData" aria-labelledby="dataH"><div class="panel-h"><h2 id="dataH">' + esc(L.dataTitle || "Data") + '</h2><span class="sub" id="dataSub"></span></div><div class="panel-b" id="data"></div></section>' +
   '<section class="panel" id="pPart" aria-labelledby="partH" tabindex="-1"><div class="panel-h"><h2 id="partH">Your work</h2><span class="sub" id="partSub"></span></div><div class="panel-b" id="part" aria-live="polite"></div></section>' +
   '</div></main>' +
-  '<footer class="wrap">' + esc(L.footer || "Problem Solvers, Inc. and all figures are illustrative. The same problem set number always gives the same numbers.") + '</footer>' +
+  '<footer class="wrap">' + esc(L.footer || "Trailhead Outfitters Co. and every person, customer and vendor in it are fictional. Quantities, balances and document numbers here are generated for practice and differ from your NetSuite and Access data. The same problem set number always gives the same problem.") + '</footer>' +
   '<dialog class="gdlg" id="gDlg" aria-labelledby="gDlgH"><div class="gdlg-h"><div class="eyebrow">' + esc(L.title) + '</div><h2 id="gDlgH">Graded mode</h2></div><div class="gdlg-b" id="gDlgB"></div></dialog>');
-document.title = L.title + " · ACCT 1102";
+document.title = L.title + " · ACCT 2250";
 
 function setYear(y) { YEAR = y; L.setYear(y); $("biz").innerHTML = L.biz(); }
 setYear(PYEAR);
