@@ -29,6 +29,13 @@ carry over to the labs, which share a session with this page only on rgoodwi3.gi
   against a real Canvas export before importing. In the gradebook's Scores view it has graded
   activities only. In the Completion view it has percent complete for graded labs and games, in
   columns named "… completion" so an import doesn't overwrite the score columns.
+- Each assignment has Start, Due and End dates, as in Canvas. Students can't open it before the
+  start date. Graded work after the due date is allowed but marked Late in the gradebook. Graded
+  work closes at the end date, or at the due date when there's no end date. The database
+  (can_submit, a lab_attempts trigger, the auto-close job) and the lab-attempt function enforce
+  the same rules. Late work isn't penalized automatically.
+- The Assignments tab saves every changed row with one Save changes button. Select rows with the
+  first column to fill in a mode, dates or an attempt limit for all of them, then save.
 - Deleting a class deletes its assignments, students, roster, scores and lab attempts. The
   delete dialog offers every grade as a CSV first.
 - Copy for Canvas (each assigned lab) and Copy student instructions for Canvas (under the join
