@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inventory Costing Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: University of New Haven course material, same frame as the Ledger Lab and Inventory Lab.
+   Frozen navy header over a frozen parts timeline; the inventory record and the current part side by side;
+   cost layers and the method comparison below. */
+:root{
+  --navy:#002D74; --gold:#FFC629;
+  --paper:#eff2f7; --sheet:#ffffff; --ink:#111b2e; --muted:#56617a; --rule:#d8dfea; --rule-strong:#a9b6cc;
+  --brand:#002D74; --brand-soft:#e3e9f4;
+  --mast-bg:#002D74; --mast-ink:#ffffff; --mast-muted:#c9d4ea;
+  --hl:#fff1bf; --hl-ink:#3a2e00;
+  --gold-ink:#8a6100; --gold-soft:#fcefc7;
+  --slate:#4b5670; --slate-soft:#e6e9f0;
+  --cogs:#002D74; --cogs-soft:#c7d4ec; --ei:#FFC629; --ei-soft:#ffe9a6;
+  --good:#1b7a46; --good-soft:#dcf1e4; --bad:#b3261e; --bad-soft:#fbe2df;
+  --field:#ffffff;
+  --shadow:0 1px 2px rgba(0,25,70,.07),0 6px 18px rgba(0,25,70,.05);
+  --f-display:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Source Sans Pro","Helvetica Neue",Arial,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --b1:0px; --b2:0px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --gold-ink:#FFC629; --gold-soft:#2e2508;
+  --slate:#b3bdd4; --slate-soft:#1e2840;
+  --cogs:#5f8fe0; --cogs-soft:#1c2f55; --ei:#FFC629; --ei-soft:#4a3b0c;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --gold-ink:#FFC629; --gold-soft:#2e2508;
+  --slate:#b3bdd4; --slate-soft:#1e2840;
+  --cogs:#5f8fe0; --cogs-soft:#1c2f55; --ei:#FFC629; --ei-soft:#4a3b0c;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.12}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* Frozen header */
+.band1{background:var(--mast-bg);color:var(--mast-ink);border-bottom:4px solid var(--gold);z-index:6;padding-top:env(safe-area-inset-top,0px)}
+.band1 .wrap{padding-block:12px 12px}
+.b1-row{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;justify-content:space-between}
+.eyebrow{font-family:var(--f-display);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.band1 h1{font-size:clamp(22px,2.6vw,30px);font-weight:700}
+.biz{flex:1 1 380px;min-width:0;max-width:76ch;font-size:14.5px;color:var(--mast-muted);line-height:1.4;margin:0}
+.biz b{color:var(--mast-ink)}
+.setchip{font-family:var(--f-num);font-size:12.5px;color:var(--mast-muted);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:5px 10px;white-space:nowrap}
+.setchip b{color:var(--gold);font-weight:600}
+.band2{position:sticky;top:0;z-index:5;background:var(--sheet);border-bottom:1px solid var(--rule);box-shadow:var(--shadow)}
+.band2 .wrap{padding-block:8px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-end;justify-content:space-between}
+@media (min-width:760px){.band1{position:sticky;top:0}.band2{top:var(--b1)}}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:13.5px;color:var(--muted)}
+.status b{color:var(--ink)}
+.score{font-size:13px;font-weight:600;background:var(--hl);color:var(--hl-ink);border-radius:999px;padding:2px 10px}
+.legend-dots{display:flex;gap:10px;font-size:12px}
+.legend-dots i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0}
+.timeline{display:flex;gap:12px;align-items:stretch;overflow-x:auto;padding:4px 2px 2px;min-width:0;flex:1 1 560px}
+.phase{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
+.phase-label{font-family:var(--f-display);font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.ph-setup .phase-label{color:var(--brand)} .ph-method .phase-label{color:var(--gold-ink)} .ph-compare .phase-label{color:var(--slate)}
+.ticks{display:flex;gap:3px}
+.tick{position:relative;flex:0 0 auto;min-width:30px;height:28px;border-radius:4px;border:1px solid var(--rule);background:var(--paper);font-family:var(--f-num);font-size:11.5px;font-weight:600;cursor:pointer;color:var(--muted);padding:0 8px}
+.ph-setup .tick.done{background:var(--navy);border-color:var(--navy);color:#fff}
+.ph-method .tick.done{background:var(--gold);border-color:var(--gold);color:#111b2e}
+.ph-compare .tick.done{background:var(--slate);border-color:var(--slate);color:var(--sheet)}
+.tick.cur{outline:2px solid var(--ink);outline-offset:1px}
+.tick.s-first::after,.tick.s-retry::after,.tick.s-shown::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sheet)}
+.tick.s-first::after{background:var(--good)} .tick.s-retry::after{background:var(--gold)} .tick.s-shown::after{background:var(--muted)}
+
+/* Grid */
+main{padding-block:18px 40px;display:grid;gap:18px}
+.grid-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:start}
+.grid-mid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1060px){.grid-top,.grid-mid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);min-width:0;overflow:hidden;scroll-margin-top:calc(var(--b1) + var(--b2) + 12px)}
+@media (max-width:759px){.panel{scroll-margin-top:calc(var(--b2) + 12px)}}
+.panel-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;justify-content:space-between;padding:12px 16px 10px;border-bottom:1px solid var(--rule);border-top:3px solid var(--navy)}
+:root[data-theme="dark"] .panel-h{border-top-color:var(--brand)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .panel-h{border-top-color:var(--brand)}}
+.panel-h h2{font-size:21px;font-weight:700;color:var(--brand)}
+.panel-h .sub{font-size:13.5px;color:var(--muted)}
+.panel-b{padding:14px 16px 16px}
+#pPart .panel-h{border-top-color:var(--gold)}
+.pill{display:inline-block;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:2px 10px}
+.pill.setup{background:var(--brand-soft);color:var(--brand)}
+.pill.method{background:var(--gold-soft);color:var(--gold-ink)}
+.pill.compare{background:var(--slate-soft);color:var(--slate)}
+
+/* Inventory record */
+table.rec{width:100%;border-collapse:collapse;font-size:14.5px}
+.rec caption{caption-side:top;text-align:center;padding-bottom:10px}
+.cap-firm{font-family:var(--f-display);font-weight:700;font-size:17px;color:var(--brand)}
+.cap-name{font-family:var(--f-display);font-weight:600;font-size:16px}
+.cap-date{font-size:12.5px;color:var(--muted)}
+.rec th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong);text-align:left;white-space:nowrap}
+.rec td{padding:7px 8px;border-bottom:1px solid var(--rule)}
+.rec .r{text-align:right}
+.rec td.r{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rec td.dim{color:var(--muted)}
+.rec tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
+.facts{display:grid;gap:8px;margin-top:14px}
+.fact{display:flex;gap:10px;align-items:baseline;background:var(--paper);border-radius:6px;padding:8px 12px;font-size:14.5px}
+.fact .k{font-family:var(--f-display);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted);flex:0 0 112px}
+.note{font-size:13.5px;color:var(--muted);margin-top:10px}
+
+/* Part card */
+.meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px;color:var(--muted)}
+.part-title{font-size:23px;font-weight:700;margin:10px 0 4px}
+.part-desc{margin:0 0 12px}
+.fields{display:grid;gap:10px}
+.field{border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.field.ok{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.field.no{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:10px;align-items:center}
+.flabel{font-weight:600;font-size:14.5px}
+.flabel small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.inbox{display:flex;align-items:center;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field);min-height:38px;overflow:hidden}
+.inbox .pre,.inbox .post{font-family:var(--f-num);font-size:13px;color:var(--muted);padding:0 6px}
+.inbox input{border:0;background:transparent;width:100%;min-width:0;padding:7px 8px;font-family:var(--f-num);font-size:14.5px;text-align:right}
+.inbox input:focus{outline:none}
+.inbox:focus-within{outline:2px solid var(--brand);outline-offset:1px}
+.field select{width:100%;background:var(--field);border:1px solid var(--rule-strong);border-radius:6px;padding:7px 8px;min-height:38px;font-size:14.5px}
+.frow.sel{grid-template-columns:minmax(0,1fr) 210px}
+.fmsg{font-size:13.5px;font-weight:600;display:flex;gap:6px;margin-top:6px}
+.fmsg.ok{color:var(--good)} .fmsg.no{color:var(--bad)}
+.work{margin-top:6px;font-family:var(--f-num);font-size:12.5px;background:var(--paper);border-radius:6px;padding:6px 9px;line-height:1.6}
+.overall{margin-top:12px;font-size:14px;border-radius:8px;padding:9px 12px}
+.overall.ok{background:var(--good-soft);color:var(--good)}
+.overall.no{background:var(--bad-soft);color:var(--bad)}
+.overall.shown{background:var(--gold-soft);color:var(--gold-ink)}
+.hintbox{margin-top:12px;font-size:14px;background:var(--gold-soft);color:var(--gold-ink);border-radius:8px;padding:9px 12px}
+.why{margin-top:12px;background:var(--paper);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:10px 12px;font-size:14.5px}
+.why b{font-family:var(--f-display);font-size:16px}
+.actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);align-items:center;justify-content:space-between}
+.actions .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.actions .grp:last-child{margin-left:auto}
+.actions .grp:last-child{margin-left:auto}
+.actions .ask{font-size:13.5px;font-weight:600}
+.btn{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:6px;padding:7px 12px;font-size:14.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.btn:hover{background:var(--brand-soft)}
+.btn:disabled{opacity:.4;cursor:default;background:var(--sheet)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:#0a3d8f}
+.btn.small{font-size:13.5px;padding:5px 10px;min-height:32px}
+.effects{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.eff{font-size:13.5px;font-weight:600;border-radius:6px;padding:4px 9px;border:1px solid var(--rule)}
+.eff.up{background:var(--good-soft);color:var(--good);border-color:transparent}
+.eff.none{color:var(--muted)}
+
+/* Layers */
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:1px solid var(--rule);background:transparent;border-radius:6px;padding:5px 11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+.tab .lock{font-size:11px;margin-left:4px}
+.stack{display:flex;height:46px;border-radius:6px;overflow:hidden;border:1px solid var(--rule-strong);margin:4px 0 8px}
+.layer{display:flex;min-width:0;border-right:2px solid var(--sheet)}
+.layer:last-child{border-right:0}
+.seg{display:flex;align-items:center;justify-content:center;font-family:var(--f-num);font-size:11.5px;font-weight:600;min-width:0;overflow:hidden;white-space:nowrap}
+.seg.c{background:var(--cogs);color:#fff}
+.seg.e{background:var(--ei);color:#111b2e}
+.stack-labels{display:flex;font-size:11.5px;color:var(--muted);margin-bottom:6px}
+.stack-labels span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-family:var(--f-num)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+table.lay{width:100%;border-collapse:collapse;font-size:13.5px}
+.lay th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:2px solid var(--rule-strong);text-align:right;white-space:nowrap}
+.lay th:first-child,.lay td:first-child{text-align:left}
+.lay th.ei{color:var(--gold-ink)} .lay th.cg{color:var(--brand)}
+.lay td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lay td:first-child{font-family:var(--f-body)}
+.lay td.gap,.lay th.gap{border-left:1px solid var(--rule-strong)}
+.lay tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
+.locked{color:var(--muted);font-size:14px;padding:22px 6px;text-align:center}
+.scroll{overflow-x:auto}
+
+/* Comparison */
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+.cmp th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong);text-align:right;vertical-align:bottom;line-height:1.25}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp td{padding:7px 6px;border-bottom:1px solid var(--rule);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp td:first-child{font-family:var(--f-body);font-weight:600}
+.cmp td.q{color:var(--muted)}
+.cmp tr.hi td{background:var(--hl);color:var(--hl-ink)}
+.cmp-note{margin-top:10px;font-size:13.5px;background:var(--paper);border-radius:6px;padding:8px 12px}
+.balanced{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--good)}
+@media (max-width:520px){.frow,.frow.sel{grid-template-columns:minmax(0,1fr)}.fact{flex-direction:column;gap:2px}.fact .k{flex:none}.status{align-items:flex-start}}
+footer{font-size:12.5px;color:var(--muted);padding-block:0 30px}
+/* Graded mode */
+.gk-row{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:10px}
+.gk-label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--mast-muted)}
+.modesw{display:inline-flex;gap:2px;padding:2px;border:1px solid rgba(255,255,255,.32);border-radius:999px;margin-right:12px}
+.modesw button{border:0;background:transparent;color:var(--mast-ink);font-size:13.5px;font-weight:600;border-radius:999px;padding:2px 13px;min-height:26px;cursor:pointer}
+.modesw button:hover{background:rgba(255,255,255,.12)}
+.modesw button[aria-pressed="true"]{background:var(--gold);color:#111b2e}
+.modesw button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.setchip.graded{border-color:var(--gold);color:var(--gold);font-weight:600}
+.timeline.locked .tick,.timeline.locked button{cursor:default}
+.timeline.locked .tick.can{cursor:pointer}
+.timeline.locked .tick.can:hover{border-color:var(--ink)}
+.rv-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;background:var(--est-soft,#fcefc7);color:var(--est,#8a6100)}
+:root[data-theme="dark"] .rv-note{background:var(--est-soft,#2e2508);color:var(--est,#FFC629)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rv-note{background:var(--est-soft,#2e2508);color:var(--est,#FFC629)}}
+.rv-ans{font-family:var(--f-num);font-weight:600;white-space:nowrap}
+.score.graded{background:var(--navy);color:#fff}
+:root[data-theme="dark"] .score.graded{background:var(--gold);color:#111b2e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .score.graded{background:var(--gold);color:#111b2e}}
+.gnote{font-size:13.5px;font-weight:600;background:var(--gk-soft,#fcefc7);color:var(--gk-ink,#8a6100);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:7px 12px;margin:0 0 12px}
+:root[data-theme="dark"] .gnote{--gk-soft:#2e2508;--gk-ink:#FFC629}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .gnote{--gk-soft:#2e2508;--gk-ink:#FFC629}}
+dialog.gdlg{width:min(580px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;border:0;border-radius:10px;padding:0;background:var(--sheet);color:var(--ink);box-shadow:0 24px 70px rgba(0,20,60,.4)}
+dialog.gdlg::backdrop{background:rgba(0,18,48,.6)}
+.gdlg-h{background:var(--mast-bg);color:#fff;border-bottom:4px solid var(--gold);padding:14px 20px 12px}
+.gdlg-h h2{font-size:25px;font-weight:700;margin:0}
+.gdlg-b{padding:16px 20px 18px;font-size:15px}
+.gdlg-b ul{margin:6px 0 0;padding-left:20px}
+.gdlg-b li{margin-bottom:7px}
+.gdlg-note{margin-top:12px;background:var(--brand-soft);border-radius:8px;padding:9px 12px;font-size:14.5px}
+.gdlg-note.warn{background:var(--bad-soft);color:var(--bad)}
+.gdlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
+.signin{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.signin label{font-weight:600;font-size:14.5px}
+.signin input{font:inherit;font-size:15px;padding:7px 10px;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field,var(--sheet));color:var(--ink);max-width:340px}
+.signin .who{font-size:14px;color:var(--muted)}
+.final{background:var(--good-soft);border-radius:8px;padding:12px 14px;margin:12px 0 4px;font-size:15px}
+.final b{font-size:18px}
+.btn[aria-busy="true"]{opacity:.65;cursor:progress}
+details.pts{margin-top:14px;font-size:14px}
+details.pts summary{cursor:pointer;font-weight:600;color:var(--brand)}
+table.ptab{width:100%;border-collapse:collapse;margin-top:8px}
+.ptab td{padding:5px 6px;border-bottom:1px solid var(--rule)}
+.ptab td.r{text-align:right;font-family:var(--f-num);white-space:nowrap}
+.ptab tr.miss td.r{color:var(--bad);font-weight:600}
+.pledge{display:flex;gap:10px;align-items:flex-start;margin-top:14px;border:1px solid var(--rule-strong);border-radius:8px;padding:10px 12px;font-size:14.5px;font-weight:600;cursor:pointer}
+.pledge input{width:18px;height:18px;margin:2px 0 0;flex:none;accent-color:var(--navy)}
+.pledge:has(input:checked){border-color:var(--good);background:var(--good-soft)}
+.gclass{margin-top:8px}.gclass .gterm{font-weight:400;color:var(--muted)}
+.gk-hidden{font-size:13.5px;color:var(--muted);font-style:italic}
+/* A part outside the concepts the instructor assigned: filled in for the student, not scored */
+.dfy-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;border:1px dashed var(--rule-strong);background:var(--paper);color:var(--ink)}
+.tick.dfy{border-style:dashed}
+.ticks .tick.dfy.done{background:var(--paper);border-color:var(--muted);color:var(--muted)}
+</style>
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- The concepts in each lab, for assignments that include only some (see fa-lab-platform topics.js) -->
+<script src="/interacctive/topics.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+
+<header class="band1" id="band1">
+  <div class="wrap">
+    <div class="b1-row">
+      <div>
+        <div class="eyebrow">University of New Haven · Financial Accounting · Chapter 7</div>
+        <h1>Inventory Costing Lab</h1>
+      </div>
+      <p class="biz" id="biz"></p>
+      <div class="setchip" id="setChip">Problem set <b>—</b></div>
+    </div>
+    <div class="gk-row"><span class="gk-label">Mode</span><div class="modesw" id="modeSw" role="group" aria-label="Mode"><button type="button" data-mode="practice" aria-pressed="true">Practice</button><button type="button" data-mode="graded" aria-pressed="false">Graded</button></div></div>
+  </div>
+</header>
+<div class="band2" id="band2">
+  <div class="wrap">
+    <div class="timeline" id="timeline" aria-label="Parts of the lab"></div>
+    <div class="status">
+      <div id="where"></div>
+      <span class="score" id="score" hidden></span>
+      <div class="legend-dots" id="legendDots"><span><i style="background:var(--good)"></i>First try</span><span><i style="background:var(--gold)"></i>Retried</span><span><i style="background:var(--muted)"></i>Answer shown</span></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="grid-top">
+    <section class="panel" id="pRec" aria-labelledby="recH">
+      <div class="panel-h"><h2 id="recH">Inventory record</h2><span class="sub">Periodic system · how-to guides</span></div>
+      <div class="panel-b" id="record"></div>
+    </section>
+    <section class="panel" id="pPart" aria-labelledby="partH">
+      <div class="panel-h"><h2 id="partH">Your calculation</h2><span class="sub" id="partSub"></span></div>
+      <div class="panel-b" id="part"></div>
+    </section>
+  </div>
+  <div class="grid-mid">
+    <section class="panel" id="pLay" aria-labelledby="layH">
+      <div class="panel-h"><h2 id="layH">Cost layers</h2>
+        <div class="tabs" role="tablist" id="layTabs"></div></div>
+      <div class="panel-b" id="layers"></div>
+    </section>
+    <section class="panel" id="pCmp" aria-labelledby="cmpH">
+      <div class="panel-h"><h2 id="cmpH">Method comparison</h2><span class="sub">Fills in as you finish each part</span></div>
+      <div class="panel-b" id="compare"></div>
+    </section>
+  </div>
+</main>
+<footer class="wrap">Problem Solvers, Inc. and all figures are illustrative. All calculations use a periodic inventory system. Each problem set changes the quantities and costs.</footer>
+<dialog class="gdlg" id="gDlg" aria-labelledby="gDlgH">
+  <div class="gdlg-h"><div class="eyebrow">Inventory Costing Lab</div><h2 id="gDlgH">Graded mode</h2></div>
+  <div class="gdlg-b" id="gDlgB"></div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+const PYEAR=new Date().getFullYear();
+let YEAR=PYEAR; // Graded mode switches this to the attempt's lab_year (see setYear)
+const MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const KEY="costlab1";
+// Graded mode: graded on the server by the lab-attempt edge function (fa-lab-platform).
+// The page is opened from the course page with ?course=<id>&lab=inventory-cost-flows.
+const LAB_SLUG="inventory-cost-flows";
+const SB_URL="https://yoijetxcolixkjqsxkpo.supabase.co", SB_KEY="sb_publishable_R7CQN_jmNSlHZiGvXa9Jqw_bQv3q3fE";
+const GKEY=KEY+".graded", MKEY=KEY+".mode"; // GKEY holds only a pointer to the server attempt
+const $=id=>document.getElementById(id);
+function fmt(n){return Math.abs(n).toLocaleString("en-US");}
+function d$(n){return "$"+fmt(n);}
+function u$(n){return fmt(n)+" units";}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function parseAmt(s){s=String(s||"").replace(/[$,\s]/g,"").replace(/units?$/i,"");if(s==="")return null;const n=Number(s);return isFinite(n)?n:NaN;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function randomSeed(){return 10000+Math.floor(Math.random()*90000);}
+
+function paintBiz(){$("biz").innerHTML='<b>Problem Solvers, Inc.</b> started selling “how-to” business guides in June '+YEAR+', its first year of operations, so there is no beginning inventory. It uses a <b>periodic</b> system: the cost of goods sold and ending inventory are calculated once, at year-end.';}
+paintBiz();
+
+// ---------- Problem generator ----------
+// Four purchases at changing costs. Quantities are chosen so the weighted average cost is a whole dollar,
+// and so FIFO and LIFO ending inventory each draw from two or more purchases.
+function gen(seed){
+  const r=mulberry32(seed);
+  const R=(a,b,s)=>{s=s||1;return a+s*Math.floor(r()*(Math.floor((b-a)/s)+1));};
+  for(let t=0;t<20000;t++){
+    const rising=r()<0.75, avg=R(12,20);
+    const ds=new Set(); while(ds.size<4)ds.add(R(-4,4));
+    const d=[...ds].sort((x,y)=>x-y); if(!rising)d.reverse();
+    if(d[3]===0)continue;
+    const q=[R(100,400,10),R(100,400,10),R(100,400,10)];
+    const s=q[0]*d[0]+q[1]*d[1]+q[2]*d[2]; if(s===0)continue;
+    const q4=-s/d[3]; if(!Number.isInteger(q4)||q4%10||q4<100||q4>400)continue;
+    q.push(q4);
+    const c=d.map(x=>avg+x);
+    const U=q.reduce((a,b)=>a+b,0), COGA=q.reduce((a,x,i)=>a+x*c[i],0);
+    if(COGA!==avg*U)continue;
+    const lo=Math.max(q[0],q[3])+10, hi=Math.min(U-200,Math.max(q[0],q[3])+250,Math.floor(U*0.45/10)*10);
+    if(hi<lo)continue;
+    const E=R(lo,hi,10), S=U-E;
+    // allocate ending units: FIFO from the newest purchase back, LIFO from the oldest forward
+    const take=(order)=>{const e=[0,0,0,0];let left=E;order.forEach(i=>{const x=Math.min(left,q[i]);e[i]=x;left-=x;});return e;};
+    const fe=take([3,2,1,0]), le=take([0,1,2,3]);
+    const cost=(e)=>e.reduce((a,x,i)=>a+x*c[i],0);
+    const sold=(e)=>q.map((x,i)=>x-e[i]);
+    const fifo={eiU:fe,cgU:sold(fe),ei:cost(fe)}; fifo.cogs=COGA-fifo.ei;
+    const lifo={eiU:le,cgU:sold(le),ei:cost(le)}; lifo.cogs=COGA-lifo.ei;
+    const wa={a:avg,ei:E*avg,cogs:S*avg};
+    if(new Set([fifo.ei,fifo.cogs,lifo.ei,lifo.cogs,wa.ei,wa.cogs]).size<6)continue;
+    const price=Math.max(...c)+R(8,15), sales=S*price;
+    const months=[5,7,9,11], dates=months.map(m=>({m,d:R(2,20)}));
+    return {q,c,dates,U,COGA,E,S,price,sales,fifo,lifo,wa,rising,
+      gp:{fifo:sales-fifo.cogs,lifo:sales-lifo.cogs,wa:sales-wa.cogs},
+      simpleAvg:c.reduce((a,b)=>a+b,0)/4};
+  }
+  throw new Error("Could not generate a problem set");
+}
+
+let P=null, seed=0;
+const LAYER_NAMES=()=>P.dates.map((x,i)=>"Purchase "+(i+1)+" · "+MS[x.m]+" "+x.d);
+function dt(i){return MS[P.dates[i].m]+" "+P.dates[i].d;}
+
+// ---------- Parts ----------
+// Each field: id, label, ans, kind ("$", "u" or "sel"), work (worked solution), wrong(v,vals) → specific message or null.
+function buildParts(){
+  const p=P, L=p.q.map((x,i)=>({q:x,c:p.c[i],date:dt(i)}));
+  const lineTot=L.map(l=>l.q*l.c);
+  const workLayers=(e,dir)=>{const idx=dir==="new"?[3,2,1,0]:[0,1,2,3];return idx.filter(i=>e[i]).map(i=>fmt(e[i])+" × "+d$(L[i].c)+" ("+L[i].date+") = "+d$(e[i]*L[i].c)).join(" + ")+" → "+d$(e.reduce((a,x,i)=>a+x*L[i].c,0));};
+  const costTrend=p.rising?"rising":"falling";
+  const cheaper=p.rising?"oldest":"newest";
+  const near=(v,x)=>Math.abs(v-x)<0.51;
+  const methName={fifo:"FIFO",lifo:"LIFO",wa:"weighted average"};
+  const highGP=p.rising?"fifo":"lifo", lowEI=p.rising?"lifo":"fifo";
+  return [
+    {id:"avail",phase:"setup",tick:"1",title:"Goods available for sale",
+     desc:"Add up everything Problem Solvers had available to sell during the year. With no beginning inventory, goods available equals the four purchases.",
+     hint:"Units available = total units purchased. Cost of goods available = (units × unit cost) for each purchase, added together. This total is the same under every cost flow method.",
+     why:"Cost of goods available for sale is the pool every method divides between cost of goods sold (on the income statement) and ending inventory (on the balance sheet). The methods differ only in which costs go where.",
+     fields:[
+      {id:"U",label:"Units available for sale",kind:"u",ans:p.U,work:L.map(l=>fmt(l.q)).join(" + ")+" = "+u$(p.U),
+       wrong:v=>v===p.E?"That is the ending count. Units available is every unit purchased during the year.":v===p.S?"That is units sold. Units available is every unit purchased during the year.":"Add the units from all four purchases. There is no beginning inventory in the company's first year."},
+      {id:"COGA",label:"Cost of goods available for sale",kind:"$",ans:p.COGA,work:L.map((l,i)=>fmt(l.q)+" × "+d$(l.c)+" = "+d$(lineTot[i])).join(" · ")+" → total "+d$(p.COGA),
+       wrong:v=>v===p.c.reduce((a,b)=>a+b,0)?"You added the unit costs. Multiply each purchase's units by its unit cost first, then add the four totals.":near(v,p.U*p.simpleAvg)&&v!==p.COGA?"You multiplied total units by a simple average of the unit costs. Multiply each purchase's units by its own unit cost, then add.":"Multiply each purchase's units by its unit cost, then add the four totals. Recheck each line."}
+     ]},
+    {id:"sold",phase:"setup",tick:"2",title:"Units sold",
+     desc:"Under a periodic system the company does not track each sale's units in its records. It counts what is left at year-end and works backward.",
+     hint:"Units sold = units available for sale − units in ending inventory (from the December 31 count).",
+     why:"A periodic system figures out units sold at the end of the year. Anything available that is not on the shelf at year-end is assumed sold.",
+     fields:[
+      {id:"S",label:"Units sold during the year",kind:"u",ans:p.S,work:fmt(p.U)+" available − "+fmt(p.E)+" on hand = "+u$(p.S),
+       wrong:v=>v===p.U+p.E?"Subtract the ending count from units available. Don't add it.":v===p.E?"That is the number still on hand. Units sold is what is no longer on hand.":"Units sold = units available − units counted on December 31."}
+     ]},
+    {id:"fifo",phase:"method",tick:"FIFO",method:"fifo",title:"First-in, first-out (FIFO)",
+     desc:"FIFO assumes the oldest guides are sold first. The guides left on the shelf come from the most recent purchases.",
+     hint:"Start with the oldest purchase ("+L[0].date+") and work forward until you have the "+u$(p.S)+" sold for cost of goods sold. Ending inventory = cost of goods available − cost of goods sold.",
+     why:"Under FIFO, ending inventory is priced at the newest costs, so the balance sheet is close to current cost. With "+costTrend+" costs, FIFO's cost of goods sold uses the "+(p.rising?"older, lower":"older, higher")+" costs.",
+     fields:[
+      {id:"fcg",label:"FIFO cost of goods sold",kind:"$",ans:p.fifo.cogs,work:"Oldest first: "+workLayers(p.fifo.cgU,"old"),
+       wrong:v=>v===p.lifo.cogs?"That is the LIFO answer: you used the newest costs. Under FIFO the oldest guides are sold first, so cost of goods sold comes from the oldest purchases.":v===p.fifo.ei?"That is FIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":v===p.S*L[0].c?"The "+u$(p.S)+" sold is more than the "+u$(L[0].q)+" in the first purchase. Take the rest from the next oldest purchase.":v===p.wa.cogs?"That is the weighted average answer. FIFO uses the actual costs of the oldest purchases.":"Start with the oldest purchase and work forward until you have the "+u$(p.S)+" sold."},
+      {id:"fei",label:"FIFO ending inventory",kind:"$",ans:p.fifo.ei,work:d$(p.COGA)+" available − "+d$(p.fifo.cogs)+" cost of goods sold = "+d$(p.fifo.ei)+" (the newest "+u$(p.E)+": "+workLayers(p.fifo.eiU,"new")+")",
+       wrong:(v,vals)=>v===p.lifo.ei?"That is LIFO ending inventory. Under FIFO, the guides on hand come from the newest purchases.":v===p.fifo.cogs?"That is FIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":(vals.fcg!==p.fifo.cogs&&v===p.COGA-vals.fcg)?"Your subtraction is right, but your cost of goods sold is not. Fix cost of goods sold first.":"Ending inventory = cost of goods available − cost of goods sold."}
+     ]},
+    {id:"lifo",phase:"method",tick:"LIFO",method:"lifo",title:"Last-in, first-out (LIFO)",
+     desc:"LIFO assumes the newest guides are sold first. Under a periodic system, the guides left on the shelf are priced at the year's earliest purchase costs.",
+     hint:"Start with the most recent purchase ("+L[3].date+") and work backward until you have the "+u$(p.S)+" sold for cost of goods sold. Ending inventory = cost of goods available − cost of goods sold.",
+     why:"Under LIFO, cost of goods sold uses the newest costs, so the income statement reflects current costs. With "+costTrend+" costs, LIFO reports "+(p.rising?"higher":"lower")+" cost of goods sold than FIFO. LIFO is allowed under US GAAP but not under IFRS.",
+     fields:[
+      {id:"lcg",label:"LIFO cost of goods sold",kind:"$",ans:p.lifo.cogs,work:"Newest first: "+workLayers(p.lifo.cgU,"new"),
+       wrong:v=>v===p.fifo.cogs?"That is the FIFO answer: you used the oldest costs. Under LIFO the newest guides are sold first, so cost of goods sold comes from the newest purchases.":v===p.lifo.ei?"That is LIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":v===p.S*L[3].c?"The "+u$(p.S)+" sold is more than the "+u$(L[3].q)+" in the last purchase. Take the rest from the next most recent purchase.":v===p.wa.cogs?"That is the weighted average answer. LIFO uses the actual costs of the newest purchases.":"Start with the newest purchase and work backward until you have the "+u$(p.S)+" sold."},
+      {id:"lei",label:"LIFO ending inventory",kind:"$",ans:p.lifo.ei,work:d$(p.COGA)+" available − "+d$(p.lifo.cogs)+" cost of goods sold = "+d$(p.lifo.ei)+" (the oldest "+u$(p.E)+": "+workLayers(p.lifo.eiU,"old")+")",
+       wrong:(v,vals)=>v===p.fifo.ei?"That is FIFO ending inventory. Under LIFO, the guides on hand come from the oldest purchases.":v===p.lifo.cogs?"That is LIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":(vals.lcg!==p.lifo.cogs&&v===p.COGA-vals.lcg)?"Your subtraction is right, but your cost of goods sold is not. Fix cost of goods sold first.":"Ending inventory = cost of goods available − cost of goods sold."}
+     ]},
+    {id:"wa",phase:"method",tick:"Avg",method:"wa",title:"Weighted average cost",
+     desc:"The weighted average method pools all the costs and assigns every guide the same average cost. Under a periodic system the average is calculated once, at year-end.",
+     hint:"Weighted average cost per unit = cost of goods available ÷ units available. Then multiply it by units sold for cost of goods sold and by units on hand for ending inventory.",
+     why:"Weighted average smooths out cost changes, so its ending inventory and cost of goods sold fall between FIFO and LIFO. Larger purchases carry more weight than smaller ones.",
+     fields:[
+      {id:"wa",label:"Weighted average cost per unit",kind:"$",ans:p.wa.a,work:d$(p.COGA)+" ÷ "+u$(p.U)+" = "+d$(p.wa.a)+" per unit",
+       wrong:v=>(near(v,p.simpleAvg)&&v!==p.wa.a)?"That is a simple average of the four unit costs. Divide total cost of goods available by total units available, so larger purchases count more.":near(v,p.COGA/p.S)?"Divide by units available, not units sold.":"Weighted average cost = cost of goods available ÷ units available."},
+      {id:"wcg",label:"Weighted average cost of goods sold",kind:"$",ans:p.wa.cogs,work:u$(p.S)+" × "+d$(p.wa.a)+" = "+d$(p.wa.cogs),
+       wrong:v=>v===p.wa.ei?"That is ending inventory. Cost of goods sold uses the "+u$(p.S)+" sold.":"Cost of goods sold = units sold × weighted average cost per unit."},
+      {id:"wei",label:"Weighted average ending inventory",kind:"$",ans:p.wa.ei,work:u$(p.E)+" × "+d$(p.wa.a)+" = "+d$(p.wa.ei)+" (check: "+d$(p.COGA)+" − "+d$(p.wa.cogs)+")",
+       wrong:v=>v===p.wa.cogs?"That is cost of goods sold. Ending inventory uses the "+u$(p.E)+" still on hand.":"Ending inventory = units on hand × weighted average cost per unit."}
+     ]},
+    {id:"gp",phase:"compare",tick:"GP",title:"Gross profit and comparison",
+     desc:"Every guide sold during the year sold for "+d$(p.price)+". Sales revenue is the same under every method; only cost of goods sold changes.",
+     hint:"Sales revenue = units sold × selling price. Gross profit = sales revenue − cost of goods sold for that method. Then compare the three results.",
+     why:"With "+costTrend+" costs, "+methName[highGP].toUpperCase().replace("WEIGHTED AVERAGE","Weighted average")+" sends the "+cheaper+", lower costs to cost of goods sold, so it reports the highest gross profit. The cost flow method changes how costs are split, not the company's actual cash or the total cost of goods available.",
+     fields:[
+      {id:"rev",label:"Sales revenue",kind:"$",ans:p.sales,work:u$(p.S)+" × "+d$(p.price)+" = "+d$(p.sales),
+       wrong:v=>v===p.U*p.price?"Only the guides sold produce revenue. Use units sold, not units available.":v===p.E*p.price?"Use units sold, not units on hand.":"Sales revenue = units sold × selling price."},
+      {id:"gpf",label:"Gross profit under FIFO",kind:"$",ans:p.gp.fifo,work:d$(p.sales)+" − "+d$(p.fifo.cogs)+" = "+d$(p.gp.fifo),
+       wrong:v=>v===p.sales-p.fifo.ei?"Subtract cost of goods sold, not ending inventory.":v===p.gp.lifo||v===p.gp.wa?"Use FIFO cost of goods sold.":"Gross profit = sales revenue − FIFO cost of goods sold."},
+      {id:"gpl",label:"Gross profit under LIFO",kind:"$",ans:p.gp.lifo,work:d$(p.sales)+" − "+d$(p.lifo.cogs)+" = "+d$(p.gp.lifo),
+       wrong:v=>v===p.sales-p.lifo.ei?"Subtract cost of goods sold, not ending inventory.":v===p.gp.fifo||v===p.gp.wa?"Use LIFO cost of goods sold.":"Gross profit = sales revenue − LIFO cost of goods sold."},
+      {id:"gpw",label:"Gross profit under weighted average",kind:"$",ans:p.gp.wa,work:d$(p.sales)+" − "+d$(p.wa.cogs)+" = "+d$(p.gp.wa),
+       wrong:v=>v===p.sales-p.wa.ei?"Subtract cost of goods sold, not ending inventory.":v===p.gp.fifo||v===p.gp.lifo?"Use weighted average cost of goods sold.":"Gross profit = sales revenue − weighted average cost of goods sold."},
+      {id:"hi",label:"Which method reports the highest gross profit this year?",kind:"sel",ans:highGP,opts:[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]],
+       work:methName[highGP].toUpperCase().replace("WEIGHTED AVERAGE","Weighted average")+": it has the lowest cost of goods sold.",
+       wrong:v=>"Costs were "+costTrend+" during the year. The method that puts the "+cheaper+" (lowest) costs into cost of goods sold has the lowest cost of goods sold and the highest gross profit. Compare the three gross profit amounts."},
+      {id:"lo",label:"Which method reports the lowest ending inventory on the balance sheet?",kind:"sel",ans:lowEI,opts:[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]],
+       work:methName[lowEI].toUpperCase()+": its ending inventory uses the lowest costs.",
+       wrong:v=>"Costs were "+costTrend+". The lowest costs were in the "+(p.rising?"earliest":"latest")+" purchases. Which method leaves those costs in ending inventory?"}
+     ]}
+  ];
+}
+let PARTS=[];
+
+// ---------- state ----------
+let cur=0, st=[], confirmReset=false, layTab="fifo";
+function blank(){return {vals:{},fb:null,tries:0,revealed:false,hint:false,status:null};}
+function save(){try{if(!PENDING)localStorage.setItem(MKEY,MODE);if(MODE==="graded"&&GS){localStorage.setItem(GKEY,JSON.stringify({attempt:GS.id,course:GS.course}));return;}if(P)localStorage.setItem(KEY,JSON.stringify({seed,cur,year:YEAR,st:st.map(s=>({vals:s.vals,tries:s.tries,revealed:s.revealed,status:s.status}))}));}catch(e){}}
+function buildSet(sd){seed=sd;P=gen(sd);PARTS=buildParts();setChip();st=PARTS.map(blank);cur=0;markDfy();layTab="fifo";buildTimeline();}
+function load(){
+  let m=null, ptr=null, hs=null;
+  try{ptr=JSON.parse(localStorage.getItem(GKEY)||"null"); m=localStorage.getItem(MKEY);}catch(e){ptr=null;}
+  try{const mm=/^#set(\d{1,9})$/.exec(location.hash||"");if(mm)hs=+mm[1];}catch(e){}
+  // A graded attempt is resumed from the server once the Supabase library has loaded (see the end of the script).
+  if(!COURSE&&m==="graded"&&!hs&&ptr&&typeof ptr.attempt==="string"&&UUID_RE.test(ptr.course||""))useCourse({id:ptr.course},true);
+  if(m==="graded"&&!hs&&ptr&&typeof ptr.attempt==="string"&&COURSE&&ptr.course===COURSE)PENDING=ptr.attempt;
+  loadPractice();
+}
+function loadPractice(){
+  let o=null; try{o=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+  if(o&&o.year!==YEAR)o=null;
+  let hs=null; try{const m=/^#set(\d{1,9})$/.exec(location.hash||"");if(m)hs=+m[1];}catch(e){}
+  if(hs&&(!o||o.seed!==hs)){buildSet(hs);return;}
+  if(o&&o.seed){try{buildSet(o.seed);if(Array.isArray(o.st)&&o.st.length===PARTS.length){o.st.forEach((x,i)=>{Object.assign(st[i],x);if(x.status&&!x.revealed)st[i].fb=grade(i);});}cur=Math.max(0,Math.min(PARTS.length-1,o.cur|0));markDfy();return;}catch(e){}}
+  buildSet(randomSeed());
+}
+function done(id){const i=PARTS.findIndex(p=>p.id===id);return i>=0&&!!st[i].status&&(!graded()||gKnown(i));}
+// GS = the graded attempt as the server reports it. It never holds the seed or any answer the server hasn't returned.
+let MODE="practice", GS=null, PENDING=null, BUSY=false, STEPS=[];
+let VIEW=null; // graded mode: the submitted part being looked at (view only), or null for the current part
+function setChip(){
+  const c=$("setChip"), g=MODE==="graded";
+  c.classList.toggle("graded",g);
+  c.innerHTML=g?"Graded attempt":'Problem set <b>#'+seed+'</b>';
+  c.title=g?"Show a hint and Show the answer are off. Only your first submission on each part counts.":"Each problem set uses different quantities and costs";
+}
+function setYear(y){YEAR=y; paintBiz();}
+
+// ---------- graded mode (server) ----------
+// The class and lab come from the course page link: ?course=<id>&lab=inventory-cost-flows
+let COURSE=(()=>{try{const q=new URLSearchParams(location.search);const c=q.get("course")||"";
+  return q.get("lab")===LAB_SLUG&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c)?c:null;}catch(e){return null;}})();
+// Opened from a plain link (a Canvas page, a bookmark), the link has no class. After sign-in the Graded
+// dialog looks up the student's classes that assign this lab as graded and uses their only one, or asks.
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COURSE_FROM_URL=!!COURSE;
+let CLASSES=null, CNAME="";
+// The chosen class goes into the address too, so a reload or the sign-in email comes back to it.
+function useCourse(c,quiet){
+  if(GS&&GS.course!==c.id&&!graded())GS=null;
+  COURSE=c.id; CNAME=c.name||"";
+  try{const u=new URL(location.href);u.searchParams.set("course",c.id);u.searchParams.set("lab",LAB_SLUG);history.replaceState(null,"",u.href);}catch(e){}
+  if(!quiet)loadTopics();
+}
+function clearCourse(){
+  if(COURSE_FROM_URL)return;
+  COURSE=null; CNAME="";
+  try{const u=new URL(location.href);u.searchParams.delete("course");u.searchParams.delete("lab");history.replaceState(null,"",u.href);}catch(e){}
+}
+async function loadClasses(){
+  CLASSES=null;
+  const fail=()=>{throw new Error("Your classes didn't load. Check your connection and try again.");};
+  const e=await sb().from("enrollments").select("course_id, courses(id,name,term)").eq("student_id",USER.id);
+  if(e.error)fail();
+  const cs=(e.data||[]).map(r=>r.courses).filter(Boolean);
+  let g=new Set();
+  if(cs.length){
+    const a=await sb().from("course_activities").select("course_id, mode, activities!inner(slug)").in("course_id",cs.map(c=>c.id)).eq("activities.slug",LAB_SLUG);
+    if(a.error)fail();
+    g=new Set((a.data||[]).filter(r=>r.mode==="graded").map(r=>r.course_id));
+  }
+  CLASSES=cs.filter(c=>g.has(c.id)).sort((x,y)=>String(x.name||"").localeCompare(String(y.name||"")));
+  if(CLASSES.length===1)useCourse(CLASSES[0]);
+}
+function classHTML(){
+  if(CLASSES==null)return DLG.busy?'<div class="gdlg-note">Finding your classes…</div>':'';
+  if(!CLASSES.length)return '<div class="gdlg-note warn"><b>None of your classes has this lab assigned as graded.</b> Check with your instructor, or keep working in Practice mode.</div>';
+  return '<p style="margin:14px 0 0"><b>Which class is this graded attempt for?</b></p>'+CLASSES.map((c,i)=>'<label class="pledge gclass"><input type="radio" name="gClass" value="'+esc(c.id)+'"'+(i===0?" checked":"")+'> <span>'+esc(c.name||"Class")+(c.term?' <span class="gterm">· '+esc(c.term)+'</span>':'')+'</span></label>').join("");
+}
+function focusDlg(){const d=$("gDlg");const p=d.querySelector("#gCode")||d.querySelector("#gEmail")||d.querySelector('input[name="gClass"]:checked')||d.querySelector("#pledge")||d.querySelector(".btn.primary");if(p)p.focus();}
+let SB=null;
+function sb(){
+  if(!SB){if(!window.supabase||!window.supabase.createClient){const e=new Error("The sign-in service didn't load. Check your connection and reload the page.");e.code="sdk";throw e;}
+    SB=window.supabase.createClient(SB_URL,SB_KEY);}
+  return SB;
+}
+async function currentUser(){const {data}=await sb().auth.getSession();return data&&data.session?data.session.user:null;}
+// Calls the lab-attempt edge function as the signed-in student. Throws an Error with .code and a message to show.
+async function api(body){
+  let res;
+  try{res=await sb().functions.invoke("lab-attempt",{body});}
+  catch(e){if(e&&e.code==="sdk")throw e;const x=new Error("Could not reach the grading server. Check your connection and try again.");x.code="network";throw x;}
+  if(!res.error)return res.data;
+  let msg="Could not reach the grading server. Check your connection and try again.", code="network";
+  try{const c=res.error.context;if(c&&typeof c.json==="function"){const j=await c.json();if(j&&j.message)msg=j.message;if(j&&(j.error||j.code))code=String(j.error||j.code);
+    if(c.status===401){code="unauthorized";msg="Your sign-in has expired. Sign in again to keep going.";}}}catch(e){}
+  const x=new Error(msg); x.code=code; throw x;
+}
+const graded=()=>MODE==="graded";
+function gTotal(){let t=0;for(let i=0;i<GS.max.length;i++)t+=GS.max[i];return t;}
+function gEarned(){return GS?GS.pts.reduce((t,x)=>t+(x||0),0):0;}
+function gScoredMax(){let t=0;for(let i=0;i<GS.max.length;i++)if(GS.done[i])t+=GS.max[i];return t;}
+function gScoreText(){return GS.finishedAt?"Graded · final score "+GS.score+" of "+GS.total+" points":gScoredMax()?"Graded · "+gEarned()+" of "+gScoredMax()+" points so far ("+gTotal()+" possible)":"Graded · "+gTotal()+" points possible";}
+// Classes that hide answers send no solution. A student can only post an entry once every line is right,
+// so their own corrected entry is the correct one: post it to the journal, T-accounts and statements.
+// It reveals nothing they haven't already entered. Corrected entries are kept in this browser so a reload keeps them.
+function ownLines(rows){return (rows||[]).map(r=>({a:r.a,dr:parseAmt(r.dr)||0,cr:parseAmt(r.cr)||0})).filter(l=>l.a&&(l.dr||l.cr));}
+function ownKey(){return KEY+".own."+(GS&&GS.id);}
+function ownLoad(){try{return JSON.parse(localStorage.getItem(ownKey())||"{}")||{};}catch(e){return {};}}
+function ownSave(i,lines){try{const o=ownLoad();o[i]=lines;localStorage.setItem(ownKey(),JSON.stringify(o));}catch(e){}}
+async function enterAttempt(id){
+  const p=await api({action:"problem",attempt_id:id});
+  applyProblem(p); render(true); scrollPart(); gFocus();
+}
+function exitGraded(){save();VIEW=null;MODE="practice";setYear(PYEAR);loadPractice(null);}
+function when(ms){return new Date(ms).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"}).replace(/ /g," ");}
+function markBusy(act,label){document.querySelectorAll('#part [data-act="'+act+'"]').forEach(b=>{b.disabled=true;b.setAttribute("aria-busy","true");if(label)b.textContent=label;});}
+function onApiError(e){if(e&&e.code==="unauthorized"){USER=null;openGDlg(e.message);}}
+async function finishGraded(){
+  if(BUSY)return;
+  BUSY=true; GS.err=null; markBusy("finishG","Finishing…");markBusy("finish","Finishing…");markBusy("cont","Finishing…");
+  try{
+    const r=await api({action:"finish",attempt_id:GS.id});
+    GS.finishedAt=r.finished_at; GS.score=r.score; GS.total=r.total;
+    BUSY=false; gAtEnd(); render(false); scrollPart();
+  }catch(e){BUSY=false;GS.err=e.message;gAtEnd();render(false);onApiError(e);}
+  finally{BUSY=false;}
+}
+function renderGradedDone(){
+  const fin=!!GS.finishedAt;
+  $("partH").textContent=fin?"Graded attempt complete":"Finish your graded attempt";
+  $("partSub").textContent=fin?"Your score is saved":"";
+  let rows="";
+  STEPS.forEach((s,i)=>{const mx=GS.max[i];if(!mx)return;const p=GS.pts[i]||0;
+    rows+='<tr class="'+(p<mx?"miss":"")+'"><td>'+esc(s.tick||s.title)+'</td><td>'+esc(s.title||"")+'</td><td class="r">'+(GS.done[i]?p:"—")+' / '+mx+'</td></tr>';});
+  const table='<details class="pts"><summary>Your points by step</summary><table class="ptab"><tbody>'+rows+'</tbody></table></details>';
+  if(!fin){
+    $("part").innerHTML='<h3 class="entry-title" style="margin-top:0">You have submitted every step</h3>'+
+      '<p class="entry-desc">Finish the attempt to record your score. After you finish, your score can\'t change.</p>'+
+      (GS.err?'<div class="overall no"><b>Not finished yet.</b> '+esc(GS.err)+'</div>':'')+table+
+      controls('<button class="btn primary" data-act="finishG">Finish and see your score →</button>');
+    return;
+  }
+  const pct=GS.total?Math.round(GS.score/GS.total*100):0;
+  $("part").innerHTML='<h3 class="entry-title" style="margin-top:0">You finished the graded lab: '+GS.score+' of '+GS.total+' points ('+pct+'%)</h3>'+
+    '<div class="final"><b>Score: '+GS.score+' / '+GS.total+'</b><br>Finished '+esc(when(GS.finishedAt))+'<br>Started '+esc(when(GS.startedAt))+'</div>'+
+    '<p class="entry-desc">Your score is saved to your class, so there is nothing to copy or turn in. Your instructor sees it in the gradebook.</p>'+
+    table+controls('');
+}
+// Paints the status bar's graded parts: score, legend, locked timeline, mode buttons.
+function gBar(){
+  const g=graded(), sc=$("score");
+  if(sc){sc.classList.toggle("graded",g);
+    if(g){sc.hidden=false;sc.textContent=gScoreText();}}
+  const lg=$("legendDots");
+  if(lg){if(!lg.dataset.practice)lg.dataset.practice=lg.innerHTML;
+    lg.innerHTML=g?'<span><i style="background:var(--good)"></i>Full credit</span><span><i style="background:var(--gold)"></i>Partial or no credit</span>':lg.dataset.practice;}
+  const tl=$("timeline"); if(tl)tl.classList.toggle("locked",g);
+  document.querySelectorAll("#modeSw [data-mode]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===MODE)));
+}
+
+// mode switch, sign-in and rules dialog
+let dlgConfirm=false, USER=null, DLG={stage:"email",email:"",err:null,info:null,busy:false};
+function rulesHTML(){
+  const pts=graded()&&GS?gTotal():null;
+  return '<ul>'+
+    '<li><b>No hints or answers.</b> Show a hint and Show the answer are turned off.</li>'+
+    '<li><b>Only your first submission counts.</b> Each answer box is worth 1 point'+(pts?' ('+pts+' points in all)':'')+'. After you submit, you\'ll see what is wrong and why, and you must fix it to move on, but retries don\'t change your score.</li>'+
+    '<li><b>Look back, but no changes.</b> Click an earlier part in the timeline to see what you submitted and its feedback. You can\'t change a submitted part or start over during the attempt.</li>'+
+    '<li><b>Saved to your account.</b> You get a new problem set, graded and saved on the server as you go. You can leave and come back, even on another device, but the clock keeps running.</li>'+
+    '<li><b>Your score goes to your class.</b> When you finish, your score and finish time are recorded for your instructor. There is nothing to copy or paste.</li>'+
+    '<li><b>Work on your own.</b> Getting help from another person or an AI tool, or sharing your answers, is academic dishonesty. Every attempt has its own numbers.</li>'+
+    '<li><b>How you answer is recorded.</b> Along with your answers and times, the lab notes how they were entered (typing, pasting, leaving this page, and signs of AI or automation tools) for your instructor to review. It never records what you type anywhere else.</li></ul>';
+}
+function signInHTML(){
+  if(DLG.stage==="code")return '<div class="signin"><p style="margin:0">We sent a sign-in email to <b>'+esc(DLG.email)+'</b>. Enter the code from the email here.</p>'+
+    '<label for="gCode">Code from the email</label><input id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10">'+
+    '<div class="gdlg-actions" style="justify-content:flex-start;margin-top:4px"><button class="btn primary" data-g="verify">Sign in</button><button class="btn" data-g="restart">Use a different email</button></div></div>';
+  return '<div class="signin"><p style="margin:0"><b>Sign in to start a graded attempt.</b> Use the email address you use for your course page.</p>'+
+    '<label for="gEmail">Email</label><input id="gEmail" type="email" autocomplete="email" value="'+esc(DLG.email)+'">'+
+    '<div class="gdlg-actions" style="justify-content:flex-start;margin-top:4px"><button class="btn primary" data-g="send">Email me a sign-in code</button></div></div>';
+}
+function paintGDlg(){
+  const live=GS&&!GS.finishedAt, fin=GS&&GS.finishedAt;
+  let h='<p style="margin:0">Graded mode works like a quiz:</p>'+rulesHTML(), btn='<button class="btn" data-g="cancel">'+(graded()?"Back to the lab":"Stay in practice")+'</button>';
+  if(DLG.err)h+='<div class="gdlg-note warn">'+esc(DLG.err)+'</div>';
+  if(DLG.info)h+='<div class="gdlg-note">'+esc(DLG.info)+'</div>';
+  if(!USER){
+    h+=signInHTML();
+  } else if(!COURSE){
+    h+='<div class="signin"><span class="who">Signed in as '+esc(USER.email||"")+'. <button class="btn small" data-g="signout">Sign out</button></span></div>';
+    h+=classHTML();
+    if(CLASSES==null&&!DLG.busy)btn+='<button class="btn primary" data-g="classes">Find my classes</button>';
+    else if(CLASSES&&CLASSES.length>1)btn+='<button class="btn primary" data-g="pick">Continue</button>';
+  } else {
+    h+='<div class="signin"><span class="who">Signed in as '+esc(USER.email||"")+'. <button class="btn small" data-g="signout">Sign out</button></span>'+
+      (CNAME?'<span class="who">Class: <b>'+esc(CNAME)+'</b>'+(!COURSE_FROM_URL&&CLASSES&&CLASSES.length>1&&!graded()?' <button class="btn small" data-g="change">Change class</button>':'')+'</span>':'')+'</div>';
+    if(dlgConfirm){
+      h+='<div class="gdlg-note warn"><b>Start another graded attempt?</b> Your finished attempt and its score stay saved. A new attempt gets new numbers, if your class allows more than one attempt.</div>';
+      btn+='<button class="btn primary" data-g="start">Yes, start a new attempt</button>';
+    } else if(live&&graded()){
+      h+='<div class="gdlg-note">You are in a graded attempt that started '+esc(when(GS.startedAt))+'.</div>';
+      btn='<button class="btn primary" data-g="cancel">Back to the lab</button>';
+    } else if(live){
+      h+='<div class="gdlg-note">You have a graded attempt in progress. It started '+esc(when(GS.startedAt))+'.</div>';
+      btn+='<button class="btn primary" data-g="resume">Resume my attempt</button>';
+    } else if(fin){
+      h+='<div class="gdlg-note">You finished a graded attempt on '+esc(when(GS.finishedAt))+' with '+GS.score+' of '+GS.total+' points.</div>';
+      btn+='<button class="btn" data-g="new">Start a new attempt</button><button class="btn primary" data-g="resume">View my score</button>';
+    } else {
+      h+='<div class="gdlg-note">If you already started a graded attempt for this class, you\'ll pick up where you left off.</div>';
+      btn+='<button class="btn primary" data-g="start">Start graded attempt</button>';
+    }
+    if(btn.indexOf('data-g="start"')>=0){
+      h+='<label class="pledge"><input type="checkbox" id="pledge"> <span>I will complete this graded attempt on my own, without help from another person or an AI tool, and I will not share my answers.</span></label>';
+      btn=btn.replace('data-g="start"','data-g="start" disabled');}
+  }
+  $("gDlgB").innerHTML=h+'<div class="gdlg-actions">'+btn+'</div>';
+  if(DLG.busy)$("gDlgB").querySelectorAll(".btn").forEach(b=>{b.disabled=true;});
+}
+async function openGDlg(note){
+  dlgConfirm=false; DLG.err=note||null; DLG.info=null;
+  try{USER=await currentUser();}catch(e){USER=null;DLG.err=e.message;}
+  paintGDlg();
+  const d=$("gDlg");if(!d.open){if(d.showModal)d.showModal();else d.setAttribute("open","");}
+  focusDlg();
+  if(USER&&!COURSE&&CLASSES==null)dlgRun(loadClasses).then(focusDlg);
+}
+function closeGDlg(){const d=$("gDlg");if(d.close)d.close();else d.removeAttribute("open");}
+async function dlgRun(fn){
+  if(DLG.busy)return; DLG.busy=true; DLG.err=null; DLG.info=null; paintGDlg();
+  try{await fn();}catch(e){DLG.err=e&&e.message?e.message:"Something went wrong. Try again.";onApiError(e);}
+  finally{DLG.busy=false;if($("gDlg").open)paintGDlg();}
+}
+$("gDlgB").addEventListener("click",e=>{
+  const b=e.target.closest("[data-g]"); if(!b||b.disabled)return; const g=b.dataset.g;
+  if(g==="cancel"){closeGDlg();return;}
+  if(g==="new"){dlgConfirm=true;paintGDlg();const p=$("pledge");if(p)p.focus();return;}
+  if(g==="restart"){DLG.stage="email";DLG.err=null;paintGDlg();return;}
+  if(g==="send"){const email=($("gEmail").value||"").trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){DLG.err="Enter your email address.";paintGDlg();return;}
+    DLG.email=email;
+    dlgRun(async()=>{const {error}=await sb().auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.href.split("#")[0]}});
+      if(error)throw new Error(/signups? not allowed|not found/i.test(error.message)?"There is no account for that email. Join your class on the course page first.":error.message);
+      DLG.stage="code";});
+    return;}
+  if(g==="verify"){const token=($("gCode").value||"").replace(/\s/g,"");
+    if(!token){DLG.err="Enter the code from the email.";paintGDlg();return;}
+    dlgRun(async()=>{const {data,error}=await sb().auth.verifyOtp({email:DLG.email,token,type:"email"});
+      if(error)throw new Error("That code didn't work. Check it, or send a new one.");
+      USER=data.user; DLG.stage="email"; if(!COURSE)await loadClasses();});
+    return;}
+  if(g==="signout"){dlgRun(async()=>{await sb().auth.signOut();USER=null;if(graded()){exitGraded();render(true);}GS=null;CLASSES=null;clearCourse();try{localStorage.removeItem(GKEY);}catch(x){}});return;}
+  if(g==="classes"){dlgRun(loadClasses).then(focusDlg);return;}
+  if(g==="pick"){const r=$("gDlgB").querySelector('input[name="gClass"]:checked');const c=r&&CLASSES&&CLASSES.find(x=>x.id===r.value);if(c){useCourse(c);paintGDlg();focusDlg();}return;}
+  if(g==="change"){clearCourse();if(!graded())GS=null;paintGDlg();focusDlg();return;}
+  if(g==="start"&&!($("pledge")&&$("pledge").checked))return;
+  if(g==="start"||g==="resume"){
+    dlgRun(async()=>{
+      const id=g==="resume"?GS.id:(await api({action:"start",course_id:COURSE,lab:LAB_SLUG})).attempt_id;
+      if(window.IACSignals)IACSignals.reset();
+      await enterAttempt(id); closeGDlg();});
+  }
+});
+$("gDlgB").addEventListener("change",e=>{if(e.target.id==="pledge"){const b=$("gDlgB").querySelector('[data-g="start"]');if(b)b.disabled=!e.target.checked;}});
+$("gDlgB").addEventListener("keydown",e=>{if(e.key!=="Enter")return;
+  if(e.target.id==="gEmail"){e.preventDefault();const b=$("gDlgB").querySelector('[data-g="send"]');if(b)b.click();}
+  else if(e.target.id==="gCode"){e.preventDefault();const b=$("gDlgB").querySelector('[data-g="verify"]');if(b)b.click();}});
+$("modeSw").addEventListener("click",e=>{
+  const b=e.target.closest("[data-mode]"); if(!b)return;
+  if(b.dataset.mode==="graded")openGDlg();
+  else if(graded()){exitGraded();render(true);scrollPart();}
+});
+
+function gFocus(){const f=$("part").querySelector("input:not([disabled]),select:not([disabled])");if(f)f.focus({preventScroll:true});}
+function gAtEnd(){GS.atEnd=true;}
+function gKnown(i){const pt=PARTS[i];return !!pt&&!!pt.fields&&pt.fields.every(f=>f.ans!=null);}
+// Inventory costing: the purchases, count, price and cost trend are given; the rest comes from finished parts.
+// Which units stay in ending inventory under FIFO and LIFO follows from the count, as the page's gen works it out.
+function gP(){
+  const I=GS.info, p=JSON.parse(JSON.stringify(I)), q=p.q;
+  const f=(pid,fid)=>{const s=PARTS.find(x=>x.id===pid);const fl=s&&s.fields&&s.fields.find(x=>x.id===fid);return fl&&fl.ans!=null?fl.ans:null;};
+  const take=order=>{const e=[0,0,0,0];let left=p.E;order.forEach(i=>{const x=Math.min(left,q[i]);e[i]=x;left-=x;});return e;};
+  const fe=take([3,2,1,0]), le=take([0,1,2,3]);
+  p.U=f("avail","U"); p.COGA=f("avail","COGA"); p.S=f("sold","S");
+  p.fifo={eiU:fe,cgU:q.map((x,i)=>x-fe[i]),ei:f("fifo","fei"),cogs:f("fifo","fcg")};
+  p.lifo={eiU:le,cgU:q.map((x,i)=>x-le[i]),ei:f("lifo","lei"),cogs:f("lifo","lcg")};
+  p.wa={a:f("wa","wa"),ei:f("wa","wei"),cogs:f("wa","wcg")};
+  p.sales=f("gp","rev"); p.gp={fifo:f("gp","gpf"),lifo:f("gp","gpl"),wa:f("gp","gpw")};
+  return p;
+}
+function applySol(i,sol){
+  const pt=PARTS[i]; if(!pt||!sol)return;
+  if(sol.why)pt.why=sol.why;
+  (sol.fields||[]).forEach(x=>{const f=pt.fields.find(y=>y.id===x.id);if(f){f.ans=x.ans;f.work=x.work;}});
+}
+// With answers hidden, a part can only be left once every answer is right, so the student's own corrected
+// answers stand for the answers: they fill in the panels the way a solution would.
+function ownCalc(pt,vals){
+  if(!pt||!pt.fields||!vals)return;
+  pt.fields.forEach(f=>{const raw=vals[f.id];if(raw==null||raw==="")return;
+    if(f.kind==="sel"||f.kind==="cls"){f.ans=raw;return;}
+    const v=parseAmt(raw);if(v!==null&&!isNaN(v))f.ans=v;});
+}
+function applyProblem(pr){
+  if(MODE==="practice"&&P)save();
+  MODE="graded"; seed=0;
+  setYear(pr.lab_year); // every date and label follows the attempt, even if it is finished after New Year
+  PARTS=JSON.parse(JSON.stringify(pr.steps)); STEPS=PARTS;
+  GS={id:pr.attempt_id,course:COURSE,info:pr.info,startedAt:pr.started_at,finishedAt:pr.finished_at||null,atEnd:false,
+    score:pr.score==null?null:pr.score,total:pr.total==null?null:pr.total,max:pr.max_points.slice(),pts:[],done:[],ans:[],fb:[],err:null};
+  VIEW=null;
+  st=PARTS.map(blank);
+  const ownSaved=ownLoad();
+  Object.keys(pr.progress||{}).forEach(key=>{const i=+key, r=pr.progress[key], pt=PARTS[i]; if(!pt)return;
+    if(r.doneForYou){dfyGraded(i,r);return;}
+    GS.done[i]=true; GS.pts[i]=r.points; GS.ans[i]=r.answer; GS.fb[i]=r.feedback; st[i].status=r.points===r.maxPoints?"first":"retry";
+    const a=r.points===r.maxPoints?r.answer:ownSaved[i];
+    if(a&&a.vals)st[i].vals=a.vals;
+    if(r.solution)applySol(i,r.solution); else if(a)ownCalc(pt,a.vals);});
+  const nx=pr.next_step|0;
+  GS.atEnd=!!GS.finishedAt||nx>=PARTS.length; cur=Math.max(0,Math.min(PARTS.length-1,nx));
+  if(!GS.atEnd)while(cur>0&&dfyPart(cur-1)&&GS.done[cur-1])cur--;
+  P=gP(); setChip(); buildTimeline();
+}
+function incompletePart(pt,s){
+  for(const f of pt.fields){const raw=s.vals[f.id];
+    if(f.kind==="sel"||f.kind==="cls"){if(!raw)return "Answer every question.";continue;}
+    const v=parseAmt(raw);
+    if(v===null)return "Fill in every answer box.";
+    if(Number.isNaN(v))return "Enter numbers only, like 2400 or 2,400.";}
+  return null;
+}
+async function submitPart(){
+  if(BUSY)return;
+  const i=cur, pt=PARTS[i], s=st[i];
+  if(!GS.done[i]){const w=incompletePart(pt,s);if(w){s.warn=w;renderPart();return;}}
+  s.warn=null; BUSY=true; markBusy("check","Submitting…");
+  const answer={vals:Object.assign({},s.vals)};
+  try{
+    const r=await api({action:"submit-step",attempt_id:GS.id,step:i,answer,signals:window.IACSignals?IACSignals.take():null});
+    if(!graded()||cur!==i)return;
+    if(r.first&&GS.ans[i]===undefined){GS.ans[i]=answer;GS.fb[i]=JSON.parse(JSON.stringify(r.feedback));} // the scored submission, for looking back
+    s.tries++; s.fb=r.feedback; GS.done[i]=true; GS.pts[i]=r.points;
+    if(r.next&&PARTS[i+1]&&PARTS[i+1].locked)PARTS[i+1]=r.next; // the server sends each part's text when it is reached
+    (r.doneForYou||[]).forEach(g=>dfyGraded(g.step,g));
+    if(r.after&&STEPS[r.after.step]&&STEPS[r.after.step].locked)STEPS[r.after.step]=r.after.public;
+    if(r.doneForYou&&typeof buildTimeline==="function")buildTimeline();
+    if(r.solution)applySol(i,r.solution);
+    if(r.correct||(r.feedback&&r.feedback.all)){
+      if(!r.solution){ownCalc(pt,answer.vals);ownSave(i,answer);}
+      s.status=GS.pts[i]===GS.max[i]?"first":"retry";}
+    P=gP(); BUSY=false; render();
+    const bad=$("part").querySelector(".field.no input,.field.no select");if(bad)bad.focus();else{const n=$("part").querySelector('[data-act="next"],[data-act="finishG"]');if(n)n.focus({preventScroll:true});}
+  }catch(e){BUSY=false;s.warn=e.message;renderPart();onApiError(e);}
+  finally{BUSY=false;}
+}
+// The graded parts of the part card: rules note, submission warning, the score on this part, and the buttons.
+function gPartCard(h,s,lock){
+  h=h.replace(/<div class="overall (ok|no)">[\s\S]*?<\/div>/,"").replace(/<div class="effects">[\s\S]*?<\/div>/,"");
+  if(!GS.done[cur])h=h.replace('<div class="fields">','<div class="gnote">Graded: only your first submission on this part counts. Each answer is worth 1 point ('+GS.max[cur]+' points). Fill in every answer before you submit.</div><div class="fields">');
+  if(s.warn)h+='<div class="overall no"><b>Not submitted yet.</b> '+esc(s.warn)+' Only your first complete submission is scored.</div>';
+  if(s.fb&&GS.done[cur]){const p=GS.pts[cur]||0, mx=GS.max[cur];
+    if(s.fb.all)h+='<div class="overall ok"><b>✓ All correct.</b> Your first submission earned '+p+' of '+mx+' points.'+(p<mx?" Retries don't change your score.":"")+'</div>';
+    else{const n=Object.values(s.fb.res).filter(x=>x&&!x.ok).length;h+='<div class="overall no"><b>Not quite.</b> Your first submission earned '+p+' of '+mx+' points. Fix the '+(n===1?"answer":n+" answers")+' marked ✗ to move on; retries don\'t change your score.</div>';}}
+  else if(GS.done[cur]&&lock)h+='<div class="overall ok"><b>Submitted.</b> Your first submission earned '+(GS.pts[cur]||0)+' of '+GS.max[cur]+' points.</div>';
+  const prim=lock?(cur<PARTS.length-1?'<button class="btn primary" data-act="next">Next part →</button>':'<button class="btn primary" data-act="finishG">Finish and see your score →</button>'):
+    '<button class="btn primary" data-act="check">'+(GS.done[cur]?"Check my answers":"Submit answers")+'</button>';
+  return h+controls(prim);
+}
+
+// ---------- graded mode: look back at submitted parts (view only) ----------
+// Any submitted part can be opened from the timeline to view the scored first submission, its feedback and,
+// when the class shows answers, the solution. Nothing can be changed.
+function rvIsCur(i){return !GS.atEnd&&i===cur;}
+function rvCan(i){return graded()&&!!GS&&i>=0&&i<PARTS.length&&(rvIsCur(i)||!!GS.done[i]);}
+function rvGo(i){
+  if(!graded()||BUSY||!rvCan(i))return;
+  VIEW=rvIsCur(i)?null:i; render(); scrollPart(); rvFocus();
+}
+function rvFocus(){
+  const c=$("part").querySelector(VIEW!=null?'[data-act="rvBack"]':'[data-act="next"],[data-act="finishG"],input:not([disabled]),select:not([disabled])');
+  if(c)c.focus({preventScroll:true});
+}
+function rvVal(f,v){
+  if(v==null||v==="")return "(blank)";
+  const t=String(v).trim();
+  if(f.opts){const o=f.opts.find(o=>String(o[0])===t);return o?String(o[1]):t;}
+  if(f.kind==="u")return t+" units";
+  if(f.kind==="$")return /^[-−(]/.test(t)?t:"$"+t.replace(/^\$\s*/,"");
+  return t;
+}
+function rvMark(r){if(!r)return '';const ok=r.ok===true;return '<div class="fmsg '+(ok?"ok":"no")+'"><span>'+(ok?"✓":"✗")+'</span><span>'+esc(r.msg||(ok?"Correct.":""))+'</span></div>';}
+function rvRender(i){
+  if(dfyPart(i)){$("part").innerHTML=dfyBody(i)+rvNavDfy(i);$("partSub").textContent="Done for you";return;}
+  const p=PARTS[i], a=GS.ans[i], fb=GS.fb[i]||{}, res=fb.res||{}, pts=GS.pts[i]||0, mx=GS.max[i], v=a&&a.vals||{};
+  $("partSub").textContent="View only";
+  let h='<div class="rv-note"><b>View only.</b> You already submitted this part, so it can\'t be changed. Your first submission earned '+pts+' of '+mx+(mx===1?" point":" points")+'.</div>'+
+    '<div class="meta"><span class="pill '+p.phase+'">Part '+(i+1)+' of '+PARTS.length+'</span><span>'+esc(PH_LABEL[p.phase]||"")+'</span></div>'+
+    '<h3 class="part-title">'+esc(p.title)+'</h3><p class="part-desc">'+esc(p.desc)+'</p>';
+  if(!a)h+='<p class="note">Your first submission isn\'t available.</p>';
+  else h+='<p class="note" style="margin-top:0">Your first submission (the one that was scored):</p>';
+  h+='<div class="fields">';
+  (p.fields||[]).forEach(f=>{const r=res[f.id];
+    h+='<div class="field'+(r?(r.ok?" ok":" no"):"")+'"><div class="frow"><span class="flabel">'+esc(f.label)+'</span><span class="rv-ans">'+esc(a?rvVal(f,v[f.id]):"—")+'</span></div>'+rvMark(r);
+    if(f.ans!=null&&!(r&&r.ok))h+='<div class="work">Correct answer: '+esc(typeof f.ans==="number"&&f.kind==="$"?d$(f.ans):rvVal(f,f.ans))+'</div>';
+    if(f.work!=null)h+='<div class="work">'+esc(f.work)+'</div>';
+    h+='</div>';});
+  h+='</div>';
+  if(p.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(p.why)+'</div>';
+  let prev=-1,next=-1;
+  for(let j=i-1;j>=0;j--)if(GS.done[j]&&!rvIsCur(j)){prev=j;break;}
+  for(let j=i+1;j<PARTS.length;j++)if(GS.done[j]&&!rvIsCur(j)){next=j;break;}
+  const back=GS.atEnd?(GS.finishedAt?"Back to your score":"Back to finishing"):"Back to part "+(cur+1);
+  h+='<div class="actions"><div class="grp">'+(prev>=0?'<button class="btn small" data-act="rvGo" data-i="'+prev+'">← '+esc(PARTS[prev].tick)+'</button>':'')+(next>=0?'<button class="btn small" data-act="rvGo" data-i="'+next+'">'+esc(PARTS[next].tick)+' →</button>':'')+'</div>'+
+    '<div class="grp"><button class="btn primary" data-act="rvBack">'+back+' →</button></div></div>';
+  $("part").innerHTML=h;
+}
+
+// ---------- timeline ----------
+const PH_LABEL={setup:"Set up",method:"Cost flow methods",compare:"Compare"};
+function buildTimeline(){
+  let h="";
+  ["setup","method","compare"].forEach(ph=>{
+    h+='<div class="phase ph-'+ph+'"><div class="phase-label">'+PH_LABEL[ph]+'</div><div class="ticks">';
+    PARTS.forEach((p,i)=>{if(p.phase===ph)h+='<button class="tick" data-i="'+i+'">'+p.tick+'</button>';});
+    h+='</div></div>';
+  });
+  $("timeline").innerHTML=h;
+}
+$("timeline").addEventListener("click",e=>{if(graded()){const t=e.target.closest(".tick[data-i]");if(t)rvGo(+t.dataset.i);return;}const t=e.target.closest(".tick");if(t){cur=+t.dataset.i;confirmReset=false;if(PARTS[cur].method)layTab=PARTS[cur].method;render();scrollPart();}});
+const SLAB={given:"done for you, not in this assignment",first:"correct on first try",retry:"correct after retrying",shown:"answer shown"};
+function renderBar(){
+  const n=st.filter(s=>s.status).length, first=st.filter(s=>s.status==="first").length;
+  $("where").innerHTML='<b>'+n+' of '+PARTS.length+'</b> parts finished · now on '+esc(PARTS[cur].title);
+  const sc=$("score"); sc.hidden=n===0; sc.textContent="First-try correct: "+first+" of "+n; gBar();
+  document.querySelectorAll(".tick").forEach(t=>{const i=+t.dataset.i;
+    const gm=graded(), rvCur=gm&&VIEW!=null?i===VIEW:i===cur, rvC=gm&&rvCan(i);
+    t.className="tick"+(dfyPart(i)?" dfy":"")+(st[i].status?" done":"")+(rvCur?" cur":"")+(st[i].status?" s-"+st[i].status:"")+(rvC?" can":"");
+    if(gm){t.setAttribute("aria-disabled",String(!rvC));if(rvCur)t.setAttribute("aria-current","step");else t.removeAttribute("aria-current");}else{t.removeAttribute("aria-disabled");t.removeAttribute("aria-current");}
+    t.title=PARTS[i].title+(st[i].status?" ("+SLAB[st[i].status]+")":"");
+    t.setAttribute("aria-label","Part "+(i+1)+": "+PARTS[i].title+(st[i].status?", "+SLAB[st[i].status]:""));});
+}
+
+// ---------- inventory record ----------
+function renderRecord(){
+  const showTot=done("avail");
+  let h='<div class="scroll"><table class="rec"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">How-to Guides: Purchases</div><div class="cap-date">For the Year Ended December 31, '+YEAR+'</div></caption>'+
+    '<thead><tr><th>Date</th><th>Transaction</th><th class="r">Units</th><th class="r">Unit cost</th><th class="r">Total cost</th></tr></thead><tbody>';
+  h+='<tr><td>Jan 1</td><td>Beginning inventory</td><td class="r">0</td><td class="r dim">—</td><td class="r">0</td></tr>';
+  P.q.forEach((q,i)=>{h+='<tr><td>'+dt(i)+'</td><td>Purchase '+(i+1)+'</td><td class="r">'+fmt(q)+'</td><td class="r">'+d$(P.c[i])+'</td><td class="r '+(showTot?"":"dim")+'">'+(showTot?d$(q*P.c[i]):"?")+'</td></tr>';});
+  h+='</tbody><tfoot><tr><td></td><td>Goods available for sale</td><td class="r">'+(showTot?fmt(P.U):"?")+'</td><td></td><td class="r">'+(showTot?d$(P.COGA):"?")+'</td></tr></tfoot></table></div>';
+  h+='<div class="facts"><div class="fact"><span class="k">Dec 31 count</span><span><b class="num">'+fmt(P.E)+'</b> guides on hand</span></div>'+
+     '<div class="fact"><span class="k">Selling price</span><span>Every guide sold during the year sold for <b class="num">'+d$(P.price)+'</b></span></div>'+
+     '<div class="fact"><span class="k">Cost trend</span><span>Unit costs '+(P.rising?"rose":"fell")+' during the year, from '+d$(P.c[0])+' to '+d$(P.c[3])+'</span></div></div>';
+  h+='<p class="note">'+(showTot?"":"Totals marked ? appear after you finish Part 1. ")+'Enter whole dollars and whole units.</p>';
+  $("record").innerHTML=h;
+}
+
+// ---------- part card ----------
+function grade(i){
+  const p=PARTS[i], s=st[i];
+  const res={}; let all=true;
+  p.fields.forEach(f=>{
+    const raw=s.vals[f.id];
+    if(f.kind==="sel"){
+      if(!raw){res[f.id]={ok:false,msg:"Choose an answer."};all=false;return;}
+      if(raw===f.ans){res[f.id]={ok:true,msg:"Correct."};return;}
+      res[f.id]={ok:false,msg:f.wrong(raw)};all=false;return;
+    }
+    const v=parseAmt(raw);
+    if(v===null){res[f.id]={ok:false,msg:"Enter an amount."};all=false;return;}
+    if(isNaN(v)){res[f.id]={ok:false,msg:"Enter a number only, like 2400 or 2,400."};all=false;return;}
+    if(v===f.ans){res[f.id]={ok:true,msg:"Correct."};return;}
+    const nums={}; p.fields.forEach(g=>{if(g.kind!=="sel")nums[g.id]=parseAmt(s.vals[g.id]);});
+    res[f.id]={ok:false,msg:f.wrong(v,nums)};all=false;
+  });
+  return {res,all};
+}
+function fieldHTML(p,f,s,lock){
+  const r=s.fb&&s.fb.res[f.id], cls=s.revealed?"":r?(r.ok?" ok":" no"):"";
+  let ctl;
+  const val=s.vals[f.id]==null?"":s.vals[f.id];
+  if(f.kind==="sel"){
+    ctl='<select data-f="'+f.id+'" aria-label="'+esc(f.label)+'"'+(lock?" disabled":"")+'><option value="">Choose…</option>'+f.opts.map(o=>'<option value="'+o[0]+'"'+(val===o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select>';
+  } else {
+    ctl='<div class="inbox">'+(f.kind==="$"?'<span class="pre">$</span>':'')+'<input data-f="'+f.id+'" inputmode="numeric" autocomplete="off" aria-label="'+esc(f.label)+'" value="'+esc(val)+'"'+(lock?" disabled":"")+'>'+(f.kind==="u"?'<span class="post">units</span>':'')+'</div>';
+  }
+  let h='<div class="field'+cls+'" data-wrap="'+f.id+'"><div class="frow'+(f.kind==="sel"?" sel":"")+'"><label class="flabel">'+esc(f.label)+'</label>'+ctl+'</div>';
+  if(r&&!s.revealed)h+='<div class="fmsg '+(r.ok?"ok":"no")+'"><span>'+(r.ok?"✓":"✗")+'</span><span>'+esc(r.msg)+'</span></div>';
+  if((s.revealed||(r&&r.ok&&s.fb.all))&&f.work!=null)h+='<div class="work">'+esc(f.work)+'</div>';
+  return h+'</div>';
+}
+function controls(primary){
+  let nav;
+  if(graded())nav='<button class="btn small" data-act="exitGraded" title="Your graded attempt is saved to your account, and you can come back to it. The clock keeps running.">Exit to practice</button>';
+  else if(confirmReset)nav='<span class="ask">Start over with:</span><button class="btn small" data-act="resetNew">New problem set</button><button class="btn small" data-act="resetSame">Same numbers</button><button class="btn small" data-act="cancelReset">Cancel</button>';
+  else nav='<button class="btn small" data-act="back"'+(cur===0?" disabled":"")+'>← Back</button><button class="btn small" data-act="reset">⟲ Start over</button>';
+  return '<div class="actions"><div class="grp">'+nav+'</div><div class="grp">'+primary+'</div></div>';
+}
+// ---------- done for you: parts outside the concepts the instructor assigned ----------
+// Graded attempts mark them on the server (doneForYou, with the answers). Practice opened from the class
+// page follows the same concepts (window.IAC_TOPICS, /interacctive/topics.js). The part shows filled in,
+// nothing to enter, worth no points.
+let PTOPICS=null;
+const DFY_NOTE='<div class="dfy-note"><b>Done for you.</b> Your instructor didn\'t include this part in the assignment, so it\'s filled in with the correct answers. Read it, then go on. It isn\'t scored.</div>';
+function dfyPart(i){const L=graded()?STEPS:PARTS;return !!(L&&L[i]&&L[i].doneForYou);}
+function markDfy(){
+  const T=window.IAC_TOPICS;
+  PARTS.forEach((p,i)=>{
+    const g=!!(T&&PTOPICS&&T.isGiven(LAB_SLUG,p,PTOPICS)); p.doneForYou=g;
+    if(g){st[i]=Object.assign(blank(),{vals:typeof answers==="function"?answers(i):(T.answerKey(p).vals||{}),status:"given"});st[i].fb=grade(i);}
+    else if(st[i]&&st[i].status==="given")st[i]=blank();
+  });
+}
+function dfyGraded(i,r){
+  if(r.public&&(!STEPS[i]||STEPS[i].locked))STEPS[i]=r.public;
+  if(!STEPS[i])return;
+  STEPS[i].doneForYou=true; GS.done[i]=true; GS.pts[i]=0; GS.ans[i]=r.answer; GS.fb[i]=r.feedback;
+  if(r.solution&&typeof applySol==="function")applySol(i,r.solution);
+  st[i]=Object.assign(blank(),{vals:r.answer&&r.answer.vals?r.answer.vals:{},fb:r.feedback&&r.feedback.res?r.feedback:null,status:"given"});
+}
+function dfyBody(i){
+  const p=PARTS[i]||STEPS[i], s=st[i], v=s.vals||{}, res=s.fb&&s.fb.res||{};
+  let h=DFY_NOTE+'<div class="meta"><span class="pill '+esc(p.phase||"")+'">Part '+(i+1)+' of '+PARTS.length+'</span><span>'+esc(typeof PH_LABEL!=="undefined"&&PH_LABEL[p.phase]||"")+'</span></div>'+
+    '<h3 class="part-title">'+esc(p.title)+'</h3>'+(p.desc?'<p class="part-desc">'+esc(p.desc)+'</p>':'');
+  const extra=typeof reviewExtra==="function"?reviewExtra(i,v,res,true):null;
+  if(extra!=null)h+=extra;
+  else{
+    h+='<div class="fields">';
+    (p.fields||[]).forEach(f=>{const a=f.ans!=null?f.ans:v[f.id];
+      h+='<div class="field ok"><div class="frow"><span class="flabel">'+esc(f.label)+'</span><span class="rv-ans">'+esc(typeof a==="number"&&(f.kind==="$"||!f.kind)?d$(a):rvVal(f,a))+'</span></div>'+(f.work!=null?'<div class="work">'+esc(f.work)+'</div>':'')+'</div>';});
+    h+='</div>';
+  }
+  if(p.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(p.why)+'</div>';
+  return h;
+}
+function renderGiven(){
+  $("partSub").textContent="Done for you";
+  let prim;
+  if(cur<PARTS.length-1)prim='<button class="btn primary" data-act="next">Next part →</button>';
+  else if(graded())prim='<button class="btn primary" data-act="finishG">Finish and see your score →</button>';
+  else prim=st.every(x=>x.status)?'<button class="btn primary" data-act="resetNew">New problem set →</button>':'<button class="btn primary" data-act="todo">Go to the unfinished part →</button>';
+  $("part").innerHTML=dfyBody(cur)+controls(prim);
+}
+function rvNavDfy(i){
+  let prev=-1,next=-1;
+  for(let j=i-1;j>=0;j--)if(GS.done[j]&&!rvIsCur(j)){prev=j;break;}
+  for(let j=i+1;j<PARTS.length;j++)if(GS.done[j]&&!rvIsCur(j)){next=j;break;}
+  const back=GS.atEnd?(GS.finishedAt?"Back to your score":"Back to finishing"):"Back to part "+(cur+1);
+  return '<div class="actions"><div class="grp">'+(prev>=0?'<button class="btn small" data-act="rvGo" data-i="'+prev+'">← '+esc(PARTS[prev].tick)+'</button>':'')+(next>=0?'<button class="btn small" data-act="rvGo" data-i="'+next+'">'+esc(PARTS[next].tick)+' →</button>':'')+'</div>'+
+    '<div class="grp"><button class="btn primary" data-act="rvBack">'+back+' →</button></div></div>';
+}
+// Practice opened from the class page follows the concepts the instructor assigned (signed-in students only;
+// otherwise, or if anything fails, practice is the whole lab).
+async function loadTopics(){
+  if(!COURSE||!window.IAC_TOPICS)return;
+  try{
+    if(!(await currentUser()))return;
+    const r=await sb().from("course_activities").select("topics, activities!inner(slug)").eq("course_id",COURSE).eq("activities.slug",LAB_SLUG).maybeSingle();
+    const t=r&&r.data?window.IAC_TOPICS.cleanTopics(LAB_SLUG,r.data.topics):null;
+    if(JSON.stringify(t)===JSON.stringify(PTOPICS))return;
+    PTOPICS=t;
+    if(!graded()){markDfy();if(typeof buildTimeline==="function")buildTimeline();render();}
+  }catch(e){}
+}
+
+function renderPart(){
+  if(graded()&&VIEW!=null){rvRender(VIEW);return;}
+  if(graded()&&GS.atEnd){renderGradedDone();return;}
+  if(dfyPart(cur)&&st[cur]&&st[cur].status==="given"){renderGiven();return;}
+  const p=PARTS[cur], s=st[cur], lock=!!s.status;
+  let h='<div class="meta"><span class="pill '+p.phase+'">Part '+(cur+1)+' of '+PARTS.length+'</span><span>'+PH_LABEL[p.phase]+'</span></div>'+
+    '<h3 class="part-title">'+esc(p.title)+'</h3><p class="part-desc">'+esc(p.desc)+'</p><div class="fields">';
+  p.fields.forEach(f=>{h+=fieldHTML(p,f,s,lock);});
+  h+='</div>';
+  if(s.revealed)h+='<div class="overall shown"><b>Answers shown.</b> Work through each calculation, then try a new problem set to practice on your own.</div>';
+  else if(s.fb){
+    if(s.fb.all)h+='<div class="overall ok"><b>✓ '+(s.tries===1?"Correct on the first try.":"Correct after "+s.tries+" tries.")+'</b></div>';
+    else {const n=Object.values(s.fb.res).filter(x=>!x.ok).length;h+='<div class="overall no"><b>Not quite yet.</b> Fix the '+(n===1?"answer":n+" answers")+' marked ✗ and check again.</div>';}
+  }
+  if(lock&&p.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(p.why)+'</div>';
+  if(s.hint&&!lock)h+='<div class="hintbox"><b>Hint:</b> '+esc(p.hint)+'</div>';
+  let prim;
+  const allDone=st.every(x=>x.status);
+  if(lock){
+    if(cur<PARTS.length-1)prim='<button class="btn primary" data-act="next">Next part →</button>';
+    else if(allDone)prim='<button class="btn primary" data-act="resetNew">New problem set →</button>';
+    else prim='<button class="btn primary" data-act="todo">Go to the unfinished part →</button>';
+  } else prim=(!s.hint?'<button class="btn small" data-act="hint">Show a hint</button>':'')+'<button class="btn small" data-act="show">Show the answer</button><button class="btn primary" data-act="check">Check my answers</button>';
+  if(allDone&&cur===PARTS.length-1){
+    const c=x=>st.filter(v=>v.status===x).length;
+    h+='<div class="effects"><span class="eff up">First try '+c("first")+'</span><span class="eff none">Retried '+c("retry")+'</span><span class="eff none">Answer shown '+c("shown")+'</span></div>';
+  }
+  $("part").innerHTML=graded()?gPartCard(h,s,lock):h+controls(prim);
+  $("partSub").textContent=lock?(s.revealed?"Answers shown":"Complete"):"Enter your answers";
+}
+$("part").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b||b.disabled)return;
+  const act=b.dataset.act, s=st[cur], p=PARTS[cur];
+  if(act==="rvGo"){rvGo(+b.dataset.i);return;}
+  if(act==="rvBack"){if(graded()){VIEW=null;render();scrollPart();rvFocus();}return;}
+  if(act==="exitGraded"){exitGraded();render();scrollPart();return;}
+  if(graded()&&/^(hint|show|back|todo|reset|cancelReset|resetSame|resetNew)$/.test(act))return;
+  if(graded()&&BUSY)return;
+  if(graded()&&act==="check"){submitPart();return;}
+  if(graded()&&act==="finishG"){finishGraded();return;}
+  if(graded()&&act==="next"&&!s.status)return;
+  if(act==="check"){s.tries++;s.fb=grade(cur);if(s.fb.all)s.status=s.tries===1?"first":"retry";else if(s.tries>=2)s.hint=true;render();
+    const bad=$("part").querySelector(".field.no input,.field.no select");if(bad)bad.focus();else focusAct("next");}
+  else if(act==="hint"){s.hint=true;renderPart();}
+  else if(act==="show"){s.revealed=true;s.status="shown";p.fields.forEach(f=>s.vals[f.id]=f.kind==="sel"?f.ans:fmt(f.ans));render();focusAct("next");}
+  else if(act==="next"){cur++;if(PARTS[cur].method)layTab=PARTS[cur].method;render();scrollPart();const f=$("part").querySelector("input,select");if(f&&!f.disabled)f.focus({preventScroll:true});}
+  else if(act==="back"){cur--;if(PARTS[cur].method)layTab=PARTS[cur].method;render();scrollPart();}
+  else if(act==="todo"){cur=st.findIndex(x=>!x.status);render();scrollPart();}
+  else if(act==="reset"){confirmReset=true;renderPart();}
+  else if(act==="cancelReset"){confirmReset=false;renderPart();}
+  else if(act==="resetSame"){confirmReset=false;st=PARTS.map(blank);cur=0;layTab="fifo";render();scrollPart();}
+  else if(act==="resetNew"){confirmReset=false;let sd=randomSeed();if(sd===seed)sd++;buildSet(sd);render();scrollPart();}
+});
+function focusAct(a){const p=$("part").querySelector('[data-act="'+a+'"]');if(p){p.focus({preventScroll:true});return true;}return false;}
+function onField(e){
+  const el=e.target; if(!el.dataset||!el.dataset.f)return;
+  const s=st[cur]; s.vals[el.dataset.f]=el.value;
+  if(s.fb&&s.fb.res[el.dataset.f]){delete s.fb.res[el.dataset.f];const w=el.closest(".field");w.className="field";const m=w.querySelector(".fmsg");if(m)m.remove();}
+  save();
+}
+$("part").addEventListener("input",onField);
+$("part").addEventListener("change",onField);
+$("part").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input")){e.preventDefault();if(graded()&&!GS.done[cur])return;/* graded: submit only with the button */const c=$("part").querySelector('[data-act="check"]');if(c)c.click();}});
+function scrollPart(){const p=$("pPart");const r=p.getBoundingClientRect();const top=parseFloat(getComputedStyle(p).scrollMarginTop)||0;if(r.top<top-2||r.top>window.innerHeight*0.6)p.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});}
+
+// ---------- cost layers ----------
+function renderLayers(){
+  const tabs=[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]];
+  $("layTabs").innerHTML=tabs.map(([id,n])=>'<button class="tab" role="tab" data-tab="'+id+'" aria-selected="'+(layTab===id)+'">'+n+(done(id)?'':'<span class="lock" aria-label="locked">🔒</span>')+'</button>').join("");
+  if(!done(layTab)){$("layers").innerHTML='<div class="locked">Finish the '+(layTab==="wa"?"weighted average":layTab.toUpperCase())+' part to see how its costs split between cost of goods sold and ending inventory.</div>';return;}
+  const U=P.U;
+  let eiU, eiC, cgC;
+  if(layTab==="wa"){
+    eiU=P.q.map(q=>q*P.E/U);
+  } else eiU=P[layTab].eiU;
+  let bar='<div class="stack" role="img" aria-label="Goods available split into cost of goods sold and ending inventory">', lab='<div class="stack-labels">';
+  P.q.forEach((q,i)=>{
+    const w=(q/U*100).toFixed(3), e=eiU[i], c=q-e;
+    const segs=layTab==="lifo"?[["e",e],["c",c]]:[["c",c],["e",e]];
+    bar+='<div class="layer" style="width:'+w+'%">'+segs.filter(x=>x[1]>0.0001).map(([k,n])=>'<div class="seg '+k+'" style="width:'+(n/q*100).toFixed(3)+'%" title="'+(k==="e"?"Ending inventory":"Cost of goods sold")+'">'+(layTab==="wa"?"":fmt(n))+'</div>').join("")+'</div>';
+    lab+='<span style="width:'+w+'%">'+dt(i)+' · '+d$(P.c[i])+'</span>';
+  });
+  bar+='</div>'; lab+='</div>';
+  let h=bar+lab+'<div class="legend"><span><i style="background:var(--cogs)"></i>Cost of goods sold (sold)</span><span><i style="background:var(--ei)"></i>Ending inventory (on hand)</span></div>';
+  if(layTab==="wa"){
+    h+='<div class="scroll"><table class="lay"><thead><tr><th>Weighted average</th><th>Units</th><th>Cost per unit</th><th>Total</th></tr></thead><tbody>'+
+      '<tr><td>Goods available</td><td>'+fmt(U)+'</td><td>'+d$(P.wa.a)+'</td><td>'+d$(P.COGA)+'</td></tr>'+
+      '<tr><td>Ending inventory</td><td>'+fmt(P.E)+'</td><td>'+d$(P.wa.a)+'</td><td>'+d$(P.wa.ei)+'</td></tr>'+
+      '<tr><td>Cost of goods sold</td><td>'+fmt(P.S)+'</td><td>'+d$(P.wa.a)+'</td><td>'+d$(P.wa.cogs)+'</td></tr></tbody></table></div>'+
+      '<p class="note">Every guide carries the same '+d$(P.wa.a)+' average cost, so each purchase is split in the same proportion: '+fmt(P.E)+' of '+fmt(U)+' units stay in ending inventory.</p>';
+  } else {
+    const M=P[layTab]; let te=0,tc=0;
+    h+='<div class="scroll"><table class="lay"><thead><tr><th>Purchase</th><th>Units</th><th>Cost</th><th class="ei gap">EI units</th><th class="ei">EI cost</th><th class="cg gap">COGS units</th><th class="cg">COGS cost</th></tr></thead><tbody>';
+    P.q.forEach((q,i)=>{const e=M.eiU[i], c=q-e; te+=e*P.c[i]; tc+=c*P.c[i];
+      h+='<tr><td>'+dt(i)+'</td><td>'+fmt(q)+'</td><td>'+d$(P.c[i])+'</td><td class="gap">'+(e?fmt(e):"—")+'</td><td>'+(e?d$(e*P.c[i]):"—")+'</td><td class="gap">'+(c?fmt(c):"—")+'</td><td>'+(c?d$(c*P.c[i]):"—")+'</td></tr>';});
+    h+='</tbody><tfoot><tr><td>Total</td><td>'+fmt(U)+'</td><td></td><td class="gap">'+fmt(P.E)+'</td><td>'+d$(te)+'</td><td class="gap">'+fmt(P.S)+'</td><td>'+d$(tc)+'</td></tr></tfoot></table></div>'+
+      '<p class="note">'+(layTab==="fifo"?"FIFO: the oldest purchases are treated as sold first, so ending inventory is the newest units.":"LIFO (periodic): the newest purchases are treated as sold first, so ending inventory is the year's oldest units.")+'</p>';
+  }
+  $("layers").innerHTML=h;
+}
+$("layTabs").addEventListener("click",e=>{const t=e.target.closest("[data-tab]");if(t){layTab=t.dataset.tab;renderLayers();}});
+
+// ---------- comparison ----------
+function renderCompare(){
+  const gpDone=done("gp");
+  const rows=[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]];
+  const hi=P.rising?"fifo":"lifo";
+  let h='<div class="scroll"><table class="cmp"><thead><tr><th>Method</th><th>Ending inventory</th><th>Cost of goods sold</th><th>Gross profit</th><th>Gross profit %</th></tr></thead><tbody>';
+  rows.forEach(([id,n])=>{const M=P[id], d=done(id);
+    h+='<tr class="'+(gpDone&&id===hi?"hi":"")+'"><td>'+n+'</td><td class="'+(d?"":"q")+'">'+(d?d$(M.ei):"?")+'</td><td class="'+(d?"":"q")+'">'+(d?d$(M.cogs):"?")+'</td><td class="'+(gpDone?"":"q")+'">'+(gpDone?d$(P.gp[id]):"?")+'</td><td class="'+(gpDone?"":"q")+'">'+(gpDone?(P.gp[id]/P.sales*100).toFixed(2)+"%":"?")+'</td></tr>';});
+  h+='</tbody></table></div>';
+  if(done("avail"))h+='<div class="cmp-note">For every method, ending inventory + cost of goods sold = '+d$(P.COGA)+' cost of goods available. <span class="balanced">✓</span></div>';
+  if(gpDone)h+='<div class="cmp-note">Costs '+(P.rising?"rose":"fell")+' this year, so <b>'+(P.rising?"FIFO":"LIFO")+'</b> reports the highest gross profit and the highest ending inventory, and <b>'+(P.rising?"LIFO":"FIFO")+'</b> reports the lowest. Weighted average falls in between. Gross profit % = gross profit ÷ sales revenue.</div>';
+  else h+='<p class="note">Rows fill in as you finish each method. Gross profit appears after Part 6.</p>';
+  $("compare").innerHTML=h;
+}
+
+function render(){renderBar();renderRecord();renderPart();renderLayers();renderCompare();save();
+  const ct=document.querySelector(".tick.cur");
+  if(ct){const tl=$("timeline");const cr=ct.getBoundingClientRect(),tr=tl.getBoundingClientRect();if(cr.left<tr.left||cr.right>tr.right)tl.scrollLeft+=cr.left-tr.left-tr.width/2;}}
+function measure(){const r=document.documentElement;r.style.setProperty("--b1",$("band1").offsetHeight+"px");r.style.setProperty("--b2",$("band2").offsetHeight+"px");}
+try{new ResizeObserver(measure).observe($("band1"));new ResizeObserver(measure).observe($("band2"));}catch(e){window.addEventListener("resize",measure);}
+measure();
+
+window.__lab={gen};
+load();
+render();
+// Graded mode: once the Supabase library has loaded (it is deferred), resume a graded attempt from the server,
+// or reopen the Graded dialog after the student follows the sign-in link from their email.
+(function(){
+  const go=async()=>{
+    loadTopics();
+    const fromEmail=/(^#|&)(access_token|error_description)=/.test(location.hash);
+    if(PENDING){
+      const id=PENDING;
+      try{if(!(await currentUser()))throw Object.assign(new Error("signed out"),{code:"unauthorized"});await enterAttempt(id);}
+      catch(e){if(e&&e.code==="not_found"){try{localStorage.removeItem(GKEY);}catch(x){}}
+        PENDING=null;openGDlg(e&&e.code==="unauthorized"?"Sign in to resume your graded attempt.":e&&e.message);}
+      PENDING=null; save();
+    } else if(fromEmail){openGDlg();}
+  };
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go,{once:true});else go();
+})();
+})();
+</script>
+</body>
+</html>
