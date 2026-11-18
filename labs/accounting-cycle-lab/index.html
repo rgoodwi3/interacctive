@@ -1,0 +1,1600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Accounting Cycle Ledger Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: University of New Haven course material. Frozen navy header (title, business summary, panel toggles) over a frozen timeline band; the journal entry card holds every control; T-accounts beside it; trial balance and statements below; journal last. */
+:root{
+  --navy:#002D74; --gold:#FFC629;
+  --paper:#eff2f7; --sheet:#ffffff; --ink:#111b2e; --muted:#56617a; --rule:#d8dfea; --rule-strong:#a9b6cc;
+  --brand:#002D74; --brand-soft:#e3e9f4;
+  --mast-bg:#002D74; --mast-ink:#ffffff; --mast-muted:#c9d4ea;
+  --dr:#1f55b0; --cr:#a1461a;
+  --hl:#fff1bf; --hl-ink:#3a2e00;
+  --adj:#8a6100; --adj-soft:#fcefc7; --adj-solid:#FFC629; --adj-on:#111b2e;
+  --close:#4b5670; --close-soft:#e6e9f0;
+  --good:#1b7a46; --good-soft:#dcf1e4; --bad:#b3261e; --bad-soft:#fbe2df;
+  --field:#ffffff;
+  --shadow:0 1px 2px rgba(0,25,70,.07),0 6px 18px rgba(0,25,70,.05);
+  --f-display:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Source Sans Pro","Helvetica Neue",Arial,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --b1:0px; --b2:0px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --dr:#94bbf5; --cr:#eca37c;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --adj:#FFC629; --adj-soft:#2e2508; --adj-solid:#FFC629; --adj-on:#111b2e;
+  --close:#b3bdd4; --close-soft:#1e2840;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --dr:#94bbf5; --cr:#eca37c;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --adj:#FFC629; --adj-soft:#2e2508; --adj-solid:#FFC629; --adj-on:#111b2e;
+  --close:#b3bdd4; --close-soft:#1e2840;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--mast-bg)}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.12}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* Frozen header: band 1 (navy) and band 2 (timeline) */
+.band1{background:var(--mast-bg);color:var(--mast-ink);border-bottom:4px solid var(--gold);z-index:6}
+.band1 .wrap{padding-block:12px 10px;display:grid;gap:8px}
+.b1-row{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;justify-content:space-between}
+.eyebrow{font-family:var(--f-display);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.band1 h1{font-size:clamp(22px,2.6vw,30px);font-weight:700}
+.biz{flex:1 1 380px;min-width:0;max-width:72ch;font-size:14.5px;color:var(--mast-muted);line-height:1.4}
+.biz b{color:var(--mast-ink)}
+.setchip{font-family:var(--f-num);font-size:12.5px;color:var(--mast-muted);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:5px 10px;white-space:nowrap}
+.setchip b{color:var(--gold);font-weight:600}
+.views{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.opt-label{font-family:var(--f-display);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--mast-muted)}
+.vchip{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;border:1px solid rgba(255,255,255,.32);border-radius:999px;padding:2px 11px 2px 8px;cursor:pointer;user-select:none;color:var(--mast-ink)}
+.vchip:has(input:checked){border-color:var(--gold);background:rgba(255,198,41,.16)}
+.vchip input{width:15px;height:15px;margin:0;accent-color:var(--gold)}
+
+.band2{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--sheet);border-bottom:1px solid var(--rule);box-shadow:var(--shadow)}
+.band2 .wrap{padding-block:8px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-end;justify-content:space-between}
+@media (min-width:760px){
+  .band1{position:sticky;top:env(safe-area-inset-top,0px)}
+  .band2{top:calc(env(safe-area-inset-top,0px) + var(--b1))}
+}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:13.5px;color:var(--muted)}
+.status b{color:var(--ink)}
+.score{font-size:13px;font-weight:600;background:var(--hl);color:var(--hl-ink);border-radius:999px;padding:2px 10px}
+.legend-dots{display:flex;gap:10px;font-size:12px}
+.legend-dots i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0}
+
+.timeline{display:flex;gap:10px;align-items:stretch;overflow-x:auto;padding:4px 2px 2px;min-width:0;flex:1 1 560px}
+.phase{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
+.ticks .tick{flex:0 0 auto}
+.phase-label{font-family:var(--f-display);font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.ph-basic .phase-label{color:var(--brand)} .ph-adjust .phase-label{color:var(--adj)} .ph-close .phase-label{color:var(--close)}
+.ticks{display:flex;gap:3px}
+.tick{position:relative;width:30px;height:28px;border-radius:4px;border:1px solid var(--rule);background:var(--paper);font-family:var(--f-num);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);padding:0}
+.ph-basic .tick.done{background:var(--navy);border-color:var(--navy);color:#fff}
+.ph-adjust .tick.done{background:var(--adj-solid);border-color:var(--adj-solid);color:var(--adj-on)}
+.ph-close .tick.done{background:var(--close);border-color:var(--close);color:var(--sheet)}
+.tick.cur{outline:2px solid var(--ink);outline-offset:1px}
+.tick.s-first::after,.tick.s-retry::after,.tick.s-shown::after,.tick.s-skipped::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sheet)}
+.tick.s-first::after{background:var(--good)}
+.tick.s-retry::after{background:var(--gold)}
+.tick.s-shown::after,.tick.s-skipped::after{background:var(--muted)}
+
+/* Main grid */
+main{padding-block:18px 40px;display:grid;gap:18px}
+.grid-top{display:grid;grid-template-columns:minmax(0,460px) minmax(0,1fr);gap:18px;align-items:start}
+.grid-top.solo{grid-template-columns:minmax(0,1fr)}
+.grid-top.solo .col{grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));align-items:start}
+.grid-mid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:18px;align-items:start}
+.grid-mid.solo{grid-template-columns:minmax(0,1fr)}
+@media (max-width:1060px){.grid-top,.grid-mid{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:18px;min-width:0}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);min-width:0;overflow:hidden;scroll-margin-top:calc(var(--b1) + var(--b2) + 12px)}
+@media (max-width:759px){.panel{scroll-margin-top:calc(var(--b2) + 12px)}}
+.panel-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;justify-content:space-between;padding:12px 16px 10px;border-bottom:1px solid var(--rule);border-top:3px solid var(--navy)}
+:root[data-theme="dark"] .panel-h{border-top-color:var(--brand)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .panel-h{border-top-color:var(--brand)}}
+.panel-h h2{font-size:21px;font-weight:700;color:var(--brand)}
+.panel-h .sub{font-size:13.5px;color:var(--muted)}
+.panel-b{padding:14px 16px 16px}
+#pEntry .panel-h{border-top-color:var(--gold)}
+
+.pill{display:inline-block;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:2px 10px}
+.pill.basic{background:var(--brand-soft);color:var(--brand)}
+.pill.adjust{background:var(--adj-soft);color:var(--adj)}
+.pill.close{background:var(--close-soft);color:var(--close)}
+
+/* Entry card */
+.entry-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px;color:var(--muted)}
+.entry-title{font-size:23px;font-weight:700;margin:10px 0 4px}
+.entry-desc{margin:0 0 12px}
+.calc{font-family:var(--f-num);font-size:13px;background:var(--paper);border-radius:6px;padding:6px 10px;margin:-4px 0 12px;display:inline-block}
+.je{width:100%;border-collapse:collapse;font-size:14.5px}
+.je th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:left;padding:6px;border-bottom:2px solid var(--rule-strong)}
+.je th.r,.je td.r{text-align:right}
+.je td{padding:7px 6px;border-bottom:1px solid var(--rule)}
+.je td.cr-name{padding-left:30px}
+.je .dr-amt{color:var(--dr)} .je .cr-amt{color:var(--cr)}
+.why{margin-top:12px;background:var(--paper);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:10px 12px;font-size:14.5px}
+.why b{font-family:var(--f-display);font-size:16px}
+.effects{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.eff{font-size:13.5px;font-weight:600;border-radius:6px;padding:4px 9px;border:1px solid var(--rule)}
+.eff .num{font-weight:600}
+.eff.up{background:var(--good-soft);color:var(--good);border-color:transparent}
+.eff.down{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.eff.none{color:var(--muted)}
+.note{font-size:13.5px;color:var(--muted);margin-top:8px}
+.result{border-radius:8px;padding:8px 12px;font-size:14px;font-weight:600;margin-bottom:12px}
+.result.ok{background:var(--good-soft);color:var(--good)}
+.result.no{background:var(--adj-soft);color:var(--adj)}
+
+.rec{width:100%;border-collapse:collapse;font-size:14px}
+.rec th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:left;padding:6px 4px;border-bottom:2px solid var(--rule-strong)}
+.rec th.r{text-align:right}
+.rec td{padding:6px 4px;vertical-align:top}
+.rec tr.line td{border-top:1px solid var(--rule)}
+.rec tr.fb td{padding-top:0;border-top:0}
+.rec select,.rec input{width:100%;background:var(--field);border:1px solid var(--rule-strong);border-radius:6px;padding:6px 7px;font-size:14px;min-height:36px}
+.rec input{font-family:var(--f-num);text-align:right}
+.rec td.amt{width:100px}
+.rec .ok select,.rec .ok input.filled{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.rec .bad-a select{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.rec .bad-s input.filled,.rec .bad-n input.filled{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.fbmsg{font-size:13.5px;font-weight:600;display:flex;gap:6px}
+.fbmsg.ok{color:var(--good)} .fbmsg.no{color:var(--bad)}
+.rec tfoot td{font-family:var(--f-num);font-size:13px;text-align:right;color:var(--muted);border-top:2px solid var(--rule-strong);padding-top:6px}
+.overall{margin-top:10px;font-size:14px;border-radius:8px;padding:9px 12px}
+.overall.ok{background:var(--good-soft);color:var(--good)}
+.overall.no{background:var(--bad-soft);color:var(--bad)}
+.overall ul{margin:4px 0 0;padding-left:18px}
+.hintbox{margin-top:10px;font-size:13.5px;background:var(--adj-soft);color:var(--adj);border-radius:8px;padding:8px 12px}
+.hintbox .num{color:var(--ink)}
+
+.actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);align-items:center;justify-content:space-between}
+.actions .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.actions .grp:last-child{margin-left:auto}
+.actions .grp:last-child{margin-left:auto}
+.actions .ask{font-size:13.5px;font-weight:600}
+.btn{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:6px;padding:7px 12px;font-size:14.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.btn:hover{background:var(--brand-soft)}
+.btn:disabled{opacity:.4;cursor:default;background:var(--sheet)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:#0a3d8f}
+.btn.small{font-size:13.5px;padding:5px 10px;min-height:32px}
+
+/* Equation */
+.eq{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:6px;align-items:start;text-align:center}
+.eq .op{font-family:var(--f-display);font-size:30px;color:var(--muted);padding-top:14px}
+.eq .term .k{font-family:var(--f-display);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.eq .term .v{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:clamp(16px,2.1vw,21px);font-weight:600;margin-top:2px;border-radius:4px}
+.eq .term .d{font-family:var(--f-num);font-size:12.5px;font-weight:600;min-height:18px}
+.d.up{color:var(--good)} .d.down{color:var(--bad)} .d.zero{color:var(--muted)}
+.bars{margin-top:14px;display:grid;gap:6px}
+.barrow{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.05em}
+.track{height:14px;background:var(--paper);border-radius:3px;overflow:hidden;display:flex}
+.seg-a{background:var(--brand)} .seg-l{background:var(--cr)} .seg-e{background:var(--gold)}
+.track > div{transition:width .45s ease}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.eqparts{margin-top:14px;border-top:1px dashed var(--rule-strong);padding-top:10px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;font-size:13px}
+.eqparts .part{display:inline-flex;flex-direction:column;align-items:center;padding:2px 4px;border-radius:5px}
+.eqparts .part .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.eqparts .part .v{font-family:var(--f-num);font-weight:600}
+.eqparts .part.chg{background:var(--hl);color:var(--hl-ink)}
+.eqparts .part.chg .k{color:inherit}
+.eqparts .o{color:var(--muted);font-family:var(--f-display);font-size:18px}
+.balanced{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--good)}
+.balanced.no{color:var(--bad)}
+
+/* T-accounts */
+.t-tools{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.chipbox{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;border:1px solid var(--rule);border-radius:999px;padding:3px 11px 3px 8px;cursor:pointer;user-select:none}
+.chipbox:has(input:checked){border-color:var(--rule-strong);background:var(--brand-soft)}
+.chipbox input{width:16px;height:16px;margin:0;accent-color:var(--navy)}
+.t-group{display:grid;gap:8px}
+.t-group + .t-group{margin-top:16px}
+.t-group h3{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.t-group h3 span{font-family:var(--f-body);font-weight:500;text-transform:none;letter-spacing:0;font-size:12.5px}
+.t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px}
+.tacct{border:1px solid var(--rule);border-radius:6px;padding:8px 8px 6px;background:var(--sheet);transition:opacity .2s}
+.tacct.idle{opacity:.45}
+.tacct.touch{border-color:var(--gold);box-shadow:0 0 0 2px var(--hl)}
+.t-head{display:flex;gap:6px;align-items:baseline;justify-content:center;text-align:center;font-size:13.5px;font-weight:700;line-height:1.25;min-height:34px;padding-bottom:4px;border-bottom:2px solid var(--ink)}
+.t-head .no{font-family:var(--f-num);font-size:11px;color:var(--muted);font-weight:500}
+.t-body{display:grid;grid-template-columns:1fr 1fr;min-height:46px}
+.t-side{padding:4px;display:flex;flex-direction:column;gap:1px}
+.t-side.l{border-right:2px solid var(--ink)}
+.t-side .lab{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.t-side.r .lab{text-align:right}
+.t-row{display:flex;justify-content:space-between;gap:4px;font-family:var(--f-num);font-size:12px;font-variant-numeric:tabular-nums;border-radius:3px;padding:0 3px}
+.t-row .ref{color:var(--muted);font-size:10.5px}
+.t-side.l .amt{color:var(--dr)} .t-side.r .amt{color:var(--cr)}
+.t-row.cur{background:var(--hl);color:var(--hl-ink)}
+.t-row.cur .ref,.t-row.cur .amt{color:inherit}
+.t-row.balrow{border-top:1px solid var(--ink);margin-top:3px;padding-top:2px;font-weight:600}
+.t-row.balrow .amt{color:var(--ink)}
+.t-zero{font-size:11px;color:var(--muted);text-align:center;margin-top:4px;font-style:italic}
+
+/* Tables */
+.tabs{display:flex;gap:4px}
+.tab{border:1px solid var(--rule);background:transparent;border-radius:6px;padding:5px 11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+.scroll{overflow-x:auto}
+table.tb{width:100%;border-collapse:collapse;font-size:14px}
+.tb caption,.st caption{caption-side:top;text-align:center;padding-bottom:10px}
+.cap-firm{font-family:var(--f-display);font-weight:700;font-size:17px;color:var(--brand)}
+.cap-name{font-family:var(--f-display);font-weight:600;font-size:16px}
+.cap-date{font-size:12.5px;color:var(--muted)}
+.tb th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong);text-align:left;white-space:nowrap}
+.tb td{padding:5px 8px;border-bottom:1px solid var(--rule)}
+.tb .r{text-align:right}
+.tb td.r{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tb td.no{font-family:var(--f-num);color:var(--muted);font-size:12px}
+.tb tr.chg td{background:var(--hl);color:var(--hl-ink)}
+.tb tr.chg td.no{color:inherit}
+.tb tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
+.tb-status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;font-size:13.5px;color:var(--muted)}
+.ws th.grp{text-align:center;border-bottom:1px solid var(--rule)}
+.ws th.grp.u{color:var(--brand)} .ws th.grp.a{color:var(--adj)} .ws th.grp.p{color:var(--close)}
+.ws td.r,.ws th.r{min-width:72px}
+.ws td.gap,.ws th.gap{border-left:1px solid var(--rule-strong)}
+.ws td.dim{color:var(--muted);opacity:.5;text-align:center}
+.empty{color:var(--muted);font-size:14px;padding:18px 4px;text-align:center}
+
+.stmts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:22px 26px}
+.stmt-basis{font-size:13.5px;border-radius:8px;padding:9px 12px;margin-bottom:16px}
+.stmt-basis.warn{background:var(--adj-soft);color:var(--adj)}
+.stmt-basis.ok{background:var(--good-soft);color:var(--good)}
+.stmt-basis.info{background:var(--close-soft);color:var(--close)}
+table.st{width:100%;border-collapse:collapse;font-size:14px}
+.st caption{border-bottom:2px solid var(--ink);padding-bottom:8px}
+.st td{padding:3px 4px;vertical-align:bottom}
+.st td.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap;width:84px}
+.st tr.h td{font-weight:700;padding-top:9px}
+.st td.i1{padding-left:16px} .st td.i2{padding-left:30px}
+.st td.ul{border-bottom:1px solid var(--ink)}
+.st td.dul{border-bottom:3px double var(--ink);font-weight:700}
+.st tr.tot td:first-child{font-weight:700}
+.st tr.chg td{background:var(--hl);color:var(--hl-ink)}
+.st-check{margin-top:8px}
+
+/* Journal */
+.jitem{display:grid;grid-template-columns:64px 76px minmax(0,1fr);gap:10px;padding:9px 6px;border:0;border-bottom:1px solid var(--rule);text-align:left;background:transparent;width:100%}
+.jitem.cur{background:var(--hl);color:var(--hl-ink)}
+.jitem .ref{font-family:var(--f-num);font-weight:600;font-size:13px}
+.jitem .dt{font-size:13px;color:var(--muted)}
+.jitem.cur .dt{color:inherit}
+.jitem .lines{font-family:var(--f-num);font-size:12.5px;display:grid;gap:1px;min-width:0}
+.jitem .lines .t{font-family:var(--f-body);font-size:14px;font-weight:600;margin-bottom:3px}
+.jl{display:flex;justify-content:space-between;gap:12px}
+.jl.c{padding-left:22px}
+.jl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jhead{font-family:var(--f-display);font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;padding:12px 6px 4px}
+.jhead.basic{color:var(--brand)} .jhead.adjust{color:var(--adj)} .jhead.close{color:var(--close)}
+@media (max-width:520px){.jitem{grid-template-columns:52px minmax(0,1fr)}.jitem .dt{display:none}.eq .op{font-size:22px}.rec td.amt{width:80px}.status{align-items:flex-start}}
+
+@keyframes flash{0%{background:var(--hl)}100%{background:transparent}}
+.flash{animation:flash 1.2s ease-out}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.track > div{transition:none}}
+footer{font-size:12.5px;color:var(--muted);padding-block:0 30px}
+/* Graded mode */
+.gk-row{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:10px}
+.gk-label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--mast-muted)}
+.modesw{display:inline-flex;gap:2px;padding:2px;border:1px solid rgba(255,255,255,.32);border-radius:999px;margin-right:12px}
+.modesw button{border:0;background:transparent;color:var(--mast-ink);font-size:13.5px;font-weight:600;border-radius:999px;padding:2px 13px;min-height:26px;cursor:pointer}
+.modesw button:hover{background:rgba(255,255,255,.12)}
+.modesw button[aria-pressed="true"]{background:var(--gold);color:#111b2e}
+.modesw button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.setchip.graded{border-color:var(--gold);color:var(--gold);font-weight:600}
+.timeline.locked .tick,.timeline.locked button{cursor:default}
+.timeline.locked .tick.can{cursor:pointer}
+.timeline.locked .tick.can:hover{border-color:var(--ink)}
+.rv-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;background:var(--est-soft,#fcefc7);color:var(--est,#8a6100)}
+:root[data-theme="dark"] .rv-note{background:var(--est-soft,#2e2508);color:var(--est,#FFC629)}
+.rv-ans{font-family:var(--f-num);font-weight:600;white-space:nowrap}
+.score.graded{background:var(--navy);color:#fff}
+:root[data-theme="dark"] .score.graded{background:var(--gold);color:#111b2e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .score.graded{background:var(--gold);color:#111b2e}}
+.gnote{font-size:13.5px;font-weight:600;background:var(--gk-soft,#fcefc7);color:var(--gk-ink,#8a6100);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:7px 12px;margin:0 0 12px}
+:root[data-theme="dark"] .gnote{--gk-soft:#2e2508;--gk-ink:#FFC629}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .gnote{--gk-soft:#2e2508;--gk-ink:#FFC629}}
+dialog.gdlg{width:min(580px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;border:0;border-radius:10px;padding:0;background:var(--sheet);color:var(--ink);box-shadow:0 24px 70px rgba(0,20,60,.4)}
+dialog.gdlg::backdrop{background:rgba(0,18,48,.6)}
+.gdlg-h{background:var(--mast-bg);color:#fff;border-bottom:4px solid var(--gold);padding:14px 20px 12px}
+.gdlg-h h2{font-size:25px;font-weight:700;margin:0}
+.gdlg-b{padding:16px 20px 18px;font-size:15px}
+.gdlg-b ul{margin:6px 0 0;padding-left:20px}
+.gdlg-b li{margin-bottom:7px}
+.gdlg-note{margin-top:12px;background:var(--brand-soft);border-radius:8px;padding:9px 12px;font-size:14.5px}
+.gdlg-note.warn{background:var(--bad-soft);color:var(--bad)}
+.gdlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
+.signin{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.signin label{font-weight:600;font-size:14.5px}
+.signin input{font:inherit;font-size:15px;padding:7px 10px;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field,var(--sheet));color:var(--ink);max-width:340px}
+.signin .who{font-size:14px;color:var(--muted)}
+.final{background:var(--good-soft);border-radius:8px;padding:12px 14px;margin:12px 0 4px;font-size:15px}
+.final b{font-size:18px}
+.btn[aria-busy="true"]{opacity:.65;cursor:progress}
+details.pts{margin-top:14px;font-size:14px}
+details.pts summary{cursor:pointer;font-weight:600;color:var(--brand)}
+table.ptab{width:100%;border-collapse:collapse;margin-top:8px}
+.ptab td{padding:5px 6px;border-bottom:1px solid var(--rule)}
+.ptab td.r{text-align:right;font-family:var(--f-num);white-space:nowrap}
+.ptab tr.miss td.r{color:var(--bad);font-weight:600}
+.pledge{display:flex;gap:10px;align-items:flex-start;margin-top:14px;border:1px solid var(--rule-strong);border-radius:8px;padding:10px 12px;font-size:14.5px;font-weight:600;cursor:pointer}
+.pledge input{width:18px;height:18px;margin:2px 0 0;flex:none;accent-color:var(--navy)}
+.pledge:has(input:checked){border-color:var(--good);background:var(--good-soft)}
+.gclass{margin-top:8px}.gclass .gterm{font-weight:400;color:var(--muted)}
+.gk-hidden{font-size:13.5px;color:var(--muted);font-style:italic}
+/* A step outside the concepts the instructor assigned: filled in for the student, not scored */
+.dfy-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;border:1px dashed var(--rule-strong);background:var(--paper);color:var(--ink)}
+.tick.dfy{border-style:dashed}
+.ticks .tick.dfy.done{background:var(--paper);border-color:var(--muted);color:var(--muted)}
+</style>
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- The concepts in each lab, for assignments that include only some (see fa-lab-platform topics.js) -->
+<script src="/interacctive/topics.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+
+<header class="band1" id="band1">
+  <div class="wrap">
+    <div class="b1-row">
+      <div>
+        <div class="eyebrow">University of New Haven · Financial Accounting · Chapters 2–4</div>
+        <h1>Accounting Cycle Ledger Lab</h1>
+      </div>
+      <p class="biz" style="margin:0"><b>Problem Solvers, Inc.</b> is a new corporation that provides business consulting services to clients for a fee. You are recording its first year of operations, January 1 to December 31, <span class="yr"></span>: everyday transactions, year-end adjusting entries, and closing entries.</p>
+      <div class="setchip" id="setChip">Problem set <b>—</b></div>
+    </div>
+    <div class="views" id="views">
+      <span class="opt-label">Mode</span>
+      <div class="modesw" id="modeSw" role="group" aria-label="Mode"><button type="button" data-mode="practice" aria-pressed="true">Practice</button><button type="button" data-mode="graded" aria-pressed="false">Graded</button></div>
+      <span class="opt-label">Show</span>
+      <label class="vchip"><input type="checkbox" id="v-eq" checked> Equation</label>
+      <label class="vchip"><input type="checkbox" id="v-t" checked> T-accounts</label>
+      <label class="vchip"><input type="checkbox" id="v-tb" checked> Trial balance</label>
+      <label class="vchip"><input type="checkbox" id="v-fs" checked> Statements</label>
+      <label class="vchip"><input type="checkbox" id="v-j" checked> Journal</label>
+    </div>
+  </div>
+</header>
+<div class="band2" id="band2">
+  <div class="wrap">
+    <div class="timeline" id="timeline" aria-label="Entries in the cycle"></div>
+    <div class="status">
+      <div id="where"></div>
+      <span class="score" id="score" hidden></span>
+      <div class="legend-dots" id="legendDots"><span><i style="background:var(--good)"></i>First try</span><span><i style="background:var(--gold)"></i>Retried</span><span><i style="background:var(--muted)"></i>Answer shown</span></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="grid-top" id="gridTop">
+    <div class="col">
+      <section class="panel" id="pEntry" aria-labelledby="entryH">
+        <div class="panel-h"><h2 id="entryH">Journal entry</h2><span class="sub" id="entrySub"></span></div>
+        <div class="panel-b" id="entry"></div>
+      </section>
+      <section class="panel" id="pEq" aria-labelledby="eqH">
+        <div class="panel-h"><h2 id="eqH">Accounting equation</h2><span id="eqBal"></span></div>
+        <div class="panel-b" id="equation"></div>
+      </section>
+    </div>
+    <section class="panel" id="pT" aria-labelledby="tH">
+      <div class="panel-h">
+        <h2 id="tH">T-accounts (general ledger)</h2>
+        <div class="t-tools">
+          <span class="sub">Numbers beside amounts are entry references.</span>
+          <label class="chipbox"><input type="checkbox" id="hideIdle"> Only accounts with activity</label>
+        </div>
+      </div>
+      <div class="panel-b" id="taccts"></div>
+    </section>
+  </div>
+
+  <div class="grid-mid" id="gridMid">
+    <section class="panel" id="pTB" aria-labelledby="tbH">
+      <div class="panel-h">
+        <h2 id="tbH">Trial balance</h2>
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" id="tabCur" aria-selected="true">Current</button>
+          <button class="tab" role="tab" id="tabWs" aria-selected="false">Worksheet view</button>
+        </div>
+      </div>
+      <div class="panel-b" id="tb"></div>
+    </section>
+    <section class="panel" id="pFS" aria-labelledby="fsH">
+      <div class="panel-h"><h2 id="fsH">Financial statements</h2><span class="sub">Income statement → retained earnings → balance sheet</span></div>
+      <div class="panel-b" id="fs"></div>
+    </section>
+  </div>
+
+  <section class="panel" id="pJ" aria-labelledby="jH">
+    <div class="panel-h"><h2 id="jH">General journal</h2><span class="sub">Every entry you have posted, in order.</span></div>
+    <div class="panel-b"><div id="journal"></div></div>
+  </section>
+</main>
+<footer class="wrap">Problem Solvers, Inc. and all figures are illustrative. Each problem set changes the amounts and the order of the year's transactions.</footer>
+<dialog class="gdlg" id="gDlg" aria-labelledby="gDlgH">
+  <div class="gdlg-h"><div class="eyebrow">Accounting Cycle Ledger Lab</div><h2 id="gDlgH">Graded mode</h2></div>
+  <div class="gdlg-b" id="gDlgB"></div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+const PYEAR=new Date().getFullYear();
+let YEAR=PYEAR; // Graded mode switches this to the attempt's lab_year (see setYear)
+function paintBiz(){document.querySelectorAll(".yr").forEach(n=>{n.textContent=YEAR;});}
+paintBiz();
+const MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const KEY="ledgerlab2";
+// Graded mode: graded on the server by the lab-attempt edge function (fa-lab-platform).
+// The page is opened from the course page with ?course=<id>&lab=accounting-cycle-lab.
+const LAB_SLUG="accounting-cycle-lab";
+const SB_URL="https://yoijetxcolixkjqsxkpo.supabase.co", SB_KEY="sb_publishable_R7CQN_jmNSlHZiGvXa9Jqw_bQv3q3fE";
+const GKEY=KEY+".graded", MKEY=KEY+".mode"; // GKEY holds only a pointer to the server attempt
+
+// ---------- Chart of accounts ----------
+const ACCTS = [
+  {id:"cash", no:1000, name:"Cash", type:"asset", normal:"D"},
+  {id:"ar", no:1100, name:"Accounts Receivable", type:"asset", normal:"D"},
+  {id:"ppi", no:1210, name:"Prepaid Insurance", type:"asset", normal:"D"},
+  {id:"sup", no:1300, name:"Supplies", type:"asset", normal:"D"},
+  {id:"equip", no:1500, name:"Equipment", type:"asset", normal:"D"},
+  {id:"ad", no:1599, name:"Accumulated Depreciation", type:"contra", normal:"C"},
+  {id:"ap", no:2000, name:"Accounts Payable", type:"liab", normal:"C"},
+  {id:"ur", no:2010, name:"Deferred Revenue", type:"liab", normal:"C"},
+  {id:"sp", no:2020, name:"Wages Payable", type:"liab", normal:"C"},
+  {id:"cs", no:3000, name:"Common Stock", type:"equity", normal:"C"},
+  {id:"re", no:3100, name:"Retained Earnings", type:"equity", normal:"C"},
+  {id:"div", no:3200, name:"Dividends", type:"div", normal:"D"},
+  {id:"rev", no:4000, name:"Service Revenue", type:"rev", normal:"C"},
+  {id:"rent", no:6000, name:"Rent Expense", type:"exp", normal:"D"},
+  {id:"insx", no:6020, name:"Insurance Expense", type:"exp", normal:"D"},
+  {id:"supx", no:6030, name:"Supplies Expense", type:"exp", normal:"D"},
+  {id:"sal", no:6040, name:"Wages Expense", type:"exp", normal:"D"},
+  {id:"depx", no:6090, name:"Depreciation Expense", type:"exp", normal:"D"}
+];
+const A = Object.fromEntries(ACCTS.map(a=>[a.id,a]));
+const GROUPS = [
+  {key:"Assets", note:"normal debit balance", types:["asset","contra"]},
+  {key:"Liabilities", note:"normal credit balance", types:["liab"]},
+  {key:"Stockholders' equity", note:"common stock, retained earnings, dividends", types:["equity","div"]},
+  {key:"Revenues", note:"increase equity · credit", types:["rev"]},
+  {key:"Expenses", note:"decrease equity · debit", types:["exp"]}
+];
+
+// ---------- helpers ----------
+function fmt(n){return Math.abs(n).toLocaleString("en-US");}
+function d$(n){return "$"+fmt(n);}
+function money(n,dollar){const s=fmt(n);return (n<0?"(":"")+(dollar?"$":"")+s+(n<0?")":"");}
+function sgn(n){return n>0?"+"+fmt(n):n<0?"−"+fmt(n):"0";}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function parseAmt(s){s=String(s||"").replace(/[$,\s]/g,"");if(s==="")return null;const n=Number(s);return isFinite(n)?n:NaN;}
+const $=id=>document.getElementById(id);
+const PHASE_NAME={basic:"Transaction",adjust:"Adjusting entry",close:"Closing entry"};
+const PHASE_SHORT={basic:"Transactions",adjust:"Adjusting entries",close:"Closing entries"};
+const VIEWS=["eq","t","tb","fs","j"];
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function randomSeed(){return 10000+Math.floor(Math.random()*90000);}
+
+// ---------- Problem generator ----------
+// Same questions every time; the seed changes the amounts and the order (one transaction per month, in a logical business order).
+const DEPS={equip:["stock"],sup:["stock"],ins:["stock"],ret:["stock"],cashRev:["stock"],arRev:["stock"],sal:["stock"],rent:["stock"],apPay:["sup"],collect:["arRev"],div:["cashRev","arRev"]};
+const LATEST={equip:9,ins:9,ret:9}; // must happen by October so part of the year remains
+
+function gen(seed){
+  const r=mulberry32(seed);
+  const R=(a,b,s)=>{s=s||1;return a+s*Math.floor(r()*(Math.floor((b-a)/s)+1));};
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
+  for(let attempt=0;attempt<1000;attempt++){
+    const order=["stock"], left=new Set(Object.keys(DEPS));
+    while(left.size){const av=[...left].filter(id=>DEPS[id].every(d=>order.includes(d)));const pick=av[Math.floor(r()*av.length)];order.push(pick);left.delete(pick);}
+    if(Object.keys(LATEST).some(id=>order.indexOf(id)>LATEST[id]))continue;
+    const m={}; order.forEach((id,i)=>m[id]=i+1);
+    const p={
+      stock:R(30000,60000,5000),
+      cost:R(5000,15000,500),
+      supBuy:R(1000,3000,100),
+      insMo:R(100,300,10), retMo:R(300,900,50),
+      cashRev:R(8000,20000,500), arRev:R(4000,12000,500),
+      sal:R(3000,8000,250), rent:R(1200,3000,100),
+      div:R(1000,4000,250), accSal:R(400,1500,50), accRev:R(500,2500,100)
+    };
+    p.supOn=R(200,p.supBuy-500,50); p.apPay=R(300,p.supBuy-300,100);
+    p.ins=p.insMo*12; p.ret=p.retMo*12; p.collect=R(2000,p.arRev-1000,500);
+    const nIns=12-m.ins, nRet=12-m.ret, nDep=12-m.equip;
+    const dep=Math.max(50,Math.round(p.cost/5*nDep/12/50)*50);
+    // cash never goes negative
+    const flow={stock:p.stock,equip:-p.cost,sup:0,ins:-p.ins,ret:p.ret,cashRev:p.cashRev,arRev:0,sal:-p.sal,rent:-p.rent,apPay:-p.apPay,collect:p.collect,div:-p.div};
+    let cash=0,okCash=true; order.forEach(id=>{cash+=flow[id];if(cash<0)okCash=false;}); if(!okCash)continue;
+    const ni=p.cashRev+p.arRev+p.retMo*nRet+p.accRev-(p.supBuy-p.supOn)-p.insMo*nIns-dep-p.sal-p.accSal-p.rent;
+    if(ni<p.div+1000)continue;
+    const day={}; order.forEach(id=>day[id]=id==="stock"?R(2,6):R(3,27));
+    const dt=id=>MS[m[id]-1]+" "+day[id];
+    const next=id=>MON[m[id]%12];
+    const T={
+      stock:{title:"Issue common stock for cash",desc:"Investors purchased "+d$(p.stock)+" of common stock for cash to start the company.",
+        lines:[{a:"cash",dr:p.stock},{a:"cs",cr:p.stock}],
+        why:"Cash is an asset, so it increases with a debit. Issuing stock increases contributed capital, part of stockholders' equity, which increases with a credit.",
+        miss:{rev:"Issuing stock is an investment by owners, not revenue earned from clients.",re:"Owner investments go to Common Stock. Retained Earnings holds profits kept in the business."}},
+      equip:{title:"Buy office equipment for cash",desc:"Bought computers and office equipment for "+d$(p.cost)+" cash.",
+        lines:[{a:"equip",dr:p.cost},{a:"cash",cr:p.cost}],
+        why:"One asset (Equipment) is exchanged for another (Cash), so total assets do not change. Depreciation is recorded later as an adjusting entry.",
+        miss:{depx:"Depreciation is recorded at year-end as an adjusting entry. The purchase records the asset at its cost.",ap:"The equipment was paid for in cash, so nothing is owed.",ad:"Accumulated Depreciation is used only when depreciation is recorded at year-end."}},
+      sup:{title:"Buy supplies on account",desc:"Bought office supplies on account for "+d$(p.supBuy)+", due in 30 days.",
+        lines:[{a:"sup",dr:p.supBuy},{a:"ap",cr:p.supBuy}],
+        why:"Supplies are an asset until they are used. Buying on account creates a liability, so both sides of the equation increase.",
+        miss:{supx:"Supplies are an asset until they are used. The amount used is expensed with a year-end adjusting entry.",cash:"The supplies were bought on account, so no cash was paid yet."}},
+      ins:{title:"Prepay a 12-month insurance policy",desc:"Paid "+d$(p.ins)+" for a 12-month business insurance policy that begins "+next("ins")+" 1, "+YEAR+".",
+        lines:[{a:"ppi",dr:p.ins},{a:"cash",cr:p.ins}],
+        why:"The payment buys future coverage, so it is an asset (Prepaid Insurance). It becomes an expense as the months pass, which is recorded with a year-end adjusting entry.",
+        miss:{insx:"The policy covers future months, so the payment is an asset now. It becomes an expense as the coverage is used."}},
+      ret:{title:"Collect cash in advance from a client",desc:"A client paid "+d$(p.ret)+" in advance for 12 months of consulting services beginning "+next("ret")+" 1, "+YEAR+".",
+        lines:[{a:"cash",dr:p.ret},{a:"ur",cr:p.ret}],
+        why:"The company has the cash but has not done the work. It owes the client future services, so the credit goes to a liability (Deferred Revenue).",
+        miss:{rev:"The work has not been performed yet, so the cash is not earned. Record an obligation to the client instead.",ar:"The client already paid, so there is nothing to collect."}},
+      cashRev:{title:"Provide consulting services for cash",desc:"Completed consulting projects and collected "+d$(p.cashRev)+" in cash from clients.",
+        lines:[{a:"cash",dr:p.cashRev},{a:"rev",cr:p.cashRev}],
+        why:"Revenue is recognized when the service is performed. Revenue increases stockholders' equity, so it is recorded with a credit.",
+        miss:{ur:"The work is complete, so the revenue is earned. Deferred revenue is only for cash received before the work is done.",ar:"The clients paid cash, so there is nothing to collect."}},
+      arRev:{title:"Provide consulting services on account",desc:"Completed a consulting project and billed the client "+d$(p.arRev)+", due in 30 days.",
+        lines:[{a:"ar",dr:p.arRev},{a:"rev",cr:p.arRev}],
+        why:"The work is done, so the revenue is earned now even though no cash has arrived. The right to collect is an asset (Accounts Receivable).",
+        miss:{cash:"No cash was received. The client was billed and will pay later.",ur:"The work is complete, so this is earned revenue, not deferred revenue."}},
+      sal:{title:"Pay consultants' wages",desc:"Paid consultants' wages of "+d$(p.sal)+" for work performed this month.",
+        lines:[{a:"sal",dr:p.sal},{a:"cash",cr:p.sal}],
+        why:"Expenses decrease stockholders' equity, so they are recorded with debits. The wages were paid, so Cash decreases.",
+        miss:{sp:"These wages were paid in cash, so nothing is owed."}},
+      rent:{title:"Pay office rent",desc:"Paid "+d$(p.rent)+" of office rent for "+MON[m.rent-1]+".",
+        lines:[{a:"rent",dr:p.rent},{a:"cash",cr:p.rent}],
+        why:"The rent covers the current month only, so it is an expense right away rather than a prepaid asset.",
+        miss:{ppi:"Prepaid Insurance is only for insurance paid in advance. This payment is for rent used this month."}},
+      apPay:{title:"Pay part of the supplies bill",desc:"Paid "+d$(p.apPay)+" of the amount owed for the supplies bought in "+MON[m.sup-1]+".",
+        lines:[{a:"ap",dr:p.apPay},{a:"cash",cr:p.apPay}],
+        why:"Paying a liability reduces both an asset and a liability. No expense is recorded, because the supplies were already recorded when they were bought.",
+        miss:{sup:"The supplies were recorded when they were bought. This payment only settles the amount owed.",supx:"Paying a bill is not an expense. This payment only settles the amount owed."}},
+      collect:{title:"Collect from a client",desc:"Collected "+d$(p.collect)+" from the client billed in "+MON[m.arRev-1]+".",
+        lines:[{a:"cash",dr:p.collect},{a:"ar",cr:p.collect}],
+        why:"One asset is exchanged for another. The revenue was recorded when the work was done, so revenue does not change now.",
+        miss:{rev:"Revenue was recorded when the work was done. Collecting cash later does not create new revenue.",ur:"Deferred revenue is for cash received before the work. This work was already done and billed."}},
+      div:{title:"Pay a cash dividend",desc:"The board of directors declared and paid a "+d$(p.div)+" cash dividend to stockholders.",
+        lines:[{a:"div",dr:p.div},{a:"cash",cr:p.div}],
+        why:"Dividends distribute earnings to owners. They reduce stockholders' equity, but they are not an expense and never appear on the income statement.",
+        miss:{re:"During the year, dividends are recorded in the Dividends account. That account is closed to Retained Earnings at year-end.",cs:"Dividends do not reduce the stock investors bought. They are recorded in the Dividends account."},
+        missType:{exp:"Dividends are distributions to owners, not expenses. They never appear on the income statement."}}
+    };
+    const steps=order.map((id,i)=>Object.assign({phase:"basic",ref:String(i+1),date:dt(id)},T[id]));
+    const used=p.supBuy-p.supOn, insE=p.insMo*nIns, earned=p.retMo*nRet;
+    const mon=id=>MON[m[id]%12];
+    const adj=[
+      {kind:"Deferral · prepaid expense",title:"Record supplies used",desc:"The Supplies account shows "+d$(p.supBuy)+". A year-end count finds "+d$(p.supOn)+" of supplies still on hand.",
+       calc:d$(p.supBuy)+" − "+d$(p.supOn)+" on hand = "+d$(used)+" used",
+       lines:[{a:"supx",dr:used},{a:"sup",cr:used}],
+       why:"Only "+d$(p.supOn)+" of supplies is left, so "+d$(used)+" was used. That amount moves from the asset to Supplies Expense so that expenses match the revenue they helped earn.",
+       miss:{ap:"Using supplies does not change what is owed to the supplier."}},
+      {kind:"Deferral · prepaid expense",title:"Record insurance that expired",desc:"The "+d$(p.ins)+", 12-month policy began "+mon("ins")+" 1. Record the coverage used through December 31.",
+       calc:d$(p.ins)+" ÷ 12 = "+d$(p.insMo)+" per month × "+nIns+" months ("+mon("ins")+"–December) = "+d$(insE),
+       lines:[{a:"insx",dr:insE},{a:"ppi",cr:insE}],
+       why:nIns+" of the 12 months of coverage have been used. That portion leaves Prepaid Insurance and becomes Insurance Expense."},
+      {kind:"Depreciation",title:"Record depreciation on equipment",desc:"Depreciation on the equipment bought in "+MON[m.equip-1]+" is "+d$(dep)+" for "+YEAR+".",
+       lines:[{a:"depx",dr:dep},{a:"ad",cr:dep}],
+       why:"Depreciation spreads the cost of equipment over its useful life. The credit goes to Accumulated Depreciation, a contra-asset, so the Equipment account keeps its original cost.",
+       miss:{equip:"Credit Accumulated Depreciation, not Equipment. Equipment stays at its original cost, and the contra-asset shows how much has been used up."}},
+      {kind:"Deferral · deferred revenue",title:"Recognize revenue earned on the advance payment",desc:"The client paid "+d$(p.ret)+" for 12 months of consulting that began "+mon("ret")+" 1. Record the portion earned through December 31.",
+       calc:d$(p.ret)+" ÷ 12 = "+d$(p.retMo)+" per month × "+nRet+" months = "+d$(earned),
+       lines:[{a:"ur",dr:earned},{a:"rev",cr:earned}],
+       why:"Doing the work settles part of the obligation to the client. The liability falls by "+d$(earned)+" and the same amount becomes earned revenue.",
+       miss:{ar:"The client already paid in advance, so there is nothing to collect.",cash:"The cash was recorded when the client paid. Adjusting entries never involve Cash."}},
+      {kind:"Accrual · accrued expense",title:"Accrue unpaid wages",desc:"Consultants earned "+d$(p.accSal)+" during the last week of December. They will be paid in January "+(YEAR+1)+".",
+       lines:[{a:"sal",dr:p.accSal},{a:"sp",cr:p.accSal}],
+       why:"The work was done in "+YEAR+", so the expense belongs in "+YEAR+" even though cash is paid later. The amount owed is a liability.",
+       miss:{ap:"Accounts Payable is for amounts owed to suppliers. Amounts owed to employees go to Wages Payable."}},
+      {kind:"Accrual · accrued revenue",title:"Accrue unbilled revenue",desc:"Completed "+d$(p.accRev)+" of consulting work in late December that has not been billed yet.",
+       lines:[{a:"ar",dr:p.accRev},{a:"rev",cr:p.accRev}],
+       why:"The revenue was earned in "+YEAR+", so it is recorded in "+YEAR+". The right to bill and collect is a receivable.",
+       miss:{ur:"Deferred revenue is for cash received before the work. Here the work is done and the client has not paid."}}
+    ];
+    shuffle(adj).forEach((s,i)=>steps.push(Object.assign({phase:"adjust",ref:"A"+(i+1),date:"Dec 31"},s)));
+    return steps;
+  }
+  throw new Error("Could not generate a problem set");
+}
+
+// ---------- Ledger engine ----------
+function emptyBook(){const b={};ACCTS.forEach(a=>b[a.id]={dr:[],cr:[],d:0,c:0});return b;}
+function postStep(book, step, si){
+  (step.lines||[]).forEach(l=>{const t=book[l.a];
+    if(l.dr){t.dr.push({ref:step.ref,amt:l.dr,si});t.d+=l.dr;}
+    else {t.cr.push({ref:step.ref,amt:l.cr,si});t.c+=l.cr;}});
+}
+function nbal(b,id){const t=b[id];return A[id].normal==="D"?t.d-t.c:t.c-t.d;}
+function eq(b){
+  let As=0,L=0,E=0;
+  ACCTS.forEach(a=>{const s=b[a.id].d-b[a.id].c;
+    if(a.type==="asset"||a.type==="contra")As+=s; else if(a.type==="liab")L-=s; else E-=s;});
+  const parts={cs:nbal(b,"cs"),re:nbal(b,"re"),rev:nbal(b,"rev"),
+    exp:ACCTS.filter(a=>a.type==="exp").reduce((s,a)=>s+nbal(b,a.id),0),div:nbal(b,"div")};
+  return {A:As,L,E,parts};
+}
+
+let STEPS=[],N=0,NB=0,NA=0,BOOKS=[],EQS=[],MAXA=1,seed=0;
+function buildSet(sd){WORK=[];FORMK=-1;
+  seed=sd; STEPS=gen(sd);
+  NB=STEPS.filter(s=>s.phase==="basic").length; NA=STEPS.filter(s=>s.phase==="adjust").length;
+  const b=emptyBook(); STEPS.forEach((s,i)=>postStep(b,s,i));
+  const rev=nbal(b,"rev");
+  const exps=ACCTS.filter(a=>a.type==="exp").map(a=>({a:a.id,amt:nbal(b,a.id)})).filter(x=>x.amt);
+  const totExp=exps.reduce((s,x)=>s+x.amt,0), div=nbal(b,"div");
+  const closeMiss="Closing entries go straight to Retained Earnings in this course. Income Summary is not used.";
+  STEPS.push(
+   {phase:"close",ref:"C1",date:"Dec 31",kind:"Closing entry",title:"Close revenues to Retained Earnings",desc:"Bring the revenue account to zero so "+(YEAR+1)+" starts fresh. Use the balance in the adjusted trial balance.",
+    calc:"Service Revenue balance = "+d$(rev),
+    lines:[{a:"rev",dr:rev},{a:"re",cr:rev}],
+    why:"Revenue is a temporary account that measures one year. Debiting it for its "+d$(rev)+" credit balance brings it to zero and adds the year's revenue to Retained Earnings."},
+   {phase:"close",ref:"C2",date:"Dec 31",kind:"Closing entry",title:"Close expenses to Retained Earnings",desc:"Bring every expense account to zero in one compound entry. Use the balances in the adjusted trial balance.",
+    calc:exps.map(x=>A[x.a].name+" "+d$(x.amt)).join(" · ")+" · Total "+d$(totExp),
+    lines:[{a:"re",dr:totExp}].concat(exps.map(x=>({a:x.a,cr:x.amt}))),
+    why:"Each expense is credited for its balance, and Retained Earnings is debited for the "+d$(totExp)+" total. After C1 and C2, Retained Earnings has increased by net income of "+d$(rev-totExp)+"."},
+   {phase:"close",ref:"C3",date:"Dec 31",kind:"Closing entry",title:"Close Dividends to Retained Earnings",desc:"Bring the Dividends account to zero. Use the balance in the adjusted trial balance.",
+    calc:"Dividends balance = "+d$(div),
+    lines:[{a:"re",dr:div},{a:"div",cr:div}],
+    why:"Dividends reduce Retained Earnings directly. They are distributions to owners, so they are not part of net income."}
+  );
+  STEPS.filter(s=>s.phase==="close").forEach(s=>s.closeMiss=closeMiss);
+  N=STEPS.length;
+  BOOKS=[]; const bk=emptyBook(); BOOKS.push(JSON.parse(JSON.stringify(bk)));
+  for(let i=0;i<N;i++){postStep(bk,STEPS[i],i);BOOKS.push(JSON.parse(JSON.stringify(bk)));}
+  EQS=BOOKS.map(eq); MAXA=Math.max(...EQS.map(e=>e.A),1);
+  setChip();
+  buildTimeline();
+}
+function setChip(){
+  const c=$("setChip"), g=MODE==="graded";
+  c.classList.toggle("graded",g);
+  c.innerHTML=g?"Graded attempt":'Problem set <b>#'+seed+'</b>';
+  c.title=g?"Show a hint and Show the answer are off. Only your first submission on each step counts.":"Each problem set uses different numbers and a different order of transactions";
+}
+// Ledgers after each entry. Graded mode rebuilds them as solutions or the student's own entries arrive.
+function rebuildBooks(){
+  BOOKS=[]; const bk=emptyBook(); BOOKS.push(JSON.parse(JSON.stringify(bk)));
+  for(let i=0;i<N;i++){postStep(bk,STEPS[i],i);BOOKS.push(JSON.parse(JSON.stringify(bk)));}
+  EQS=BOOKS.map(eq); MAXA=Math.max(...EQS.map(e=>e.A),1);
+}
+
+// ---------- state ----------
+let k=0, recap=false, status=[], rows=[], fb=null, tries=0, revealed=false, showHint=false, confirmReset=false, tbTab="cur";
+// GS = the graded attempt as the server reports it. It never holds the seed or any answer the server hasn't returned.
+let MODE="practice", GS=null, PENDING=null, BUSY=false, gwarn=null;
+let VIEW=null; // graded mode: the submitted step being looked at (view only), or null for the current step
+function save(){try{stash();
+  if(MODE==="graded"&&GS)localStorage.setItem(GKEY,JSON.stringify({attempt:GS.id,course:GS.course}));
+  else if(seed)localStorage.setItem(KEY,JSON.stringify({seed,k,recap,status,year:YEAR,work:WORK}));
+  if(!PENDING)localStorage.setItem(MKEY,MODE);
+  const v={};VIEWS.forEach(x=>v[x]=$("v-"+x).checked);localStorage.setItem(KEY+".views",JSON.stringify(v));
+  localStorage.setItem(KEY+".hide",$("hideIdle").checked?"1":"0");
+}catch(e){}}
+function load(){
+  let m=null, ptr=null;
+  try{const v=JSON.parse(localStorage.getItem(KEY+".views")||"null");
+    if(v)VIEWS.forEach(x=>{if(x in v)$("v-"+x).checked=!!v[x];});
+    $("hideIdle").checked=localStorage.getItem(KEY+".hide")==="1";
+    ptr=JSON.parse(localStorage.getItem(GKEY)||"null"); m=localStorage.getItem(MKEY);
+  }catch(e){ptr=null;}
+  let hashSeed=null; try{const mm=/^#set(\d{1,9})$/.exec(location.hash||"");if(mm)hashSeed=+mm[1];}catch(e){}
+  // A graded attempt is resumed from the server once the Supabase library has loaded (see the end of the script).
+  if(!COURSE&&m==="graded"&&!hashSeed&&ptr&&typeof ptr.attempt==="string"&&UUID_RE.test(ptr.course||""))useCourse({id:ptr.course},true);
+  if(m==="graded"&&!hashSeed&&ptr&&typeof ptr.attempt==="string"&&COURSE&&ptr.course===COURSE)PENDING=ptr.attempt;
+  loadPractice(hashSeed);
+}
+function loadPractice(hashSeed){
+  let st=null;
+  try{st=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+  if(st&&st.year&&st.year!==YEAR)st=null;
+  if(hashSeed&&(!st||st.seed!==hashSeed)){buildSet(hashSeed);fresh();return;}
+  if(st&&st.seed){try{buildSet(st.seed);WORK=workIn(st.work);k=Math.max(0,Math.min(N,st.k|0));recap=!!st.recap&&k>0;status=Array.isArray(st.status)&&st.status.length===N?st.status:new Array(N).fill(null);if(k<N)startForm();return;}catch(e){}}
+  buildSet(randomSeed()); fresh();
+}
+function fresh(){k=0;recap=false;status=new Array(N).fill(null);startForm();}
+function startForm0(){rows=k<N?(STEPS[k].lines||new Array(STEPS[k].lineCount||0).fill(0)).map(()=>({a:"",dr:"",cr:""})):[];fb=null;tries=0;revealed=false;showHint=false;confirmReset=false;gwarn=null;}
+// Practice keeps each step's work (what was entered, checked or shown) so moving between steps, reloading
+// or leaving the page doesn't lose it. WORK[i] is step i's form; it's saved with the practice set.
+// FORMK is the step the form on screen belongs to.
+let WORK=[],FORMK=-1;
+function workIn(w){return Array.isArray(w)?w.map(x=>x&&typeof x==="object"&&Array.isArray(x.rows)?x:null):[];}
+function stash(){if(MODE!=="graded"&&FORMK>=0&&FORMK<N)WORK[FORMK]={rows,fb,tries,revealed,showHint};}
+function startForm(){stash();FORMK=k;
+  if(MODE!=="graded"&&WORK[k]){const w=WORK[k];rows=w.rows;fb=w.fb;tries=w.tries|0;revealed=!!w.revealed;showHint=!!w.showHint;confirmReset=false;gwarn=null;return;}
+  startForm0();}
+// Save practice work as it's typed, and when the page is left.
+document.addEventListener("input",()=>{if(MODE!=="graded")setTimeout(save,0);});
+document.addEventListener("change",()=>{if(MODE!=="graded")setTimeout(save,0);});
+window.addEventListener("pagehide",()=>{save();});
+function stepAccounts(i){return i>=0&&i<N?new Set((STEPS[i].lines||[]).map(l=>l.a)):new Set();}
+// ---------- graded mode (server) ----------
+// The class and lab come from the course page link: ?course=<id>&lab=accounting-cycle-lab
+let COURSE=(()=>{try{const q=new URLSearchParams(location.search);const c=q.get("course")||"";
+  return q.get("lab")===LAB_SLUG&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c)?c:null;}catch(e){return null;}})();
+// Opened from a plain link (a Canvas page, a bookmark), the link has no class. After sign-in the Graded
+// dialog looks up the student's classes that assign this lab as graded and uses their only one, or asks.
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COURSE_FROM_URL=!!COURSE;
+let CLASSES=null, CNAME="";
+// The chosen class goes into the address too, so a reload or the sign-in email comes back to it.
+function useCourse(c,quiet){
+  if(GS&&GS.course!==c.id&&!graded())GS=null;
+  COURSE=c.id; CNAME=c.name||"";
+  try{const u=new URL(location.href);u.searchParams.set("course",c.id);u.searchParams.set("lab",LAB_SLUG);history.replaceState(null,"",u.href);}catch(e){}
+  if(!quiet)loadTopics();
+}
+function clearCourse(){
+  if(COURSE_FROM_URL)return;
+  COURSE=null; CNAME="";
+  try{const u=new URL(location.href);u.searchParams.delete("course");u.searchParams.delete("lab");history.replaceState(null,"",u.href);}catch(e){}
+}
+async function loadClasses(){
+  CLASSES=null;
+  const fail=()=>{throw new Error("Your classes didn't load. Check your connection and try again.");};
+  const e=await sb().from("enrollments").select("course_id, courses(id,name,term)").eq("student_id",USER.id);
+  if(e.error)fail();
+  const cs=(e.data||[]).map(r=>r.courses).filter(Boolean);
+  let g=new Set();
+  if(cs.length){
+    const a=await sb().from("course_activities").select("course_id, mode, activities!inner(slug)").in("course_id",cs.map(c=>c.id)).eq("activities.slug",LAB_SLUG);
+    if(a.error)fail();
+    g=new Set((a.data||[]).filter(r=>r.mode==="graded").map(r=>r.course_id));
+  }
+  CLASSES=cs.filter(c=>g.has(c.id)).sort((x,y)=>String(x.name||"").localeCompare(String(y.name||"")));
+  if(CLASSES.length===1)useCourse(CLASSES[0]);
+}
+function classHTML(){
+  if(CLASSES==null)return DLG.busy?'<div class="gdlg-note">Finding your classes…</div>':'';
+  if(!CLASSES.length)return '<div class="gdlg-note warn"><b>None of your classes has this lab assigned as graded.</b> Check with your instructor, or keep working in Practice mode.</div>';
+  return '<p style="margin:14px 0 0"><b>Which class is this graded attempt for?</b></p>'+CLASSES.map((c,i)=>'<label class="pledge gclass"><input type="radio" name="gClass" value="'+esc(c.id)+'"'+(i===0?" checked":"")+'> <span>'+esc(c.name||"Class")+(c.term?' <span class="gterm">· '+esc(c.term)+'</span>':'')+'</span></label>').join("");
+}
+function focusDlg(){const d=$("gDlg");const p=d.querySelector("#gCode")||d.querySelector("#gEmail")||d.querySelector('input[name="gClass"]:checked')||d.querySelector("#pledge")||d.querySelector(".btn.primary");if(p)p.focus();}
+let SB=null;
+function sb(){
+  if(!SB){if(!window.supabase||!window.supabase.createClient){const e=new Error("The sign-in service didn't load. Check your connection and reload the page.");e.code="sdk";throw e;}
+    SB=window.supabase.createClient(SB_URL,SB_KEY);}
+  return SB;
+}
+async function currentUser(){const {data}=await sb().auth.getSession();return data&&data.session?data.session.user:null;}
+// Calls the lab-attempt edge function as the signed-in student. Throws an Error with .code and a message to show.
+async function api(body){
+  let res;
+  try{res=await sb().functions.invoke("lab-attempt",{body});}
+  catch(e){if(e&&e.code==="sdk")throw e;const x=new Error("Could not reach the grading server. Check your connection and try again.");x.code="network";throw x;}
+  if(!res.error)return res.data;
+  let msg="Could not reach the grading server. Check your connection and try again.", code="network";
+  try{const c=res.error.context;if(c&&typeof c.json==="function"){const j=await c.json();if(j&&j.message)msg=j.message;if(j&&(j.error||j.code))code=String(j.error||j.code);
+    if(c.status===401){code="unauthorized";msg="Your sign-in has expired. Sign in again to keep going.";}}}catch(e){}
+  const x=new Error(msg); x.code=code; throw x;
+}
+const graded=()=>MODE==="graded";
+function gTotal(){let t=0;for(let i=0;i<GS.max.length;i++)t+=GS.max[i];return t;}
+function gEarned(){return GS?GS.pts.reduce((t,x)=>t+(x||0),0):0;}
+function gScoredMax(){let t=0;for(let i=0;i<GS.max.length;i++)if(GS.done[i])t+=GS.max[i];return t;}
+function gScoreText(){return GS.finishedAt?"Graded · final score "+GS.score+" of "+GS.total+" points":gScoredMax()?"Graded · "+gEarned()+" of "+gScoredMax()+" points so far ("+gTotal()+" possible)":"Graded · "+gTotal()+" points possible";}
+// Classes that hide answers send no solution. A student can only post an entry once every line is right,
+// so their own corrected entry is the correct one: post it to the journal, T-accounts and statements.
+// It reveals nothing they haven't already entered. Corrected entries are kept in this browser so a reload keeps them.
+function ownLines(rows){return (rows||[]).map(r=>({a:r.a,dr:parseAmt(r.dr)||0,cr:parseAmt(r.cr)||0})).filter(l=>l.a&&(l.dr||l.cr));}
+function ownKey(){return KEY+".own."+(GS&&GS.id);}
+function ownLoad(){try{return JSON.parse(localStorage.getItem(ownKey())||"{}")||{};}catch(e){return {};}}
+function ownSave(i,lines){try{const o=ownLoad();o[i]=lines;localStorage.setItem(ownKey(),JSON.stringify(o));}catch(e){}}
+async function enterAttempt(id){
+  const p=await api({action:"problem",attempt_id:id});
+  applyProblem(p); render(true); scrollEntry(); focusSel();
+}
+function exitGraded(){save();VIEW=null;MODE="practice";setYear(PYEAR);loadPractice(null);}
+function when(ms){return new Date(ms).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"}).replace(/ /g," ");}
+function markBusy(act,label){document.querySelectorAll('#entry [data-act="'+act+'"]').forEach(b=>{b.disabled=true;b.setAttribute("aria-busy","true");if(label)b.textContent=label;});}
+function onApiError(e){if(e&&e.code==="unauthorized"){USER=null;openGDlg(e.message);}}
+async function finishGraded(){
+  if(BUSY)return;
+  BUSY=true; GS.err=null; markBusy("finishG","Finishing…");markBusy("finish","Finishing…");markBusy("cont","Finishing…");
+  try{
+    const r=await api({action:"finish",attempt_id:GS.id});
+    GS.finishedAt=r.finished_at; GS.score=r.score; GS.total=r.total;
+    BUSY=false; gAtEnd(); render(false); scrollEntry();
+  }catch(e){BUSY=false;GS.err=e.message;gAtEnd();render(false);onApiError(e);}
+  finally{BUSY=false;}
+}
+function renderGradedDone(){
+  const fin=!!GS.finishedAt;
+  $("entryH").textContent=fin?"Graded attempt complete":"Finish your graded attempt";
+  $("entrySub").textContent=fin?"Your score is saved":"";
+  let rows="";
+  STEPS.forEach((s,i)=>{if(s.doneForYou&&!(GS.max&&GS.max[i]))return;const mx=GS.max[i];if(!mx)return;const p=GS.pts[i]||0;
+    rows+='<tr class="'+(p<mx?"miss":"")+'"><td>'+esc(s.ref)+'</td><td>'+esc(s.title||"")+'</td><td class="r">'+(GS.done[i]?p:"—")+' / '+mx+'</td></tr>';});
+  const table='<details class="pts"><summary>Your points by step</summary><table class="ptab"><tbody>'+rows+'</tbody></table></details>';
+  if(!fin){
+    $("entry").innerHTML='<h3 class="entry-title" style="margin-top:0">You have submitted every step</h3>'+
+      '<p class="entry-desc">Finish the attempt to record your score. After you finish, your score can\'t change.</p>'+
+      (GS.err?'<div class="overall no"><b>Not finished yet.</b> '+esc(GS.err)+'</div>':'')+table+
+      controls('<button class="btn primary" data-act="finishG">Finish and see your score →</button>');
+    return;
+  }
+  const pct=GS.total?Math.round(GS.score/GS.total*100):0;
+  $("entry").innerHTML='<h3 class="entry-title" style="margin-top:0">You finished the graded lab: '+GS.score+' of '+GS.total+' points ('+pct+'%)</h3>'+
+    '<div class="final"><b>Score: '+GS.score+' / '+GS.total+'</b><br>Finished '+esc(when(GS.finishedAt))+'<br>Started '+esc(when(GS.startedAt))+'</div>'+
+    '<p class="entry-desc">Your score is saved to your class, so there is nothing to copy or turn in. Your instructor sees it in the gradebook.</p>'+
+    table+controls('');
+}
+// Paints the status bar's graded parts: score, legend, locked timeline, mode buttons.
+function gBar(){
+  const g=graded(), sc=$("score");
+  if(sc){sc.classList.toggle("graded",g);
+    if(g){sc.hidden=false;sc.textContent=gScoreText();}}
+  const lg=$("legendDots");
+  if(lg){if(!lg.dataset.practice)lg.dataset.practice=lg.innerHTML;
+    lg.innerHTML=g?'<span><i style="background:var(--good)"></i>Full credit</span><span><i style="background:var(--gold)"></i>Partial or no credit</span>':lg.dataset.practice;}
+  const tl=$("timeline"); if(tl)tl.classList.toggle("locked",g);
+  document.querySelectorAll("#modeSw [data-mode]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===MODE)));
+}
+
+// mode switch, sign-in and rules dialog
+let dlgConfirm=false, USER=null, DLG={stage:"email",email:"",err:null,info:null,busy:false};
+function rulesHTML(){
+  const pts=graded()&&GS?gTotal():null;
+  return '<ul>'+
+    '<li><b>No hints or answers.</b> Show a hint and Show the answer are turned off.</li>'+
+    '<li><b>Only your first submission counts.</b> Each journal entry is worth 1 point'+(pts?' ('+pts+' points in all)':'')+'. After you submit, you\'ll see what is wrong and why, and you must fix it to move on, but retries don\'t change your score.</li>'+
+    '<li><b>Look back, but no changes.</b> Click an earlier step in the timeline to see what you submitted and its feedback. You can\'t change a submitted step or start over during the attempt.</li>'+
+    '<li><b>Saved to your account.</b> You get a new problem set, graded and saved on the server as you go. You can leave and come back, even on another device, but the clock keeps running.</li>'+
+    '<li><b>Your score goes to your class.</b> When you finish, your score and finish time are recorded for your instructor. There is nothing to copy or paste.</li>'+
+    '<li><b>Work on your own.</b> Getting help from another person or an AI tool, or sharing your answers, is academic dishonesty. Every attempt has its own numbers.</li>'+
+    '<li><b>How you answer is recorded.</b> Along with your answers and times, the lab notes how they were entered (typing, pasting, leaving this page, and signs of AI or automation tools) for your instructor to review. It never records what you type anywhere else.</li></ul>';
+}
+function signInHTML(){
+  if(DLG.stage==="code")return '<div class="signin"><p style="margin:0">We sent a sign-in email to <b>'+esc(DLG.email)+'</b>. Enter the code from the email here.</p>'+
+    '<label for="gCode">Code from the email</label><input id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10">'+
+    '<div class="gdlg-actions" style="justify-content:flex-start;margin-top:4px"><button class="btn primary" data-g="verify">Sign in</button><button class="btn" data-g="restart">Use a different email</button></div></div>';
+  return '<div class="signin"><p style="margin:0"><b>Sign in to start a graded attempt.</b> Use the email address you use for your course page.</p>'+
+    '<label for="gEmail">Email</label><input id="gEmail" type="email" autocomplete="email" value="'+esc(DLG.email)+'">'+
+    '<div class="gdlg-actions" style="justify-content:flex-start;margin-top:4px"><button class="btn primary" data-g="send">Email me a sign-in code</button></div></div>';
+}
+function paintGDlg(){
+  const live=GS&&!GS.finishedAt, fin=GS&&GS.finishedAt;
+  let h='<p style="margin:0">Graded mode works like a quiz:</p>'+rulesHTML(), btn='<button class="btn" data-g="cancel">'+(graded()?"Back to the lab":"Stay in practice")+'</button>';
+  if(DLG.err)h+='<div class="gdlg-note warn">'+esc(DLG.err)+'</div>';
+  if(DLG.info)h+='<div class="gdlg-note">'+esc(DLG.info)+'</div>';
+  if(!USER){
+    h+=signInHTML();
+  } else if(!COURSE){
+    h+='<div class="signin"><span class="who">Signed in as '+esc(USER.email||"")+'. <button class="btn small" data-g="signout">Sign out</button></span></div>';
+    h+=classHTML();
+    if(CLASSES==null&&!DLG.busy)btn+='<button class="btn primary" data-g="classes">Find my classes</button>';
+    else if(CLASSES&&CLASSES.length>1)btn+='<button class="btn primary" data-g="pick">Continue</button>';
+  } else {
+    h+='<div class="signin"><span class="who">Signed in as '+esc(USER.email||"")+'. <button class="btn small" data-g="signout">Sign out</button></span>'+
+      (CNAME?'<span class="who">Class: <b>'+esc(CNAME)+'</b>'+(!COURSE_FROM_URL&&CLASSES&&CLASSES.length>1&&!graded()?' <button class="btn small" data-g="change">Change class</button>':'')+'</span>':'')+'</div>';
+    if(dlgConfirm){
+      h+='<div class="gdlg-note warn"><b>Start another graded attempt?</b> Your finished attempt and its score stay saved. A new attempt gets new numbers, if your class allows more than one attempt.</div>';
+      btn+='<button class="btn primary" data-g="start">Yes, start a new attempt</button>';
+    } else if(live&&graded()){
+      h+='<div class="gdlg-note">You are in a graded attempt that started '+esc(when(GS.startedAt))+'.</div>';
+      btn='<button class="btn primary" data-g="cancel">Back to the lab</button>';
+    } else if(live){
+      h+='<div class="gdlg-note">You have a graded attempt in progress. It started '+esc(when(GS.startedAt))+'.</div>';
+      btn+='<button class="btn primary" data-g="resume">Resume my attempt</button>';
+    } else if(fin){
+      h+='<div class="gdlg-note">You finished a graded attempt on '+esc(when(GS.finishedAt))+' with '+GS.score+' of '+GS.total+' points.</div>';
+      btn+='<button class="btn" data-g="new">Start a new attempt</button><button class="btn primary" data-g="resume">View my score</button>';
+    } else {
+      h+='<div class="gdlg-note">If you already started a graded attempt for this class, you\'ll pick up where you left off.</div>';
+      btn+='<button class="btn primary" data-g="start">Start graded attempt</button>';
+    }
+    if(btn.indexOf('data-g="start"')>=0){
+      h+='<label class="pledge"><input type="checkbox" id="pledge"> <span>I will complete this graded attempt on my own, without help from another person or an AI tool, and I will not share my answers.</span></label>';
+      btn=btn.replace('data-g="start"','data-g="start" disabled');}
+  }
+  $("gDlgB").innerHTML=h+'<div class="gdlg-actions">'+btn+'</div>';
+  if(DLG.busy)$("gDlgB").querySelectorAll(".btn").forEach(b=>{b.disabled=true;});
+}
+async function openGDlg(note){
+  dlgConfirm=false; DLG.err=note||null; DLG.info=null;
+  try{USER=await currentUser();}catch(e){USER=null;DLG.err=e.message;}
+  paintGDlg();
+  const d=$("gDlg");if(!d.open){if(d.showModal)d.showModal();else d.setAttribute("open","");}
+  focusDlg();
+  if(USER&&!COURSE&&CLASSES==null)dlgRun(loadClasses).then(focusDlg);
+}
+function closeGDlg(){const d=$("gDlg");if(d.close)d.close();else d.removeAttribute("open");}
+async function dlgRun(fn){
+  if(DLG.busy)return; DLG.busy=true; DLG.err=null; DLG.info=null; paintGDlg();
+  try{await fn();}catch(e){DLG.err=e&&e.message?e.message:"Something went wrong. Try again.";onApiError(e);}
+  finally{DLG.busy=false;if($("gDlg").open)paintGDlg();}
+}
+$("gDlgB").addEventListener("click",e=>{
+  const b=e.target.closest("[data-g]"); if(!b||b.disabled)return; const g=b.dataset.g;
+  if(g==="cancel"){closeGDlg();return;}
+  if(g==="new"){dlgConfirm=true;paintGDlg();const p=$("pledge");if(p)p.focus();return;}
+  if(g==="restart"){DLG.stage="email";DLG.err=null;paintGDlg();return;}
+  if(g==="send"){const email=($("gEmail").value||"").trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){DLG.err="Enter your email address.";paintGDlg();return;}
+    DLG.email=email;
+    dlgRun(async()=>{const {error}=await sb().auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.href.split("#")[0]}});
+      if(error)throw new Error(/signups? not allowed|not found/i.test(error.message)?"There is no account for that email. Join your class on the course page first.":error.message);
+      DLG.stage="code";});
+    return;}
+  if(g==="verify"){const token=($("gCode").value||"").replace(/\s/g,"");
+    if(!token){DLG.err="Enter the code from the email.";paintGDlg();return;}
+    dlgRun(async()=>{const {data,error}=await sb().auth.verifyOtp({email:DLG.email,token,type:"email"});
+      if(error)throw new Error("That code didn't work. Check it, or send a new one.");
+      USER=data.user; DLG.stage="email"; if(!COURSE)await loadClasses();});
+    return;}
+  if(g==="signout"){dlgRun(async()=>{await sb().auth.signOut();USER=null;if(graded()){exitGraded();render(true);}GS=null;CLASSES=null;clearCourse();try{localStorage.removeItem(GKEY);}catch(x){}});return;}
+  if(g==="classes"){dlgRun(loadClasses).then(focusDlg);return;}
+  if(g==="pick"){const r=$("gDlgB").querySelector('input[name="gClass"]:checked');const c=r&&CLASSES&&CLASSES.find(x=>x.id===r.value);if(c){useCourse(c);paintGDlg();focusDlg();}return;}
+  if(g==="change"){clearCourse();if(!graded())GS=null;paintGDlg();focusDlg();return;}
+  if(g==="start"&&!($("pledge")&&$("pledge").checked))return;
+  if(g==="start"||g==="resume"){
+    dlgRun(async()=>{
+      const id=g==="resume"?GS.id:(await api({action:"start",course_id:COURSE,lab:LAB_SLUG})).attempt_id;
+      if(window.IACSignals)IACSignals.reset();
+      await enterAttempt(id); closeGDlg();});
+  }
+});
+$("gDlgB").addEventListener("change",e=>{if(e.target.id==="pledge"){const b=$("gDlgB").querySelector('[data-g="start"]');if(b)b.disabled=!e.target.checked;}});
+$("gDlgB").addEventListener("keydown",e=>{if(e.key!=="Enter")return;
+  if(e.target.id==="gEmail"){e.preventDefault();const b=$("gDlgB").querySelector('[data-g="send"]');if(b)b.click();}
+  else if(e.target.id==="gCode"){e.preventDefault();const b=$("gDlgB").querySelector('[data-g="verify"]');if(b)b.click();}});
+$("modeSw").addEventListener("click",e=>{
+  const b=e.target.closest("[data-mode]"); if(!b)return;
+  if(b.dataset.mode==="graded")openGDlg();
+  else if(graded()){exitGraded();render(true);scrollEntry();}
+});
+
+function focusSel(){const f=$("entry").querySelector("select:not([disabled])");if(f)f.focus({preventScroll:true});}
+function gAtEnd(){k=N;recap=false;}
+function applySolution(i,sol){
+  const s=STEPS[i]; if(!s||!sol)return;
+  if(Array.isArray(sol.lines))s.lines=sol.lines; if(sol.why)s.why=sol.why; if(sol.calc)s.calc=sol.calc; if(sol.units!=null)s.units=sol.units;
+}
+// With answers hidden, a perpetual-system cost entry's change in guides on hand follows from the student's own
+// corrected entry only when its text states the count; otherwise the count comes with the solution.
+function applyProblem(p){
+  if(MODE==="practice"&&seed)save();
+  MODE="graded"; seed=0;
+  setYear(p.lab_year); // every date and label follows the attempt, even if it is finished after New Year
+  STEPS=JSON.parse(JSON.stringify(p.steps)); N=STEPS.length; NB=STEPS.filter(s=>s.phase==="basic").length; NA=STEPS.filter(s=>s.phase==="adjust").length;
+  GS={id:p.attempt_id,course:COURSE,startedAt:p.started_at,finishedAt:p.finished_at||null,
+    score:p.score==null?null:p.score,total:p.total==null?null:p.total,max:p.max_points.slice(),pts:[],done:[],ans:[],fb:[],err:null};
+  VIEW=null;
+  status=new Array(N).fill(null);
+  const ownSaved=ownLoad();
+  Object.keys(p.progress||{}).forEach(key=>{const i=+key, r=p.progress[key], s=STEPS[i]; if(!s)return;
+    if(r.doneForYou){dfyGraded(i,r);return;}
+    GS.done[i]=true; GS.pts[i]=r.points; GS.ans[i]=r.answer; GS.fb[i]=r.feedback; status[i]=r.points===r.maxPoints?"first":"retry";
+    if(r.solution)applySolution(i,r.solution);
+    else{const ln=r.points===r.maxPoints&&r.answer&&r.answer.rows?ownLines(r.answer.rows):(ownSaved[i]||null);
+      if(ln&&ln.length)s.lines=ln;}});
+  rebuildBooks(); markDfy(); setChip(); buildTimeline();
+  k=GS.finishedAt?N:Math.max(0,Math.min(N,p.next_step|0)); DFYSHOW=null;
+  if(k<N)while(k>0&&STEPS[k-1].doneForYou&&GS.done[k-1])k--; recap=false; startForm();
+}
+function incomplete(){
+  for(const r of rows){
+    if(!r.a)return "Choose an account on every line.";
+    const d=parseAmt(r.dr), c=parseAmt(r.cr);
+    if(Number.isNaN(d)||Number.isNaN(c))return "Amounts must be whole-dollar numbers, like 1200 or 1,200.";
+    if(!d&&!c)return "Enter an amount on every line.";}
+  return null;
+}
+async function submitGraded(s){
+  if(BUSY)return;
+  if(!GS.done[k]){const w=incomplete();if(w){gwarn=w;renderEntry();return;}}
+  const i=k, answer={rows:rows.map(r=>({a:r.a,dr:r.dr,cr:r.cr}))};
+  gwarn=null; BUSY=true; markBusy("check","Submitting…");
+  try{
+    const r=await api({action:"submit-step",attempt_id:GS.id,step:i,answer,signals:window.IACSignals?IACSignals.take():null});
+    if(!graded()||k!==i)return;
+    tries++; fb=r.feedback; GS.done[i]=true; GS.pts[i]=r.points;
+    (r.doneForYou||[]).forEach(g=>dfyGraded(g.step,g));
+    if(r.after&&STEPS[r.after.step]&&STEPS[r.after.step].locked)STEPS[r.after.step]=r.after.public;
+    if(r.doneForYou){if(typeof rebuildBooks==="function")rebuildBooks(GS.info&&GS.info.par);if(typeof gI0==="function"){I0=gI0();paintBiz();}buildTimeline();}
+    if(r.first&&GS.ans[i]===undefined){GS.ans[i]=answer;GS.fb[i]=JSON.parse(JSON.stringify(r.feedback));} // the scored submission, for looking back
+    if(r.next&&STEPS[i+1]&&STEPS[i+1].locked)STEPS[i+1]=r.next; // the server sends each step's text when it is reached
+    if(r.solution){applySolution(i,r.solution);rebuildBooks();}
+    else if(r.correct||(r.feedback&&r.feedback.all)){const ln=ownLines(answer.rows); if(ln.length){s.lines=ln;ownSave(i,ln);rebuildBooks();}}
+    BUSY=false; render(false);
+    const first=$("entry").querySelector(".line.bad-a select,.line.bad-s input,.line.bad-n input");if(first)first.focus();else focusAct("post");
+  }catch(e){BUSY=false;gwarn=e.message;renderEntry();onApiError(e);}
+  finally{BUSY=false;}
+}
+// Graded mode: how many posted entries the views can't show because the server returned no solution for them.
+function hiddenPosted(){let n=0;for(let i=0;i<k&&i<N;i++)if(!STEPS[i].lines)n++;return n;}
+function hiddenNote(){const n=hiddenPosted();return n?'<div class="note gk-hidden">'+(n===1?"1 entry you fixed after a wrong first try isn't":n+" entries you fixed after a wrong first try aren't")+' shown here, because it was corrected on another device or browser. Your class doesn\'t show answers in Graded mode.</div>':"";}
+function setYear(y){YEAR=y; paintBiz();}
+
+function delta(i){const a=EQS[i],b=EQS[i+1];return {A:b.A-a.A,L:b.L-a.L,E:b.E-a.E};}
+
+// ---------- timeline ----------
+function buildTimeline(){
+  const tl=$("timeline"); let h="";
+  ["basic","adjust","close"].forEach(ph=>{
+    h+='<div class="phase ph-'+ph+'"><div class="phase-label">'+PHASE_SHORT[ph]+'</div><div class="ticks">';
+    STEPS.forEach((s,i)=>{if(s.phase===ph)h+='<button class="tick" data-i="'+i+'">'+s.ref+'</button>';});
+    h+='</div></div>';
+  });
+  tl.innerHTML=h;
+}
+$("timeline").addEventListener("click",e=>{const t=e.target.closest(".tick");if(t)goTo(+t.dataset.i);});
+
+// ---------- entry card ----------
+function metaLine(s,i){return '<div class="entry-meta"><span class="pill '+s.phase+'">'+PHASE_NAME[s.phase]+' '+s.ref+'</span><span>'+s.date+', '+YEAR+'</span>'+(s.kind?'<span>· '+s.kind+'</span>':'')+'<span>· Entry '+(i+1)+' of '+N+'</span></div>';}
+function jeTable(s){
+  let h='<table class="je"><thead><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+  s.lines.filter(l=>l.dr).forEach(l=>{h+='<tr><td>'+esc(A[l.a].name)+'</td><td class="r num dr-amt">'+fmt(l.dr)+'</td><td></td></tr>';});
+  s.lines.filter(l=>l.cr).forEach(l=>{h+='<tr><td class="cr-name">'+esc(A[l.a].name)+'</td><td></td><td class="r num cr-amt">'+fmt(l.cr)+'</td></tr>';});
+  return h+'</tbody></table>';
+}
+function effChips(d){
+  const items=[["Assets",d.A],["Liabilities",d.L],["Stockholders' equity",d.E]];
+  return '<div class="effects">'+items.map(([n,v])=>'<span class="eff '+(v>0?"up":v<0?"down":"none")+'">'+n+' <span class="num">'+(v>0?"↑ "+fmt(v):v<0?"↓ "+fmt(v):"no change")+'</span></span>').join("")+'</div>';
+}
+function phaseNote(s,d){
+  if(s.phase==="adjust")return '<p class="note">Every adjusting entry affects one balance sheet account and one income statement account, and none of them involve Cash.</p>';
+  if(s.phase==="close")return '<p class="note">Closing entries move balances within stockholders\' equity, so total equity does not change.</p>';
+  if(d.A===0&&d.L===0&&d.E===0)return '<p class="note">Assets went up and down by the same amount, so the totals are unchanged.</p>';
+  return "";
+}
+function controls(primary){
+  let nav;
+  if(graded())nav='<button class="btn small" data-act="exitGraded" title="Your graded attempt is saved to your account, and you can come back to it. The clock keeps running.">Exit to practice</button>';
+  else if(confirmReset)nav='<span class="ask">Start over with:</span><button class="btn small" data-act="resetNew">New problem set</button><button class="btn small" data-act="resetSame">Same numbers</button><button class="btn small" data-act="cancelReset">Cancel</button>';
+  else nav='<button class="btn small" data-act="back"'+(k===0?" disabled":"")+' title="Undo the last posted entry">← Back</button><button class="btn small" data-act="reset"'+(k===0&&!recap&&!fb?" disabled":"")+'>⟲ Start over</button>';
+  return '<div class="actions"><div class="grp">'+nav+'</div><div class="grp">'+primary+'</div></div>';
+}
+function acctOptions(sel){
+  let h='<option value="">Choose an account…</option>';
+  GROUPS.forEach(g=>{h+='<optgroup label="'+g.key+'">';
+    ACCTS.filter(a=>g.types.includes(a.type)).sort((x,y)=>x.no-y.no).forEach(a=>{h+='<option value="'+a.id+'"'+(sel===a.id?" selected":"")+'>'+a.no+' '+esc(a.name)+'</option>';});
+    h+='</optgroup>';});
+  return h;
+}
+function missMsg(s,id){
+  if(s.miss&&s.miss[id])return s.miss[id];
+  const t=A[id].type;
+  if(s.missType&&s.missType[t])return s.missType[t];
+  if(s.phase==="adjust"&&id==="cash")return "Adjusting entries never involve Cash. They record amounts earned or used up that are not on the books yet.";
+  if(s.phase==="close"&&!["rev","exp","div","re"].includes(t)&&id!=="re")return A[id].name+" is a permanent (balance sheet) account. Closing entries involve only revenues, expenses, dividends, and Retained Earnings.";
+  return A[id].name+" is not affected by this "+PHASE_NAME[s.phase].toLowerCase()+". Ask which accounts actually change and why.";
+}
+function grade(s){
+  const sol={}; s.lines.forEach(l=>sol[l.a]={side:l.dr?"D":"C",amt:l.dr||l.cr});
+  const seen=new Set(); let sumD=0,sumC=0;
+  const res=rows.map(r=>{
+    const d=parseAmt(r.dr), c=parseAmt(r.cr);
+    if(!r.a)return {cls:"bad-a",msg:"Choose an account for this line."};
+    if(seen.has(r.a))return {cls:"bad-a",msg:A[r.a].name+" is already used on another line."};
+    seen.add(r.a);
+    if(d&&!isNaN(d))sumD+=d; if(c&&!isNaN(c))sumC+=c;
+    if((d===null||d===0)&&(c===null||c===0))return {cls:"bad-n",msg:"Enter an amount in the Debit or Credit column."};
+    if(isNaN(d)||isNaN(c))return {cls:"bad-n",msg:"Amounts must be whole-dollar numbers, like 1200 or 1,200."};
+    if(d&&c)return {cls:"bad-s",msg:"Put the amount in only one column."};
+    const x=sol[r.a];
+    if(!x)return {cls:"bad-a",msg:missMsg(s,r.a)};
+    const side=d?"D":"C", amt=d||c;
+    if(side!==x.side){
+      const inc=x.side===A[r.a].normal;
+      return {cls:"bad-s",msg:"Right account, wrong side. "+A[r.a].name+" "+(inc?"increases":"decreases")+" here. It has a normal "+(A[r.a].normal==="D"?"debit":"credit")+" balance, so it is "+(x.side==="D"?"debited":"credited")+"."};
+    }
+    if(amt!==x.amt){
+      const tip=s.phase==="close"?"Use the account balance shown in the trial balance.":s.calc?"Recheck the calculation. Show a hint if you need it.":"Check the amount given in the transaction.";
+      return {cls:"bad-n",msg:"Right account and side, but the amount is not correct. "+tip};
+    }
+    return {cls:"ok",msg:"Correct."};
+  });
+  const missing=Object.keys(sol).filter(a=>!seen.has(a)).length;
+  const all=res.every(r=>r.cls==="ok")&&missing===0;
+  const notes=[];
+  if(!all){
+    if(sumD!==sumC)notes.push("Debits ("+d$(sumD)+") do not equal credits ("+d$(sumC)+"). Every entry must balance.");
+    if(missing>0)notes.push(missing===1?"One account that belongs in this entry is missing.":missing+" accounts that belong in this entry are missing.");
+  }
+  return {res,all,notes,amtWrong:res.some(x=>x.cls==="bad-n"&&x.msg.indexOf("amount is not")>-1)};
+}
+// ---------- done for you: steps outside the concepts the instructor assigned ----------
+// Graded attempts mark them on the server (doneForYou, with the answers). Practice opened from the class
+// page follows the same concepts (window.IAC_TOPICS, /interacctive/topics.js). Either way the step shows
+// filled in, nothing to enter, worth no points, and the journal, T-accounts and statements stay complete.
+let PTOPICS=null, DFYSHOW=null;
+const DFY_NOTE='<div class="dfy-note"><b>Done for you.</b> Your instructor didn\'t include this step in the assignment, so it\'s filled in with the correct answer. Read it, then go on. It isn\'t scored.</div>';
+function isDfy(i){const s=STEPS[i];return !!(s&&s.doneForYou&&(!graded()||(GS&&GS.done[i])));}
+function markDfy(){
+  const T=window.IAC_TOPICS; DFYSHOW=null;
+  (STEPS||[]).forEach((s,i)=>{const g=!!(T&&PTOPICS&&T.isGiven(LAB_SLUG,s,PTOPICS));s.doneForYou=g;
+    if(!g&&Array.isArray(status)&&status[i]==="given")status[i]=null;});
+}
+function dfyGraded(i,r){
+  if(r.public&&(!STEPS[i]||STEPS[i].locked))STEPS[i]=r.public;
+  const s=STEPS[i]; if(!s)return;
+  s.doneForYou=true; GS.done[i]=true; GS.pts[i]=0; GS.ans[i]=r.answer; GS.fb[i]=r.feedback; status[i]="given";
+  if(r.solution)applySolution(i,r.solution);
+}
+function dfyAnswer(f){
+  if(f.ans==null)return "";
+  if(typeof f.ans==="number"&&typeof rvMoney==="function"&&rvMoney(f))return d$(f.ans);
+  return rvVal(f,f.ans);
+}
+function renderDfyView(i,live){
+  const s=STEPS[i];
+  $("entryH").textContent=live?"Done for you":"Looking back"; $("entrySub").textContent="Not part of this assignment";
+  let h=DFY_NOTE+metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3>'+(s.desc?'<p class="entry-desc">'+esc(s.desc)+'</p>':'');
+  if(s.type==="entry"&&s.lines){
+    h+=(s.calc?'<div class="calc">'+esc(s.calc)+'</div>':'')+jeTable(s)+(s.why?'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>':'');
+  } else {
+    const ex=typeof dfyExtra==="function"?dfyExtra(s,i):null;
+    if(ex)h+=ex;
+    else if(s.fields){
+      h+='<div class="fields">';
+      s.fields.forEach(f=>{
+        const sub=f.kind==="cls"&&f.amt!=null?'<small class="num">'+d$(f.amt)+'</small>':f.sub?'<small>'+esc(f.sub)+'</small>':'';
+        h+='<div class="field ok"><div class="frow"><div class="flabel">'+esc(f.label||f.id)+sub+'</div><div class="rv-ans">'+esc(dfyAnswer(f))+'</div></div>'+(f.work!=null?'<div class="work">'+esc(f.work)+'</div>':'')+'</div>';});
+      h+='</div>';
+    }
+    if(s.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(s.why)+'</div>';
+  }
+  let nav;
+  if(!live)nav=reviewNav(i);
+  else nav=controls(k<N?'<button class="btn primary" data-act="next">Next step →</button>':graded()?'<button class="btn primary" data-act="finishG">Finish and see your score →</button>':'<button class="btn primary" data-act="next">See your results →</button>');
+  $("entry").innerHTML=h+nav;
+}
+// Leaving a done-for-you card goes through the page's own Next and Finish.
+$("entry").addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b&&DFYSHOW!=null&&/^(next|finish|finishG)$/.test(b.dataset.act))DFYSHOW=null;},true);
+// Practice opened from the class page follows the concepts the instructor assigned (signed-in students only;
+// otherwise, or if anything fails, practice is the whole lab).
+async function loadTopics(){
+  if(!COURSE||!window.IAC_TOPICS)return;
+  try{
+    if(!(await currentUser()))return;
+    const r=await sb().from("course_activities").select("topics, activities!inner(slug)").eq("course_id",COURSE).eq("activities.slug",LAB_SLUG).maybeSingle();
+    const t=r&&r.data?window.IAC_TOPICS.cleanTopics(LAB_SLUG,r.data.topics):null;
+    if(JSON.stringify(t)===JSON.stringify(PTOPICS))return;
+    PTOPICS=t;
+    if(!graded()){markDfy();buildTimeline();render(false);}
+  }catch(e){}
+}
+
+function renderEntry(){
+  if(graded()&&VIEW!=null){renderReview(VIEW);return;}
+  if(DFYSHOW!=null&&(recap||k!==DFYSHOW+1))DFYSHOW=null;
+  if(DFYSHOW==null&&!recap&&k<N&&isDfy(k)){status[k]="given";DFYSHOW=k;k++;}
+  if(DFYSHOW!=null){renderDfyView(DFYSHOW,true);return;}
+  const el=$("entry");
+  if(k>=N&&!recap){renderDone();return;}
+  if(recap){renderRecap();return;}
+  const s=STEPS[k];
+  $("entrySub").textContent="Record the entry";
+  const lock=(fb&&fb.all)||revealed;
+  let h=metaLine(s,k)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>';
+  if(graded()&&!GS.done[k])h+='<div class="gnote">Graded: only your first submission on this entry counts (1 point). Complete every line before you submit.</div>';
+  h+='<p class="note" style="margin-top:0">Choose the accounts and enter whole-dollar amounts. This entry has '+(s.lines?s.lines.length:s.lineCount)+' lines. List debits first, then credits.</p>';
+  h+='<table class="rec"><thead><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+  rows.forEach((r,i)=>{
+    const f=fb&&fb.res[i];
+    h+='<tr class="line '+(f?f.cls:"")+'" data-row="'+i+'"><td><select data-i="'+i+'" data-f="a" aria-label="Account, line '+(i+1)+'"'+(lock?" disabled":"")+'>'+acctOptions(r.a)+'</select></td>'+
+      '<td class="amt"><input data-i="'+i+'" data-f="dr" inputmode="numeric" autocomplete="off" aria-label="Debit, line '+(i+1)+'" value="'+esc(r.dr)+'" class="'+(r.dr?"filled":"")+'"'+(lock?" disabled":"")+'></td>'+
+      '<td class="amt"><input data-i="'+i+'" data-f="cr" inputmode="numeric" autocomplete="off" aria-label="Credit, line '+(i+1)+'" value="'+esc(r.cr)+'" class="'+(r.cr?"filled":"")+'"'+(lock?" disabled":"")+'></td></tr>';
+    if(f&&!revealed)h+='<tr class="fb"><td colspan="3"><div class="fbmsg '+(f.cls==="ok"?"ok":"no")+'"><span>'+(f.cls==="ok"?"✓":"✗")+'</span><span>'+esc(f.msg)+'</span></div></td></tr>';
+  });
+  const sd=rows.reduce((t,r)=>t+(parseAmt(r.dr)||0),0), sc=rows.reduce((t,r)=>t+(parseAmt(r.cr)||0),0);
+  h+='</tbody><tfoot><tr><td>Totals</td><td>'+fmt(sd)+'</td><td>'+fmt(sc)+'</td></tr></tfoot></table>';
+  if(gwarn)h+='<div class="overall no"><b>Not submitted yet.</b> '+esc(gwarn)+' Only your first complete submission is scored.</div>';
+  if(fb&&!revealed&&graded()){
+    const p=GS.pts[k]||0;
+    if(fb.all)h+='<div class="overall ok"><b>✓ Correct.</b> '+(p===1?"Your first submission earned 1 of 1 point.":"Your first submission earned 0 of 1 point; retries don't change your score.")+(s.why?' '+esc(s.why):'')+'</div>';
+    else h+='<div class="overall no"><b>Not quite.</b> Your first submission earned 0 of 1 point. Fix the lines marked ✗ to post the entry and move on; retries don\'t change your score.'+(fb.notes.length?'<ul>'+fb.notes.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>':'')+'</div>';
+  }
+  else if(fb&&!revealed){
+    if(fb.all)h+='<div class="overall ok"><b>✓ '+(tries===1?"Correct on the first try.":"Correct after "+tries+" tries.")+'</b> '+esc(s.why)+'</div>';
+    else h+='<div class="overall no"><b>Not quite yet.</b> Fix the lines marked ✗ and check again.'+(fb.notes.length?'<ul>'+fb.notes.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>':'')+'</div>';
+  }
+  if(revealed)h+='<div class="overall no" style="margin-bottom:10px"><b>Correct entry.</b> Compare it with yours, then post it.</div>'+jeTable(s)+'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>';
+  if(s.calc&&(showHint||revealed))h+='<div class="hintbox"><b>'+(s.phase==="close"?"Balances":"Calculation")+':</b> <span class="num">'+esc(s.calc)+'</span></div>';
+  let prim;
+  if(lock)prim='<button class="btn primary" data-act="post">Post the entry →</button>';
+  else if(graded())prim='<button class="btn primary" data-act="check">'+(GS.done[k]?"Check my entry":"Submit entry")+'</button>';
+  else prim=(s.calc&&!showHint?'<button class="btn small" data-act="hint">Show a hint</button>':'')+'<button class="btn small" data-act="show">Show the answer</button><button class="btn primary" data-act="check">Check my entry</button>';
+  el.innerHTML=h+controls(prim);
+  $("entrySub").textContent=lock?"Ready to post":"Record the entry";
+}
+function renderRecap(){
+  const i=k-1, s=STEPS[i], d=delta(i), st=status[i];
+  $("entrySub").textContent="Posted";
+  const banner=graded()?(GS.pts[i]===1?'<div class="result ok">✓ Posted. Your first submission was correct: 1 of 1 point.</div>':'<div class="result no">Posted. Your first submission earned 0 of 1 point. Review why the entry works before moving on.</div>'):
+    st==="first"?'<div class="result ok">✓ Posted. You recorded this entry correctly on the first try.</div>':
+    st==="retry"?'<div class="result ok">✓ Posted. You recorded this entry correctly after more than one try.</div>':
+    '<div class="result no">Posted from the answer. Review why it works before moving on.</div>';
+  const prim=k<N?'<button class="btn primary" data-act="next">Record next entry →</button>':'<button class="btn primary" data-act="finish">'+(graded()?"Finish and see your score →":"See your results →")+'</button>';
+  if(!s.lines){
+    const own={lines:rows.map(r=>({a:r.a,dr:parseAmt(r.dr)||0,cr:parseAmt(r.cr)||0}))};
+    $("entry").innerHTML=banner+metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>'+
+      '<p class="note" style="margin-top:0">Your entry, as you submitted it:</p>'+jeTable(own)+
+      '<p class="note">Your class doesn\'t show answers in Graded mode, so the explanation and the effects aren\'t shown.</p>'+controls(prim);
+    return;
+  }
+  $("entry").innerHTML=banner+metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>'+(s.calc?'<div class="calc">'+esc(s.calc)+'</div>':'')+jeTable(s)+
+    (s.why?'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>':'')+effChips(d)+phaseNote(s,d)+controls(prim);
+}
+function renderDone(){
+  if(graded()){renderGradedDone();return;}
+  $("entrySub").textContent="Cycle complete";
+  const c=x=>status.filter(v=>v===x).length;
+  $("entry").innerHTML='<h3 class="entry-title" style="margin-top:0">You finished the accounting cycle</h3>'+
+    '<p class="entry-desc">All '+N+' entries for '+YEAR+' are posted. The trial balance now shows the post-closing balances that carry into '+(YEAR+1)+'.</p>'+
+    '<div class="effects"><span class="eff up">First try <span class="num">'+c("first")+'</span></span><span class="eff none">Retried <span class="num">'+c("retry")+'</span></span><span class="eff none">Answer shown or skipped <span class="num">'+(c("shown")+c("skipped"))+'</span></span></div>'+
+    '<p class="note">Start a new problem set to practice the same entries with different numbers and a different order.</p>'+
+    controls('<button class="btn primary" data-act="resetNew">New problem set →</button>');
+}
+// entry interactions (delegated)
+$("entry").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b||b.disabled)return;
+  const act=b.dataset.act, s=STEPS[k];
+  if(act==="rvGo"){reviewStep(+b.dataset.i);return;}
+  if(act==="rvBack"){if(graded()){VIEW=null;render(false);scrollEntry();rvFocus();}return;}
+  if(graded()&&/^(hint|show|back|reset|cancelReset|resetSame|resetNew)$/.test(act))return;
+  if(graded()&&BUSY)return;
+  if(graded()&&act==="check"){submitGraded(s);return;}
+  if(graded()&&(act==="finishG"||act==="finish")){finishGraded();return;}
+  if(act==="exitGraded"){exitGraded();render(true);scrollEntry();return;}
+  if(act==="check"){tries++;fb=grade(s);if(fb.amtWrong&&s.calc&&tries>=2)showHint=true;render(false);
+    const first=$("entry").querySelector(".line.bad-a select,.line.bad-s input,.line.bad-n input");if(first)first.focus();else{const p=$("entry").querySelector('[data-act="post"]');if(p)p.focus();}}
+  else if(act==="hint"){showHint=true;renderEntry();}
+  else if(act==="show"){revealed=true;renderEntry();const p=$("entry").querySelector('[data-act="post"]');if(p)p.focus();}
+  else if(act==="post"){status[k]=revealed?"shown":graded()?(GS.pts[k]===1?"first":"retry"):(tries===1&&fb&&fb.all?"first":"retry");k++;recap=true;confirmReset=false;render(true);focusAct("next")||focusAct("finish");}
+  else if(act==="next"){recap=false;startForm();render(false);scrollEntry();const f=$("entry").querySelector("select");if(f)f.focus({preventScroll:true});}
+  else if(act==="finish"){recap=false;render(false);}
+  else if(act==="back"){goTo(k-1);}
+  else if(act==="reset"){confirmReset=true;renderEntry();}
+  else if(act==="cancelReset"){confirmReset=false;renderEntry();}
+  else if(act==="resetSame"){fresh();render(true);scrollEntry();}
+  else if(act==="resetNew"){let sd=randomSeed();if(sd===seed)sd++;buildSet(sd);fresh();render(true);scrollEntry();}
+});
+function focusAct(a){const p=$("entry").querySelector('[data-act="'+a+'"]');if(p){p.focus({preventScroll:true});return true;}return false;}
+function onField(e){
+  const inp=e.target; if(!inp.matches(".rec select,.rec input"))return;
+  const i=+inp.dataset.i; rows[i][inp.dataset.f]=inp.value;
+  if(inp.tagName==="INPUT")inp.classList.toggle("filled",!!inp.value);
+  if(fb&&fb.res[i]){fb.res[i]=null;const tr=inp.closest("tr");tr.className="line";const nx=tr.nextElementSibling;if(nx&&nx.classList.contains("fb"))nx.remove();}
+  const tf=$("entry").querySelector(".rec tfoot tr");
+  if(tf){tf.children[1].textContent=fmt(rows.reduce((t,r)=>t+(parseAmt(r.dr)||0),0));tf.children[2].textContent=fmt(rows.reduce((t,r)=>t+(parseAmt(r.cr)||0),0));}
+}
+$("entry").addEventListener("input",onField);
+$("entry").addEventListener("change",onField);
+$("entry").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches(".rec input")){e.preventDefault();if(graded()&&!GS.done[k])return;/* graded: submit only with the button */const c=$("entry").querySelector('[data-act="check"]');if(c)c.click();}});
+function scrollEntry(){const p=$("pEntry");const r=p.getBoundingClientRect();const top=parseFloat(getComputedStyle(p).scrollMarginTop)||0;if(r.top<top-2||r.top>window.innerHeight*0.6)p.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});}
+
+// ---------- graded mode: look back at submitted steps (view only) ----------
+// The step the student is working on (or the entry just posted). Any submitted step can be opened to view
+// the scored first submission, its feedback and, when the class shows answers, the solution. Nothing can be changed.
+function curStep(){return recap?k-1:Math.min(k,N-1);}
+function isCur(i){return i===curStep()&&k<N;}
+function canView(i){return graded()&&!!GS&&i>=0&&i<N&&(isCur(i)||!!GS.done[i]);}
+function reviewStep(i){
+  if(!graded()||BUSY||!canView(i))return;
+  VIEW=isCur(i)?null:i;
+  render(false); scrollEntry();
+  if(VIEW!=null)focusAct("rvBack");else rvFocus();
+}
+function reviewNav(i){
+  let prev=-1,next=-1;
+  for(let j=i-1;j>=0;j--)if(GS.done[j]&&!isCur(j)){prev=j;break;}
+  for(let j=i+1;j<N;j++)if(GS.done[j]&&!isCur(j)){next=j;break;}
+  const lab=j=>esc(STEPS[j].tickLabel||STEPS[j].ref);
+  const nav='<div class="grp">'+(prev>=0?'<button class="btn small" data-act="rvGo" data-i="'+prev+'">← '+lab(prev)+'</button>':'')+(next>=0?'<button class="btn small" data-act="rvGo" data-i="'+next+'">'+lab(next)+' →</button>':'')+'</div>';
+  const back=k>=N?(GS.finishedAt?"Back to your score":"Back to finishing"):recap?"Back to where you left off":"Back to step "+(k+1);
+  return '<div class="actions">'+nav+'<div class="grp"><button class="btn primary" data-act="rvBack">'+back+' →</button></div></div>';
+}
+// How a submitted value reads in the review, following the page's own field types.
+function rvMoney(f){return !f.kind&&!f.pct&&!f.dec&&f.box!=="N"&&(!f.unit||f.unit==="$");}
+function rvVal(f,v){
+  if(v==null||v==="")return "(blank)";
+  const t=String(v).trim();
+  if(f.kind&&f.opts){const o=f.opts.find(o=>String(o[0])===t);return o?String(o[1]):t;}
+  if(f.pct||f.unit==="%")return t.replace(/%$/,"")+"%";
+  if(f.unit&&f.unit!=="$")return t+" "+f.unit;
+  if(!rvMoney(f)||/^[-−(]/.test(t))return t;
+  return "$"+t.replace(/^\$\s*/,"");
+}
+function rvFocus(){if(focusAct("next")||focusAct("finish")||focusAct("finishG"))return;const f=document.querySelector("#entry select:not([disabled]),#entry input:not([disabled])");if(f)f.focus({preventScroll:true});}
+function rvMark(r){if(!r)return '';const ok=r.ok===true||r.cls==="ok";return '<div class="fmsg '+(ok?"ok":"no")+'"><span>'+(ok?"✓":"✗")+'</span><span>'+esc(r.msg||"")+'</span></div>';}
+function renderReview(i){
+  if(STEPS[i]&&STEPS[i].doneForYou){renderDfyView(i,false);return;}
+  const s=STEPS[i], a=GS.ans[i], fb=GS.fb[i], p=GS.pts[i]||0, mx=GS.max&&GS.max[i]!=null?GS.max[i]:maxPts(i);
+  $("entryH").textContent="Looking back"; $("entrySub").textContent="View only";
+  let h='<div class="rv-note"><b>View only.</b> You already submitted this step, so it can\'t be changed. Your first submission earned '+p+' of '+mx+(mx===1?" point":" points")+'.</div>'+
+    metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>';
+  if(s.type==="entry"){
+    if(a&&Array.isArray(a.rows)){
+      h+='<p class="note" style="margin-top:0">Your first submission (the one that was scored):</p><table class="je"><thead><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+      a.rows.forEach((r,j)=>{const f=fb&&fb.res?fb.res[j]:null;
+        h+='<tr><td'+(r.cr&&!r.dr?' class="cr-name"':'')+'>'+esc(r.a&&A[r.a]?A[r.a].name:"(no account)")+'</td><td class="r num dr-amt">'+esc(r.dr||"")+'</td><td class="r num cr-amt">'+esc(r.cr||"")+'</td></tr>';
+        if(f)h+='<tr class="fb"><td colspan="3">'+rvMark(f)+'</td></tr>';});
+      h+='</tbody></table>';
+      if(fb&&fb.notes&&fb.notes.length)h+='<div class="overall no"><ul>'+fb.notes.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul></div>';
+    } else h+='<p class="note">Your first submission isn\'t available.</p>';
+    if(s.lines)h+='<p class="note">The entry as posted:</p>'+(s.calc?'<div class="calc">'+esc(s.calc)+'</div>':'')+jeTable(s)+(s.why?'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>':'');
+  } else {
+    h+=s.pre||"";
+    const vals=a&&a.vals||{};
+    h+='<div class="fields">';
+    s.fields.forEach(f=>{const r=fb&&fb.res?fb.res[f.id]:null, shown=rvVal(f,vals[f.id]);
+      const sub=f.kind==="cls"&&f.amt!=null?'<small class="num">'+d$(f.amt)+'</small>':f.sub?'<small>'+esc(f.sub)+'</small>':'';
+      h+='<div class="field'+(r?(r.ok?" ok":" no"):"")+'"><div class="frow"><div class="flabel">'+esc(f.label)+sub+'</div><div class="rv-ans">'+esc(shown)+'</div></div>'+rvMark(r);
+      if(f.ans!=null&&!(r&&r.ok)){const c=typeof f.ans==="number"&&rvMoney(f)?d$(f.ans):rvVal(f,f.ans);h+='<div class="work">Correct answer: '+esc(c)+'</div>';}
+      if(f.work!=null)h+='<div class="work">'+esc(f.work)+'</div>';
+      h+='</div>';});
+    h+='</div>';
+    if(!a)h+='<p class="note">Your first submission isn\'t available.</p>';
+    if(s.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(s.why)+'</div>';
+  }
+  $("entry").innerHTML=h+reviewNav(i);
+}
+
+function goTo(i){
+  if(graded()){reviewStep(i);return;}
+  i=Math.max(0,Math.min(N-1,i));
+  if(i>k)for(let j=k;j<i;j++)if(!status[j])status[j]="skipped";
+  k=i; recap=false; startForm(); render(true); scrollEntry();
+}
+
+// ---------- equation ----------
+function renderEquation(){
+  const e=EQS[k], d=k>0?delta(k-1):{A:0,L:0,E:0}, ok=e.A===e.L+e.E;
+  $("eqBal").innerHTML='<span class="balanced'+(ok?"":" no")+'">'+(ok?"✓ In balance":"✗ Out of balance")+'</span>';
+  const term=(lab,v,dv)=>'<div class="term"><div class="k">'+lab+'</div><div class="v">'+money(v,true)+'</div><div class="d '+(dv>0?"up":dv<0?"down":"zero")+'">'+(k>0?(dv===0?"no change":sgn(dv)):"&nbsp;")+'</div></div>';
+  const p=e.parts, cur=stepAccounts(k-1);
+  const touched=id=>id==="exp"?ACCTS.some(a=>a.type==="exp"&&cur.has(a.id)):cur.has(id);
+  const part=(id,lab,v)=>'<span class="part'+(touched(id)?" chg":"")+'"><span class="k">'+lab+'</span><span class="v">'+fmt(v)+'</span></span>';
+  const parts=part("cs","Common stock",p.cs)+'<span class="o">+</span>'+part("re","Retained earnings",p.re)+'<span class="o">+</span>'+part("rev","Revenues",p.rev)+'<span class="o">−</span>'+part("exp","Expenses",p.exp)+'<span class="o">−</span>'+part("div","Dividends",p.div);
+  const wA=(e.A/MAXA*100).toFixed(2), wL=(e.L/MAXA*100).toFixed(2), wE=(e.E/MAXA*100).toFixed(2);
+  $("equation").innerHTML='<div class="eq">'+term("Assets",e.A,d.A)+'<div class="op">=</div>'+term("Liabilities",e.L,d.L)+'<div class="op">+</div>'+term("Equity",e.E,d.E)+'</div>'+
+   '<div class="bars"><div class="barrow"><span>A</span><div class="track"><div class="seg-a" style="width:'+wA+'%"></div></div></div>'+
+   '<div class="barrow"><span>L + E</span><div class="track"><div class="seg-l" style="width:'+wL+'%"></div><div class="seg-e" style="width:'+wE+'%"></div></div></div>'+
+   '<div class="legend"><span><i class="seg-a"></i>Assets</span><span><i class="seg-l"></i>Liabilities</span><span><i class="seg-e"></i>Stockholders\' equity</span></div></div>'+
+   '<div class="eqparts" aria-label="Stockholders\' equity detail">'+parts+'</div>'+
+   (k===0?'<p class="note">Every account starts at zero. Post the first entry to see the equation change.</p>':'');
+}
+
+// ---------- T-accounts ----------
+function renderT(){
+  const b=BOOKS[k], cur=k-1, hide=$("hideIdle").checked;
+  let h="";
+  GROUPS.forEach(g=>{
+    const accts=ACCTS.filter(a=>g.types.includes(a.type)).filter(a=>!hide||b[a.id].dr.length||b[a.id].cr.length);
+    if(!accts.length)return;
+    h+='<div class="t-group"><h3>'+g.key+' <span>'+g.note+'</span></h3><div class="t-grid">';
+    accts.forEach(a=>{
+      const t=b[a.id], used=t.dr.length||t.cr.length, touch=t.dr.concat(t.cr).some(x=>x.si===cur);
+      const row=x=>'<div class="t-row'+(x.si===cur?" cur":"")+'"><span class="ref">'+x.ref+'</span><span class="amt">'+fmt(x.amt)+'</span></div>';
+      const bal=t.d-t.c;
+      let L=t.dr.map(row).join(""), R=t.cr.map(row).join("");
+      if(used&&bal!==0){const br='<div class="t-row balrow"><span class="ref">Bal.</span><span class="amt">'+fmt(bal)+'</span></div>'; if(bal>0)L+=br; else R+=br;}
+      h+='<div class="tacct'+(used?"":" idle")+(touch?" touch":"")+'"><div class="t-head"><span class="no">'+a.no+'</span><span>'+esc(a.name)+'</span></div>'+
+        '<div class="t-body"><div class="t-side l"><span class="lab">Dr</span>'+L+'</div><div class="t-side r"><span class="lab">Cr</span>'+R+'</div></div>'+
+        (used&&bal===0?'<div class="t-zero">Balance 0'+(k>NB+NA?" · closed":"")+'</div>':'')+'</div>';
+    });
+    h+='</div></div>';
+  });
+  $("taccts").innerHTML=(graded()?hiddenNote():'')+(h||'<div class="empty">No account has activity yet. Post the first entry.</div>');
+}
+
+// ---------- Trial balance ----------
+function tbTitle(){
+  if(k===0)return {name:"Trial Balance",note:"No entries posted yet."};
+  if(k<NB)return {name:"Trial Balance (in progress)",note:"After transaction "+STEPS[k-1].ref+". The unadjusted trial balance is complete after transaction "+STEPS[NB-1].ref+"."};
+  if(k===NB)return {name:"Unadjusted Trial Balance",note:"All "+YEAR+" transactions are posted. Adjusting entries come next."};
+  if(k<NB+NA)return {name:"Trial Balance (adjusting in progress)",note:"After adjusting entry "+STEPS[k-1].ref+"."};
+  if(k===NB+NA)return {name:"Adjusted Trial Balance",note:"The financial statements are prepared from these balances. Use them for the closing entries."};
+  if(k<N)return {name:"Trial Balance (closing in progress)",note:"After closing entry "+STEPS[k-1].ref+"."};
+  return {name:"Post-Closing Trial Balance",note:"Only permanent (balance sheet) accounts remain. "+(YEAR+1)+" starts here."};
+}
+function renderTB(){
+  $("tabCur").setAttribute("aria-selected",tbTab==="cur");$("tabWs").setAttribute("aria-selected",tbTab==="ws");
+  if(tbTab==="ws"){renderWS();return;}
+  const b=BOOKS[k], cur=stepAccounts(k-1), t=tbTitle();
+  const list=ACCTS.slice().sort((x,y)=>x.no-y.no).filter(a=>b[a.id].d-b[a.id].c!==0);
+  let D=0,C=0;
+  let h='<div class="scroll"><table class="tb"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">'+t.name+'</div><div class="cap-date">December 31, '+YEAR+'</div></caption>'+
+    '<thead><tr><th>No.</th><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+  if(!list.length)h+='<tr><td colspan="4" class="empty">Nothing to list yet.</td></tr>';
+  list.forEach(a=>{const s=b[a.id].d-b[a.id].c; if(s>0)D+=s; else C-=s;
+    h+='<tr class="'+(cur.has(a.id)?"chg":"")+'"><td class="no">'+a.no+'</td><td>'+esc(a.name)+'</td><td class="r">'+(s>0?fmt(s):"")+'</td><td class="r">'+(s<0?fmt(-s):"")+'</td></tr>';});
+  h+='</tbody><tfoot><tr><td></td><td>Totals</td><td class="r">'+money(D,true)+'</td><td class="r">'+money(C,true)+'</td></tr></tfoot></table></div>';
+  h+='<div class="tb-status"><span>'+t.note+'</span><span class="balanced'+(D===C?"":" no")+'">'+(D===C?"✓ Debits equal credits":"✗ Out of balance")+'</span></div>';
+  $("tb").innerHTML=h;
+}
+function renderWS(){
+  const U=BOOKS[NB], AD=BOOKS[NB+NA], P=BOOKS[N], adj=emptyBook();
+  STEPS.forEach((s,i)=>{if(s.phase==="adjust")postStep(adj,s,i);});
+  const reach={u:k>=NB,a:k>=NB+NA,p:k>=N};
+  const list=ACCTS.slice().sort((x,y)=>x.no-y.no).filter(a=>U[a.id].d-U[a.id].c||adj[a.id].d||adj[a.id].c||AD[a.id].d-AD[a.id].c||a.id==="re");
+  const cell=(on,v,cls)=>on?'<td class="r '+(cls||"")+'">'+(v?fmt(v):"")+'</td>':'<td class="dim '+(cls||"")+'">·</td>';
+  const tot={ud:0,uc:0,ad:0,ac:0,jd:0,jc:0,pd:0,pc:0};
+  let h='<div class="scroll"><table class="tb ws"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">Worksheet</div><div class="cap-date">For the Year Ended December 31, '+YEAR+'</div></caption><thead>'+
+   '<tr><th rowspan="2">Account</th><th colspan="2" class="grp u gap">Unadjusted TB</th><th colspan="2" class="grp a gap">Adjustments</th><th colspan="2" class="grp a gap">Adjusted TB</th><th colspan="2" class="grp p gap">Post-closing TB</th></tr>'+
+   '<tr><th class="r gap">Dr</th><th class="r">Cr</th><th class="r gap">Dr</th><th class="r">Cr</th><th class="r gap">Dr</th><th class="r">Cr</th><th class="r gap">Dr</th><th class="r">Cr</th></tr></thead><tbody>';
+  list.forEach(a=>{
+    const u=U[a.id].d-U[a.id].c, ad=AD[a.id].d-AD[a.id].c, p=P[a.id].d-P[a.id].c;
+    const ud=u>0?u:0,uc=u<0?-u:0,jd=adj[a.id].d,jc=adj[a.id].c,dd=ad>0?ad:0,dc=ad<0?-ad:0,pd=p>0?p:0,pc=p<0?-p:0;
+    tot.ud+=ud;tot.uc+=uc;tot.jd+=jd;tot.jc+=jc;tot.ad+=dd;tot.ac+=dc;tot.pd+=pd;tot.pc+=pc;
+    h+='<tr><td>'+esc(a.name)+'</td>'+cell(reach.u,ud,"gap")+cell(reach.u,uc)+cell(reach.a,jd,"gap")+cell(reach.a,jc)+cell(reach.a,dd,"gap")+cell(reach.a,dc)+cell(reach.p,pd,"gap")+cell(reach.p,pc)+'</tr>';});
+  const tc=(on,v,cls)=>on?'<td class="r '+(cls||"")+'">'+money(v,true)+'</td>':'<td class="dim '+(cls||"")+'">·</td>';
+  h+='</tbody><tfoot><tr><td>Totals</td>'+tc(reach.u,tot.ud,"gap")+tc(reach.u,tot.uc)+tc(reach.a,tot.jd,"gap")+tc(reach.a,tot.jc)+tc(reach.a,tot.ad,"gap")+tc(reach.a,tot.ac)+tc(reach.p,tot.pd,"gap")+tc(reach.p,tot.pc)+'</tr></tfoot></table></div>';
+  const next=!reach.u?"Columns fill in as you reach each stage. Post through transaction "+STEPS[NB-1].ref+" for the unadjusted trial balance.":!reach.a?"Post through adjusting entry "+STEPS[NB+NA-1].ref+" to fill the adjustments and adjusted trial balance.":!reach.p?"Post the closing entries to fill the post-closing trial balance.":"All stages complete. Compare how each account moves from column to column.";
+  h+='<div class="tb-status"><span>'+next+'</span></div>';
+  $("tb").innerHTML=h;
+}
+
+// ---------- Financial statements ----------
+function renderFS(){
+  const sk=Math.min(k,NB+NA), b=BOOKS[sk], cur=k<=NB+NA?stepAccounts(k-1):new Set();
+  let basis;
+  if(k===0)basis=['warn',"No entries yet. Statements fill in as you post."];
+  else if(k<NB+NA)basis=['warn',"Based on balances before all adjusting entries are recorded. These figures are incomplete until adjustment "+STEPS[NB+NA-1].ref+" is posted."];
+  else if(k===NB+NA)basis=['ok',"Prepared from the adjusted trial balance. These are the "+YEAR+" financial statements."];
+  else basis=['info',"Still prepared from the adjusted trial balance. Closing entries happen after the statements and do not change them."];
+  const rev=nbal(b,"rev");
+  const exps=ACCTS.filter(a=>a.type==="exp").map(a=>({a,v:nbal(b,a.id)})).filter(x=>x.v).sort((x,y)=>y.v-x.v);
+  const totE=exps.reduce((s,x)=>s+x.v,0), ni=rev-totE, div=nbal(b,"div"), reBeg=0, reEnd=reBeg+ni-div;
+  const R=(label,c1,c2,o)=>{o=o||{};return '<tr class="'+(o.h?"h ":"")+(o.tot?"tot ":"")+(o.chg?"chg":"")+'"><td class="'+(o.i?"i"+o.i:"")+'">'+label+'</td><td class="n '+(o.u1||"")+'">'+(c1==null?"":c1)+'</td><td class="n '+(o.u2||"")+'">'+(c2==null?"":c2)+'</td></tr>';};
+  const cap=(n,d)=>'<caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">'+n+'</div><div class="cap-date">'+d+'</div></caption>';
+  const ch=id=>cur.has(id);
+  const per="For the Year Ended December 31, "+YEAR;
+  let is='<table class="st">'+cap("Income Statement",per);
+  is+=R("Revenues",null,null,{h:1})+R("Service revenue",null,money(rev,true),{i:1,chg:ch("rev")});
+  is+=R("Expenses",null,null,{h:1});
+  if(!exps.length)is+=R("No expenses recorded",null,null,{i:1});
+  exps.forEach((x,j)=>{is+=R(esc(x.a.name),j===0?money(x.v,true):fmt(x.v),null,{i:1,chg:ch(x.a.id),u1:j===exps.length-1?"ul":""});});
+  is+=R("Total expenses",null,fmt(totE),{i:2,u2:"ul"});
+  is+=R(ni>=0?"Net income":"Net loss",null,money(ni,true),{tot:1,u2:"dul"})+'</table>';
+  let re='<table class="st">'+cap("Retained Earnings Statement",per);
+  re+=R("Retained earnings, January 1, "+YEAR,null,money(reBeg,true));
+  re+=R("Add: "+(ni>=0?"Net income":"Net loss"),null,money(ni),{u2:"ul"});
+  re+=R("",null,money(reBeg+ni));
+  re+=R("Less: Dividends",null,fmt(div),{chg:ch("div"),u2:"ul"});
+  re+=R("Retained earnings, December 31, "+YEAR,null,money(reEnd,true),{tot:1,u2:"dul"})+'</table>';
+  const cash=nbal(b,"cash"),ar=nbal(b,"ar"),sup=nbal(b,"sup"),ppi=nbal(b,"ppi"),eqp=nbal(b,"equip"),ad=nbal(b,"ad");
+  const TA=cash+ar+sup+ppi+eqp-ad;
+  const LN={ap:"Accounts payable",ur:"Deferred revenue",sp:"Wages payable"};
+  const liabs=["ap","ur","sp"].map(id=>({id,v:nbal(b,id)})).filter(x=>x.v);
+  const TL=liabs.reduce((s,x)=>s+x.v,0), cs=nbal(b,"cs"), TSE=cs+reEnd;
+  let bs='<table class="st">'+cap("Balance Sheet","December 31, "+YEAR);
+  bs+=R("Assets",null,null,{h:1});
+  bs+=R("Cash",null,money(cash,true),{i:1,chg:ch("cash")})+R("Accounts receivable",null,fmt(ar),{i:1,chg:ch("ar")})+R("Supplies",null,fmt(sup),{i:1,chg:ch("sup")})+R("Prepaid insurance",null,fmt(ppi),{i:1,chg:ch("ppi")});
+  bs+=R("Equipment",fmt(eqp),null,{i:1,chg:ch("equip")})+R("Less: Accumulated depreciation",fmt(ad),fmt(eqp-ad),{i:2,chg:ch("ad"),u1:"ul",u2:"ul"});
+  bs+=R("Total assets",null,money(TA,true),{tot:1,u2:"dul"});
+  bs+=R("Liabilities and Stockholders' Equity",null,null,{h:1});
+  bs+=R("Liabilities",null,null,{i:1});
+  if(!liabs.length)bs+=R("None",null,"0",{i:2});
+  liabs.forEach((x,j)=>{bs+=R(LN[x.id],j===0?money(x.v,true):fmt(x.v),null,{i:2,chg:ch(x.id),u1:j===liabs.length-1?"ul":""});});
+  bs+=R("Total liabilities",null,money(TL,true),{i:2});
+  bs+=R("Stockholders' equity",null,null,{i:1});
+  bs+=R("Common stock",fmt(cs),null,{i:2,chg:ch("cs")})+R("Retained earnings",fmt(reEnd),null,{i:2,u1:"ul",chg:["rev","div"].some(ch)||ACCTS.some(a=>a.type==="exp"&&ch(a.id))});
+  bs+=R("Total stockholders' equity",null,fmt(TSE),{i:2,u2:"ul"});
+  bs+=R("Total liabilities and stockholders' equity",null,money(TL+TSE,true),{tot:1,u2:"dul"})+'</table>';
+  bs+='<div class="st-check balanced'+(TA===TL+TSE?"":" no")+'">'+(TA===TL+TSE?"✓ Total assets equal total liabilities and stockholders' equity":"✗ Does not balance")+'</div>';
+  $("fs").innerHTML='<div class="stmt-basis '+basis[0]+'">'+basis[1]+'</div><div class="stmts"><div>'+is+'<div style="height:22px"></div>'+re+'</div><div>'+bs+'</div></div>';
+}
+
+// ---------- Journal ----------
+function renderJournal(){
+  let h="", lastPh="";
+  for(let i=0;i<k;i++){const s=STEPS[i];
+    if(s.phase!==lastPh){h+='<div class="jhead '+s.phase+'">'+PHASE_SHORT[s.phase]+'</div>';lastPh=s.phase;}
+    if(!s.lines){h+='<div class="jitem"><span class="ref">'+s.ref+'</span><span class="dt">'+s.date+'</span><span class="lines"><span class="t">'+esc(s.title)+'</span><span class="empty">Not shown: your class doesn\'t show answers in Graded mode.</span></span></div>';continue;}
+    const ln=s.lines.filter(l=>l.dr).map(l=>'<div class="jl"><span class="nm">'+esc(A[l.a].name)+'</span><span>'+fmt(l.dr)+'</span></div>').join("")+
+             s.lines.filter(l=>l.cr).map(l=>'<div class="jl c"><span class="nm">'+esc(A[l.a].name)+'</span><span>'+fmt(l.cr)+'</span></div>').join("");
+    h+='<div class="jitem'+(i===k-1?" cur":"")+'"><span class="ref">'+s.ref+'</span><span class="dt">'+s.date+'</span><span class="lines"><span class="t">'+esc(s.title)+'</span>'+ln+'</span></div>';}
+  if(k===0)h+='<div class="empty">No entries posted yet.</div>';
+  const left=N-k; if(left>0)h+='<div class="empty">'+left+' more '+(left===1?"entry":"entries")+' to record this year.</div>';
+  $("journal").innerHTML=h;
+}
+
+// ---------- views / bar ----------
+function applyViews(){
+  const v={};VIEWS.forEach(x=>v[x]=$("v-"+x).checked);
+  $("pEq").hidden=!v.eq; $("pT").hidden=!v.t; $("pTB").hidden=!v.tb; $("pFS").hidden=!v.fs; $("pJ").hidden=!v.j;
+  $("gridTop").classList.toggle("solo",!v.t);
+  $("gridMid").hidden=!v.tb&&!v.fs;
+  $("gridMid").classList.toggle("solo",!(v.tb&&v.fs));
+}
+const SLAB={given:"done for you, not in this assignment",first:"correct on first try",retry:"correct after retrying",shown:"answer shown",skipped:"skipped"};
+function renderBar(){
+  const working=!recap&&k<N;
+  $("where").innerHTML='<b>'+k+' of '+N+'</b> entries posted'+(working?' · now recording '+PHASE_NAME[STEPS[k].phase].toLowerCase()+' '+STEPS[k].ref:'');
+  const done=status.filter(Boolean).length, first=status.filter(v=>v==="first").length;
+  const sc=$("score"); sc.hidden=done===0; sc.textContent="First-try correct: "+first+" of "+done;
+  gBar();
+  document.querySelectorAll(".tick").forEach(t=>{const i=+t.dataset.i, s=STEPS[i];
+    const gm=graded(), cur=gm&&VIEW!=null?i===VIEW:(working&&i===k)||(recap&&i===k-1), can=gm&&canView(i);
+    t.className="tick"+(STEPS[+t.dataset.i]&&STEPS[+t.dataset.i].doneForYou?" dfy":"")+(i<k?" done":"")+(cur?" cur":"")+(status[i]?" s-"+status[i]:"")+(can?" can":"");
+    if(gm){t.setAttribute("aria-disabled",String(!can));if(cur)t.setAttribute("aria-current","step");else t.removeAttribute("aria-current");}else{t.removeAttribute("aria-disabled");t.removeAttribute("aria-current");}
+    t.title=s.ref+" · "+s.title+(status[i]?" ("+SLAB[status[i]]+")":i<k?"":" (click to jump here)");
+    t.setAttribute("aria-label",PHASE_NAME[s.phase]+" "+s.ref+": "+s.title+(status[i]?", "+SLAB[status[i]]:""));
+  });
+}
+function render(flash){
+  applyViews();renderBar();renderEntry();renderEquation();renderT();renderTB();renderFS();renderJournal();save();
+  if(flash&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
+    document.querySelectorAll(".eq .term .v").forEach(v=>{v.classList.remove("flash");void v.offsetWidth;v.classList.add("flash");});
+  }
+  const ct=document.querySelector(".tick.cur");
+  if(ct){const tl=$("timeline");const cr=ct.getBoundingClientRect(),tr=tl.getBoundingClientRect();if(cr.left<tr.left||cr.right>tr.right)tl.scrollLeft+=cr.left-tr.left-tr.width/2;}
+}
+VIEWS.forEach(x=>$("v-"+x).addEventListener("change",()=>{applyViews();save();}));
+$("hideIdle").addEventListener("change",()=>{renderT();save();});
+$("tabCur").addEventListener("click",()=>{tbTab="cur";renderTB();});
+$("tabWs").addEventListener("click",()=>{tbTab="ws";renderTB();});
+
+// frozen header heights
+function measure(){
+  const r=document.documentElement;
+  r.style.setProperty("--b1",$("band1").offsetHeight+"px");
+  r.style.setProperty("--b2",$("band2").offsetHeight+"px");
+}
+try{new ResizeObserver(measure).observe($("band1"));new ResizeObserver(measure).observe($("band2"));}catch(e){window.addEventListener("resize",measure);}
+measure();
+
+load();
+render(false);
+// Graded mode: once the Supabase library has loaded (it is deferred), resume a graded attempt from the server,
+// or reopen the Graded dialog after the student follows the sign-in link from their email.
+(function(){
+  const go=async()=>{
+    loadTopics();
+    const fromEmail=/(^#|&)(access_token|error_description)=/.test(location.hash);
+    if(PENDING){
+      const id=PENDING;
+      try{if(!(await currentUser()))throw Object.assign(new Error("signed out"),{code:"unauthorized"});await enterAttempt(id);}
+      catch(e){if(e&&e.code==="not_found"){try{localStorage.removeItem(GKEY);}catch(x){}}
+        PENDING=null;openGDlg(e&&e.code==="unauthorized"?"Sign in to resume your graded attempt.":e&&e.message);}
+      PENDING=null; save();
+    } else if(fromEmail){openGDlg();}
+  };
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go,{once:true});else go();
+})();
+})();
+</script>
+</body>
+</html>
