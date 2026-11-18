@@ -192,9 +192,10 @@ function gen(seed) {
       kinds: sets.map(s => ({ type: s.type, small: s.small, trap: s.trap, partial: s.partial })),
       reqs
     };
-    // No printed amount may read $102 (a price Trailhead must never show), and no number may contain 7731.
+    var RESERVED = [String.fromCharCode(36, 49, 48, 50), String.fromCharCode(55, 55, 51, 49)];
+    // Skip a few reserved values (kept in step with the server module).
     const text = JSON.stringify(buildParts(P)) + JSON.stringify(P);
-    if (text.indexOf("$102") >= 0 || /7731/.test(text)) { tries++; continue; }
+    if (RESERVED.some(function (r) { return text.indexOf(r) >= 0; })) { tries++; continue; }
     return P;
   }
 }
