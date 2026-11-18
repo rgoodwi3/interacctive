@@ -375,6 +375,15 @@ const TOPICS = {
     ],
     of: ids([["records", ["records"]], ["postings", ["postings"]], ["balances", ["balances"]], ["web", ["web"]]]),
   },
+  "ais-p2p-match": {
+    topics: [
+      { key: "docs", label: "Reading the PO, receipt and bill" },
+      { key: "match", label: "The three-way match and its tolerance" },
+      { key: "pay", label: "Approving and posting a matched bill" },
+      { key: "vendor", label: "Vendor master change requests" },
+    ],
+    of: ids([["docs", ["docs"]], ["match", ["match"]], ["pay", ["pay"]], ["vendor", ["vendor"]]]),
+  },
 };
 
 // The assigned concepts as a clean list for this lab: only known keys, in catalog order. null means the
