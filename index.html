@@ -138,6 +138,24 @@ dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const msg = (kind, text) => `<div class="msg ${kind}" role="status">${text}</div>`;
   const fmtDate = d => d ? new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  // Course dates are plain days (YYYY-MM-DD), so they're shown and counted in UTC to avoid shifting a day.
+  const fmtDay = d => d ? new Date(d + 'T00:00:00Z').toLocaleDateString([], { dateStyle: 'medium', timeZone: 'UTC' }) : '';
+  const plusDays = (d, n) => new Date(new Date(d + 'T00:00:00Z').getTime() + n * 86400000).toISOString().slice(0, 10);
+  const todayDay = () => new Date().toISOString().slice(0, 10);
+  // A class and all its data are deleted 30 days after its end date; the instructor is emailed on day 20.
+  const RETENTION_NOTE = 'All class data, including students, assignments and scores, is deleted 30 days after the course end date. You\'ll get an email 10 days before that, reminding you to download your grades.';
+  function datesError(start, end) {
+    if (!start || !end) return 'Enter the course start and end dates.';
+    if (end < start) return 'The course end date can\'t be before the start date.';
+    if (end < plusDays(todayDay(), -20)) return 'The course end date can\'t be more than 20 days ago: a class\'s data is deleted 30 days after it ends.';
+    return '';
+  }
+  function retentionText(c) {
+    if (!c.ends_on) return '<b>Add the course dates.</b> A class\'s data is deleted 30 days after its end date. Until you add dates, this class isn\'t scheduled for deletion.';
+    const gone = fmtDay(plusDays(c.ends_on, 30));
+    const reminder = c.retention_notice_sent_at ? `A reminder email went out on ${esc(fmtDate(c.retention_notice_sent_at))}.` : `You'll get a reminder email on ${esc(fmtDay(plusDays(c.ends_on, 20)))} to download your grades.`;
+    return `All of this class's data will be deleted on <b>${esc(gone)}</b>, 30 days after the course ends. ${reminder}`;
+  }
   const toLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
   const pct = (s, t) => t ? Math.round(1000 * s / t) / 10 : 0;   // one decimal, so a percent can be turned back into points
   // Which subjects a class includes (courses.subjects) and the labels instructors see.
@@ -376,13 +394,15 @@ dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
   }
 
   // ---------- instructor ----------
-  async function instructorView(note = '') {
-    const { data: courses, error } = await sb.from('courses').select('id,name,term,join_code,show_answers,subjects,created_at').eq('instructor_id', me.id).order('created_at');
+  async function instructorView(note = '', classNote = '') {
+    const { data: courses, error } = await sb.from('courses').select('id,name,term,join_code,show_answers,subjects,created_at,starts_on,ends_on,retention_notice_sent_at').eq('instructor_id', me.id).order('created_at');
     if (error) { app.innerHTML = `<div class="card">${msg('bad', esc(error.message))}</div>`; return; }
     if (!state.course || !courses.some(c => c.id === state.course)) state.course = courses.length ? courses.at(-1).id : null;
     const c = courses.find(x => x.id === state.course);
     app.innerHTML = `<div class="card"><h2>Create a class</h2>
         <form class="row" id="newc"><label>Class name<input name="name" placeholder="ACCT 1101 Section 01" required></label><label>Term<input name="term" placeholder="Spring 2027"></label>
+        <label>Course starts<input type="date" name="starts" required></label><label>Course ends<input type="date" name="ends" required></label>
+        <p class="small muted" style="flex-basis:100%;margin:0">${RETENTION_NOTE}</p>
         <fieldset class="subjects" style="flex-basis:100%"><legend>Content (choose at least one)</legend>${subjectBoxes('subj', [])}</fieldset>
         <label class="check"><input type="checkbox" name="show"> Show answers after each lab step</label>
         <button class="btn primary" type="submit">Create</button></form>${note}</div>
@@ -391,10 +411,12 @@ dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
           ${courses.length > 1 ? `<label>Class<select id="pickc">${courses.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)}${x.term ? ' · ' + esc(x.term) : ''}</option>`).join('')}</select></label>` : `<h2>${esc(c.name)}</h2><p class="lead">${esc(c.term || '')}</p>`}
           <fieldset class="subjects" id="csubj" style="margin-top:8px"><legend>Content</legend>${subjectBoxes('csubj', c.subjects || ['financial'])}</fieldset>
           <label class="check" style="margin-top:8px"><input type="checkbox" id="showans"${c.show_answers ? ' checked' : ''}> Show answers after each lab step</label>
+          <form class="row cdates" id="cdates" style="margin-top:10px"><label>Course starts<input type="date" name="starts" value="${esc(c.starts_on || '')}" required></label><label>Course ends<input type="date" name="ends" value="${esc(c.ends_on || '')}" required></label><button class="btn sm" type="submit">Save dates</button></form>
+          <p class="small muted" style="margin:6px 0 0;max-width:560px">${retentionText(c)}</p>
           <div style="margin-top:12px"><button class="btn sm danger" type="button" id="delc">Delete class</button></div>
         </div><div><div class="small muted">Students join with this code</div><span class="code">${esc(c.join_code)}</span>
           <div style="margin-top:8px"><button class="btn sm" type="button" id="copyjoin">Copy student instructions for Canvas</button></div></div></div>
-        <div id="cmsg"></div><dialog class="dlg" id="deldlg" aria-labelledby="delh"></dialog>
+        <div id="cmsg">${classNote}</div><dialog class="dlg" id="deldlg" aria-labelledby="delh"></dialog>
         <div class="tabs" role="tablist">${[['assign', 'Assignments'], ['roster', 'Students'], ['grades', 'Gradebook']].map(([k, n]) => `<button class="tab" role="tab" type="button" data-tab="${k}" aria-selected="${state.tab === k}">${n}</button>`).join('')}</div>
         <div id="pane"><p class="muted">Loading…</p></div></div>` : '<div class="card"><p class="empty">Create your first class above.</p></div>'}`;
     document.getElementById('newc').addEventListener('submit', async e => {
@@ -403,7 +425,9 @@ dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
       if (!name) return;
       const subjects = f.getAll('subj').map(String).filter(v => SUBJECTS.some(([k]) => k === v));
       if (!subjects.length) { instructorView(msg('bad', 'Choose the class content: check at least one of financial, managerial, AIS or games.')); return; }
-      const { data, error } = await sb.from('courses').insert({ instructor_id: me.id, name, term: String(f.get('term') || '').trim() || null, show_answers: f.get('show') === 'on', subjects }).select('id').single();
+      const starts_on = String(f.get('starts') || ''), ends_on = String(f.get('ends') || ''), bad = datesError(starts_on, ends_on);
+      if (bad) { instructorView(msg('bad', esc(bad))); return; }
+      const { data, error } = await sb.from('courses').insert({ instructor_id: me.id, name, term: String(f.get('term') || '').trim() || null, show_answers: f.get('show') === 'on', subjects, starts_on, ends_on }).select('id').single();
       if (error) { instructorView(msg('bad', esc(error.message))); return; }
       state.course = data.id; state.tab = 'assign'; instructorView(msg('good', 'Class created. Assign activities below, then share the join code.'));
     });
@@ -423,6 +447,15 @@ dialog.dlg::backdrop{background:rgba(10,20,40,.5)}
     document.getElementById('copyjoin').addEventListener('click', () => showCopy(document.getElementById('cmsg'), studentInstructions(c),
       `the student instructions for ${esc(c.name)}`, 'In Canvas, create a page (for example, <b>Register for InterACCtive</b>), click the HTML editor button (<b>&lt;/&gt;</b>) at the bottom right of the text box, paste, and save. If you change your school name or colors, copy it again.'));
     document.getElementById('delc').addEventListener('click', () => deleteDialog(c));
+    document.getElementById('cdates').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = new FormData(e.target), starts_on = String(f.get('starts') || ''), ends_on = String(f.get('ends') || ''), bad = datesError(starts_on, ends_on);
+      if (bad) { document.getElementById('cmsg').innerHTML = msg('bad', esc(bad)); return; }
+      if (starts_on === (c.starts_on || '') && ends_on === (c.ends_on || '')) { document.getElementById('cmsg').innerHTML = msg('info', 'The dates haven\'t changed.'); return; }
+      const { error } = await sb.from('courses').update({ starts_on, ends_on }).eq('id', c.id);
+      if (error) { document.getElementById('cmsg').innerHTML = msg('bad', esc(error.message)); return; }
+      instructorView('', msg('good', `Saved. ${esc(c.name)} runs ${esc(fmtDay(starts_on))} to ${esc(fmtDay(ends_on))}; its data will be deleted on ${esc(fmtDay(plusDays(ends_on, 30)))}.`));
+    });
     app.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { if (!leaveAssign()) return; state.tab = b.dataset.tab; instructorView(); }));
     ({ assign: assignPane, roster: rosterPane, grades: gradesPane })[state.tab](c).catch(e => {
       document.getElementById('pane').innerHTML = msg('bad', esc(e.message));
@@ -950,7 +983,7 @@ ${each.join('\n')}
 
   async function gradesPane(c) {
     const pane = document.getElementById('pane');
-    const { people, labs, acts, graded, tracked, cell } = await gradeData(c);
+    const g = await gradeData(c), { people, labs, acts, graded, tracked, cell } = g;
     if (!people.length || !acts.length) { pane.innerHTML = `<p class="empty">${!acts.length ? 'Assign a scored activity first.' : 'No students yet.'}</p>`; return; }
     const view = state.gview === 'complete' ? 'complete' : 'score';
     // Labs assigned as Practice never record work, so the completion view leaves them out.
@@ -1006,10 +1039,13 @@ ${each.join('\n')}
       ${cols.length ? `<div class="scroll"><table><thead><tr><th>Student</th>${cols.map(a => `<th class="n">${esc(a.title)}</th>`).join('')}${view === 'complete' ? '<th class="n">Overall</th>' : ''}</tr></thead><tbody>
       ${people.map(p => `<tr><td>${esc(p.name)}<div class="small muted">${esc(p.email)}</div></td>${cols.map(a => `<td class="n">${cellHtml(cell(p.id, a), p.id, a.id)}</td>`).join('')}${view === 'complete' ? `<td class="n"><b>${overall(p.id)}%</b></td>` : ''}</tr>`).join('')}
       </tbody></table></div>
-      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download ${view === 'score' ? 'scores' : 'completion'} CSV for Canvas</button><span class="small muted">${csvNote}</span></div><div id="csvmsg"></div>`
+      <div class="row" style="margin-top:14px"><button class="btn gold" type="button" id="csv">Download ${view === 'score' ? 'scores' : 'completion'} CSV for Canvas</button><span class="small muted">${csvNote}</span></div>
+      <div class="row" style="margin-top:10px"><button class="btn" type="button" id="allcsv">Download all grades</button><span class="small muted">Every activity: each student's best score and percent complete. Keep a copy before the class is deleted.</span></div><div id="csvmsg"></div>`
       : '<p class="empty">Nothing here records completion yet: assign a lab as Graded, or assign a game.</p>'}${flagsHtml}`;
     pane.querySelectorAll('[data-gview]').forEach(b => b.addEventListener('click', () => { state.gview = b.dataset.gview; gradesPane(c).catch(e => { pane.innerHTML = msg('bad', esc(e.message)); }); }));
     pane.querySelectorAll('[data-flags]').forEach(b => b.addEventListener('click', () => document.getElementById('flags').scrollIntoView({ behavior: 'smooth' })));
+    const all = document.getElementById('allcsv');
+    if (all) all.addEventListener('click', () => { document.getElementById('csvmsg').innerHTML = msg('good', `Downloaded ${esc(downloadAllGrades(c, g))}.`); });
     const csv = document.getElementById('csv'); if (!csv) return;
     csv.addEventListener('click', () => {
       const out = view === 'score' ? acts.filter(graded) : cols;
@@ -1023,6 +1059,17 @@ ${each.join('\n')}
         ...people.map(p => [csvText(p.name), '', '', csvText(p.email), csvText(c.name), ...out.map(a => value(p, a))])
       ], csvName(c, view === 'score' ? 'grades' : 'completion'));
     });
+  }
+
+  // Every scored activity in the class, graded or practice: each student's best score and percent complete.
+  // Offered in the gradebook, in the delete dialog, and by the reminder email before a class is deleted.
+  function downloadAllGrades(c, g) {
+    const file = csvName(c, 'all grades');
+    downloadCsv([
+      ['Student', 'Email', ...g.acts.flatMap(a => [csvText(a.title + ' best score %'), csvText(a.title + ' completion %')])],
+      ...g.people.map(p => [csvText(p.name), csvText(p.email), ...g.acts.flatMap(a => { const b = g.cell(p.id, a); return [b.best === null ? '' : b.best, b.complete === null ? '' : b.complete]; })])
+    ], file);
+    return file;
   }
 
   // ---------- delete a class ----------
@@ -1045,12 +1092,7 @@ ${each.join('\n')}
     document.getElementById(has ? 'delcsv' : 'delno').focus();   // never start on the delete button
     const say = h => { document.getElementById('delmsg').innerHTML = h; };
     if (has) document.getElementById('delcsv').addEventListener('click', () => {
-      // Every scored activity in the class, graded or practice: best score and percent complete.
-      const file = csvName(c, 'all grades');
-      downloadCsv([
-        ['Student', 'Email', ...g.acts.flatMap(a => [csvText(a.title + ' best score %'), csvText(a.title + ' completion %')])],
-        ...g.people.map(p => [csvText(p.name), csvText(p.email), ...g.acts.flatMap(a => { const b = g.cell(p.id, a); return [b.best === null ? '' : b.best, b.complete === null ? '' : b.complete]; })])
-      ], file);
+      const file = downloadAllGrades(c, g);
       say(msg('good', `Downloaded ${esc(file)}. Check that it opened before you delete the class.`));
     });
     document.getElementById('delno').addEventListener('click', () => dlg.close());
