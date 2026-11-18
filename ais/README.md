@@ -13,3 +13,7 @@ Pages for the five ACCT 2250 Accounting Information Systems labs live here, one 
 `frame.css` and `frame.js` start as copies of `ma/frame.css` and `ma/frame.js` (Nov 17, 2026). Build spec: ACCT2250-InterACCtive-Lab-Specs.md in the instructor's OneDrive (ACCT 2250 \ 10 InterACCtive). Running company: Trailhead Outfitters Co. (fictional).
 
 This branch stays unmerged until the first lab passes its parity test and the full platform test suite.
+
+## Trailhead staff directory (`ais/staff/`)
+
+Students interview the six order-to-cash staff chatbots for D1, D2 and M1 (chatbot spec step SC5). `index.html`, `staff.js` and `staff.css` are the student page; open it from Canvas as `ais/staff/?course=<class id>&for=D1` (`for` is D1, D2 or M1 and tags the conversation). `instructor.html?course=<class id>` exports transcripts for the class instructor. Both talk only to the `staff-chat` function and the `staff_chat_transcripts` RPC in `rgoodwi3/fa-lab-platform`. The staff cards never come to this repository: names, titles and replies arrive from the server after sign-in.
