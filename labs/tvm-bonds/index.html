@@ -1,0 +1,1859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Time Value of Money &amp; Bonds Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: University of New Haven course material, same frame as the other labs.
+   Frozen navy header over a frozen timeline band; the entry card holds every control, with the balance sheet
+   impact panel right under it; the calculator guide and T-accounts beside them; the general journal last. */
+:root{
+  --navy:#002D74; --gold:#FFC629;
+  --paper:#eff2f7; --sheet:#ffffff; --ink:#111b2e; --muted:#56617a; --rule:#d8dfea; --rule-strong:#a9b6cc;
+  --brand:#002D74; --brand-soft:#e3e9f4;
+  --mast-bg:#002D74; --mast-ink:#ffffff; --mast-muted:#c9d4ea;
+  --dr:#1f55b0; --cr:#a1461a;
+  --hl:#fff1bf; --hl-ink:#3a2e00;
+  --est:#8a6100; --est-soft:#fcefc7;
+  --bs:#4b5670; --bs-soft:#e6e9f0;
+  --nrv:#002D74; --allow:#FFC629;
+  --good:#1b7a46; --good-soft:#dcf1e4; --bad:#b3261e; --bad-soft:#fbe2df;
+  --field:#ffffff;
+  --shadow:0 1px 2px rgba(0,25,70,.07),0 6px 18px rgba(0,25,70,.05);
+  --f-display:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Source Sans Pro","Helvetica Neue",Arial,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --b1:0px; --b2:0px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --dr:#94bbf5; --cr:#eca37c;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --est:#FFC629; --est-soft:#2e2508;
+  --bs:#b3bdd4; --bs-soft:#1e2840;
+  --nrv:#5f8fe0; --allow:#FFC629;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --dr:#94bbf5; --cr:#eca37c;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --est:#FFC629; --est-soft:#2e2508;
+  --bs:#b3bdd4; --bs-soft:#1e2840;
+  --nrv:#5f8fe0; --allow:#FFC629;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.12}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* Frozen header */
+.band1{background:var(--mast-bg);color:var(--mast-ink);border-bottom:4px solid var(--gold);z-index:6;padding-top:env(safe-area-inset-top,0px)}
+.band1 .wrap{padding-block:12px 10px;display:grid;gap:8px}
+.b1-row{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;justify-content:space-between}
+.eyebrow{font-family:var(--f-display);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.band1 h1{font-size:clamp(22px,2.6vw,30px);font-weight:700}
+.biz{flex:1 1 380px;min-width:0;max-width:78ch;font-size:14.5px;color:var(--mast-muted);line-height:1.4;margin:0}
+.biz b{color:var(--mast-ink)}
+.setchip{font-family:var(--f-num);font-size:12.5px;color:var(--mast-muted);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:5px 10px;white-space:nowrap}
+.setchip b{color:var(--gold);font-weight:600}
+.views{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.opt-label{font-family:var(--f-display);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--mast-muted)}
+.vchip{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;border:1px solid rgba(255,255,255,.32);border-radius:999px;padding:2px 11px 2px 8px;cursor:pointer;user-select:none;color:var(--mast-ink)}
+.vchip:has(input:checked){border-color:var(--gold);background:rgba(255,198,41,.16)}
+.vchip input{width:15px;height:15px;margin:0;accent-color:var(--gold)}
+.band2{position:sticky;top:0;z-index:5;background:var(--sheet);border-bottom:1px solid var(--rule);box-shadow:var(--shadow)}
+.band2 .wrap{padding-block:8px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-end;justify-content:space-between}
+@media (min-width:760px){.band1{position:sticky;top:0}.band2{top:var(--b1)}}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:13.5px;color:var(--muted)}
+.status b{color:var(--ink)}
+.score{font-size:13px;font-weight:600;background:var(--hl);color:var(--hl-ink);border-radius:999px;padding:2px 10px}
+.legend-dots{display:flex;gap:10px;font-size:12px}
+.legend-dots i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0}
+
+.timeline{display:flex;gap:10px;align-items:stretch;overflow-x:auto;padding:4px 2px 2px;min-width:0;flex:1 1 560px}
+.phase{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
+.phase-label{font-family:var(--f-display);font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.ph-h .phase-label{color:var(--brand)} .ph-est .phase-label{color:var(--est)} .ph-bs .phase-label{color:var(--bs)}
+.ticks{display:flex;gap:3px}
+.tick{position:relative;flex:0 0 auto;min-width:30px;height:28px;border-radius:4px;border:1px solid var(--rule);background:var(--paper);font-family:var(--f-num);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);padding:0 4px}
+.ph-h .tick.done{background:var(--navy);border-color:var(--navy);color:#fff}
+.ph-est .tick.done{background:var(--gold);border-color:var(--gold);color:#111b2e}
+.ph-bs .tick.done{background:var(--bs);border-color:var(--bs);color:var(--sheet)}
+.tick.cur{outline:2px solid var(--ink);outline-offset:1px}
+.tick.s-first::after,.tick.s-retry::after,.tick.s-shown::after,.tick.s-skipped::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sheet)}
+.tick.s-first::after{background:var(--good)} .tick.s-retry::after{background:var(--gold)}
+.tick.s-shown::after,.tick.s-skipped::after{background:var(--muted)}
+
+/* Grid */
+main{padding-block:18px 40px;display:grid;gap:18px}
+.grid-top{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;align-items:start}
+.grid-top.solo{grid-template-columns:minmax(0,1fr)}
+@media (max-width:1060px){.grid-top{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:18px;min-width:0}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);min-width:0;overflow:hidden;scroll-margin-top:calc(var(--b1) + var(--b2) + 12px)}
+@media (max-width:759px){.panel{scroll-margin-top:calc(var(--b2) + 12px)}}
+.panel-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;justify-content:space-between;padding:12px 16px 10px;border-bottom:1px solid var(--rule);border-top:3px solid var(--navy)}
+:root[data-theme="dark"] .panel-h{border-top-color:var(--brand)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .panel-h{border-top-color:var(--brand)}}
+.panel-h h2{font-size:21px;font-weight:700;color:var(--brand)}
+.panel-h .sub{font-size:13.5px;color:var(--muted)}
+.panel-b{padding:14px 16px 16px}
+#pEntry .panel-h{border-top-color:var(--gold)}
+#pBS{border-color:var(--rule-strong)}
+#pBS .panel-h{border-top-color:var(--gold);background:linear-gradient(var(--est-soft),var(--sheet))}
+
+.pill{display:inline-block;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:2px 10px}
+.pill.h{background:var(--brand-soft);color:var(--brand)}
+.pill.est{background:var(--est-soft);color:var(--est)}
+.pill.bs{background:var(--bs-soft);color:var(--bs)}
+
+/* Entry card */
+.entry-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px;color:var(--muted)}
+.entry-title{font-size:23px;font-weight:700;margin:10px 0 4px}
+.entry-desc{margin:0 0 12px}
+.calc{font-family:var(--f-num);font-size:13px;background:var(--paper);border-radius:6px;padding:6px 10px;margin:-4px 0 12px;display:inline-block}
+.je{width:100%;border-collapse:collapse;font-size:14.5px}
+.je th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:left;padding:6px;border-bottom:2px solid var(--rule-strong)}
+.je th.r,.je td.r{text-align:right}
+.je td{padding:7px 6px;border-bottom:1px solid var(--rule)}
+.je td.cr-name{padding-left:30px}
+.je .dr-amt{color:var(--dr)} .je .cr-amt{color:var(--cr)}
+.why{margin-top:12px;background:var(--paper);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:10px 12px;font-size:14.5px}
+.why b{font-family:var(--f-display);font-size:16px}
+.effects{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.eff{font-size:13.5px;font-weight:600;border-radius:6px;padding:4px 9px;border:1px solid var(--rule)}
+.eff .num{font-weight:600}
+.eff.up{background:var(--good-soft);color:var(--good);border-color:transparent}
+.eff.down{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.eff.none{color:var(--muted)}
+.eff.nrv{border:2px solid var(--gold)}
+.note{font-size:13.5px;color:var(--muted);margin-top:8px}
+.result{border-radius:8px;padding:8px 12px;font-size:14px;font-weight:600;margin-bottom:12px}
+.result.ok{background:var(--good-soft);color:var(--good)}
+.result.no{background:var(--est-soft);color:var(--est)}
+
+/* Journal entry form: account dropdowns (alphabetical) with debit and credit boxes */
+.rec{width:100%;border-collapse:collapse;font-size:14px}
+.rec th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:left;padding:6px 4px;border-bottom:2px solid var(--rule-strong)}
+.rec th.r{text-align:right}
+.rec td{padding:6px 4px;vertical-align:top}
+.rec tr.line td{border-top:1px solid var(--rule)}
+.rec tr.fb td{padding-top:0;border-top:0}
+.rec select,.rec input{width:100%;background:var(--field);border:1px solid var(--rule-strong);border-radius:6px;padding:6px 7px;font-size:14px;min-height:36px}
+.rec input{font-family:var(--f-num);text-align:right}
+.rec td.amt{width:104px}
+.rec .ok select,.rec .ok input.filled{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.rec .bad-a select{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.rec .bad-s input.filled,.rec .bad-n input.filled{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.rec .fmsg{margin-top:0}
+.rec tfoot td{font-family:var(--f-num);font-size:13px;text-align:right;color:var(--muted);border-top:2px solid var(--rule-strong);padding-top:6px}
+fieldset.cg{border:0;margin:0;padding:0;min-width:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.choices{display:flex;flex-wrap:wrap;gap:6px}
+.choice{position:relative;display:inline-flex}
+.choice input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+.choice span{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule-strong);background:var(--field);border-radius:999px;padding:3px 11px 3px 7px;font-size:13px;font-weight:600;cursor:pointer;line-height:1.3;min-height:30px;user-select:none}
+.choice span::before{content:"";width:13px;height:13px;border-radius:50%;border:2px solid var(--rule-strong);flex:none;box-sizing:border-box;background:var(--field)}
+.choice span:hover{background:var(--brand-soft)}
+.choice input:checked+span{background:var(--navy);border-color:var(--navy);color:#fff}
+.choice input:checked+span::before{border:4px solid #fff;background:var(--gold)}
+.choice input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
+.choice input:disabled+span{cursor:default}
+.choice input:disabled:not(:checked)+span{opacity:.5}
+.grp-ok .choice input:checked+span{background:var(--good);border-color:var(--good)}
+.grp-no .choice input:checked+span{background:var(--bad);border-color:var(--bad)}
+.choices.stack{flex-direction:column;align-items:stretch}
+.choices.stack .choice span{border-radius:8px;width:100%;padding:7px 12px 7px 10px;font-weight:500;font-size:14px}
+.fmsg{font-size:13.5px;font-weight:600;display:flex;gap:6px;margin-top:8px}
+.fmsg.ok{color:var(--good)} .fmsg.no{color:var(--bad)}
+.overall{margin-top:10px;font-size:14px;border-radius:8px;padding:9px 12px}
+.overall.ok{background:var(--good-soft);color:var(--good)}
+.overall.no{background:var(--bad-soft);color:var(--bad)}
+.overall.shown{background:var(--est-soft);color:var(--est)}
+.overall ul{margin:4px 0 0;padding-left:18px}
+.hintbox{margin-top:10px;font-size:13.5px;background:var(--est-soft);color:var(--est);border-radius:8px;padding:8px 12px}
+.hintbox .num{color:var(--ink)}
+
+/* Calculation fields */
+.fields{display:grid;gap:10px}
+.field{border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.field.ok{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.field.no{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:10px;align-items:center}
+.flabel{font-weight:600;font-size:14.5px}
+.flabel small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.inbox{display:flex;align-items:center;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field);min-height:38px;overflow:hidden}
+.inbox .pre{font-family:var(--f-num);font-size:13px;color:var(--muted);padding:0 6px}
+.inbox input{border:0;background:transparent;width:100%;min-width:0;padding:7px 8px;font-family:var(--f-num);font-size:14.5px;text-align:right}
+.inbox input:focus{outline:none}
+.inbox:focus-within{outline:2px solid var(--brand);outline-offset:1px}
+.work{margin-top:6px;font-family:var(--f-num);font-size:12.5px;background:var(--paper);border-radius:6px;padding:6px 9px;line-height:1.6}
+.given{background:var(--paper);border-radius:8px;padding:9px 12px;margin:0 0 12px;font-size:14.5px}
+.given b{font-family:var(--f-num)}
+table.aging{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px}
+.aging caption{caption-side:top;text-align:left;font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--brand);padding-bottom:6px}
+.aging th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:2px solid var(--rule-strong);text-align:right;white-space:nowrap}
+.aging th:first-child,.aging td:first-child{text-align:left}
+.aging td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.aging td:first-child{font-family:var(--f-body)}
+.aging td.in{width:132px}
+.aging tfoot td{font-weight:700;border-top:2px solid var(--ink)}
+.aging .inbox{min-height:34px}
+.aging tr.ok .inbox{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.aging tr.no .inbox{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.aging tr.fb td{border-top:0;padding-top:0;text-align:left;font-family:var(--f-body);white-space:normal}
+.aging tr.wk td{text-align:left;font-family:var(--f-num);font-size:12px;color:var(--muted);border-top:0;padding-top:0}
+
+.actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);align-items:center;justify-content:space-between}
+.actions .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.actions .grp:last-child{margin-left:auto}
+.actions .ask{font-size:13.5px;font-weight:600}
+.btn{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:6px;padding:7px 12px;font-size:14.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.btn:hover{background:var(--brand-soft)}
+.btn:disabled{opacity:.4;cursor:default;background:var(--sheet)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:#0a3d8f}
+.btn.small{font-size:13.5px;padding:5px 10px;min-height:32px}
+
+/* Long-term assets additions */
+.frow.cls{grid-template-columns:minmax(0,1fr) auto}
+.flabel small.num{display:block;font-family:var(--f-num);font-size:13px;color:var(--muted);font-weight:500}
+.inbox .post{font-family:var(--f-num);font-size:13px;color:var(--muted);padding:0 8px}
+.st tr.h td{font-weight:700;padding-top:10px}
+.aging td small{font-family:var(--f-body);font-size:11.5px;color:var(--muted)}
+.aging tr.hlrow td{background:var(--hl);color:var(--hl-ink)}
+.aging tr.gone td{color:var(--muted)}
+.aging tr.gone td:first-child .nm{text-decoration:line-through}
+.aging.reg td{white-space:normal;vertical-align:top}
+.aging.reg td small{font-family:var(--f-body)}
+@media (max-width:640px){.frow.cls{grid-template-columns:minmax(0,1fr)}}
+
+/* Balance sheet impact */
+.cap-firm{font-family:var(--f-display);font-weight:700;font-size:17px;color:var(--brand)}
+.cap-name{font-family:var(--f-display);font-weight:600;font-size:16px}
+.cap-date{font-size:12.5px;color:var(--muted)}
+table.st{width:100%;border-collapse:collapse;font-size:14.5px}
+.st caption{caption-side:top;text-align:center;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.st th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 4px 3px;text-align:right}
+.st td{padding:4px 4px;vertical-align:bottom}
+.st td.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap;width:92px}
+.st td.dl{text-align:right;font-family:var(--f-num);font-size:12.5px;font-weight:600;white-space:nowrap;width:86px}
+.dl.up{color:var(--good)} .dl.down{color:var(--bad)} .dl.zero{color:var(--muted);font-weight:500}
+.st td.i1{padding-left:18px} .st td.i2{padding-left:34px}
+.st td.ul{border-bottom:1px solid var(--ink)}
+.st td.dul{border-bottom:3px double var(--ink);font-weight:700}
+.st tr.tot td:first-child{font-weight:700}
+.st tr.nrv td{font-weight:700;background:var(--est-soft)}
+.st tr.chg td:not(.dl){background:var(--hl);color:var(--hl-ink)}
+.nrvbar{margin:14px 0 4px}
+.nrvbar .track{height:22px;background:var(--paper);border-radius:4px;overflow:hidden;display:flex}
+.nrvbar .seg-n{background:var(--nrv);transition:width .45s ease}
+.nrvbar .seg-a{background:repeating-linear-gradient(45deg,var(--allow),var(--allow) 5px,#e6ac00 5px,#e6ac00 9px);transition:width .45s ease}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted);margin-top:5px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.bs-note{margin-top:12px;font-size:14px;border-radius:8px;padding:9px 12px;background:var(--paper)}
+.bs-note.warn{background:var(--bad-soft);color:var(--bad)}
+.bs-note b{font-family:var(--f-display);font-size:15px}
+.is-mini{margin-top:16px}
+.is-mini h3{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+@media (prefers-reduced-motion:reduce){.nrvbar .seg-n,.nrvbar .seg-a{transition:none}}
+
+/* T-accounts */
+.t-tools{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.chipbox{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;border:1px solid var(--rule);border-radius:999px;padding:3px 11px 3px 8px;cursor:pointer;user-select:none}
+.chipbox:has(input:checked){border-color:var(--rule-strong);background:var(--brand-soft)}
+.chipbox input{width:16px;height:16px;margin:0;accent-color:var(--navy)}
+.t-group{display:grid;gap:8px}
+.t-group + .t-group{margin-top:16px}
+.t-group h3{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.t-group h3 span{font-family:var(--f-body);font-weight:500;text-transform:none;letter-spacing:0;font-size:12.5px}
+.t-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px}
+.tacct{border:1px solid var(--rule);border-radius:6px;padding:8px 8px 6px;background:var(--sheet);transition:opacity .2s}
+.tacct.idle{opacity:.45}
+.tacct.touch{border-color:var(--gold);box-shadow:0 0 0 2px var(--hl)}
+.tacct.key{border-width:2px;border-color:var(--rule-strong)}
+.tacct.key.touch{border-color:var(--gold)}
+.t-head{display:flex;gap:6px;align-items:baseline;justify-content:center;text-align:center;font-size:13.5px;font-weight:700;line-height:1.25;min-height:34px;padding-bottom:4px;border-bottom:2px solid var(--ink)}
+.t-head .no{font-family:var(--f-num);font-size:11px;color:var(--muted);font-weight:500}
+.t-body{display:grid;grid-template-columns:1fr 1fr;min-height:46px}
+.t-side{padding:4px;display:flex;flex-direction:column;gap:1px}
+.t-side.l{border-right:2px solid var(--ink)}
+.t-side .lab{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.t-side.r .lab{text-align:right}
+.t-row{display:flex;justify-content:space-between;gap:4px;font-family:var(--f-num);font-size:12px;font-variant-numeric:tabular-nums;border-radius:3px;padding:0 3px}
+.t-row .ref{color:var(--muted);font-size:10.5px}
+.t-side.l .amt{color:var(--dr)} .t-side.r .amt{color:var(--cr)}
+.t-row.cur{background:var(--hl);color:var(--hl-ink)}
+.t-row.cur .ref,.t-row.cur .amt{color:inherit}
+.t-row.balrow{border-top:1px solid var(--ink);margin-top:3px;padding-top:2px;font-weight:600}
+.t-row.balrow .amt{color:var(--ink)}
+.t-zero{font-size:11px;color:var(--muted);text-align:center;margin-top:4px;font-style:italic}
+.t-flag{font-size:11px;color:var(--bad);text-align:center;margin-top:4px;font-weight:700}
+.empty{color:var(--muted);font-size:14px;padding:18px 4px;text-align:center}
+
+/* Journal */
+.jitem{display:grid;grid-template-columns:64px 76px minmax(0,1fr);gap:10px;padding:9px 6px;border-bottom:1px solid var(--rule)}
+.jitem.cur{background:var(--hl);color:var(--hl-ink)}
+.jitem .ref{font-family:var(--f-num);font-weight:600;font-size:13px}
+.jitem .dt{font-size:13px;color:var(--muted)}
+.jitem.cur .dt{color:inherit}
+.jitem .lines{font-family:var(--f-num);font-size:12.5px;display:grid;gap:1px;min-width:0}
+.jitem .lines .t{font-family:var(--f-body);font-size:14px;font-weight:600;margin-bottom:3px}
+.jl{display:flex;justify-content:space-between;gap:12px}
+.jl.c{padding-left:22px}
+.jl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jhead{font-family:var(--f-display);font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;padding:12px 6px 4px}
+.jhead.h{color:var(--brand)} .jhead.est{color:var(--est)}
+@media (max-width:520px){.jitem{grid-template-columns:52px minmax(0,1fr)}.jitem .dt{display:none}.frow{grid-template-columns:minmax(0,1fr)}.status{align-items:flex-start}.aging td.in{width:110px}.st td.dl{display:none}.st th.dl{display:none}}
+@keyframes flash{0%{background:var(--hl)}100%{background:transparent}}
+.flash{animation:flash 1.2s ease-out}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
+footer{font-size:12.5px;color:var(--muted);padding-block:0 30px}
+
+/* Time value of money & bonds additions */
+.inbox .post{font-family:var(--f-num);font-size:13px;color:var(--muted);padding:0 8px}
+.flabel small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.tlwrap{background:var(--paper);border-radius:8px;padding:6px 8px;margin:0 0 12px}
+.tlwrap svg{display:block;width:100%;height:auto;max-width:560px;margin:0 auto}
+.tl-axis{stroke:var(--ink);stroke-width:1.5}
+.tl-tick{font:11px var(--f-num);fill:var(--muted)}
+.tl-cap{font:600 11px var(--f-body);fill:var(--muted)}
+.tl-dot{fill:var(--navy)}
+:root[data-theme="dark"] .tl-dot{fill:var(--brand)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tl-dot{fill:var(--brand)}}
+.tl-q{fill:var(--gold);stroke:var(--ink);stroke-width:1.5}
+.tl-lab{font:600 13px var(--f-num);fill:var(--ink)}
+.tl-lab.q{fill:var(--est);font-size:15px}
+.tl-br{fill:none;stroke:var(--muted);stroke-width:1.5}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:1px solid var(--rule);background:transparent;border-radius:6px;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+table.amort th small{font-weight:500;text-transform:none;letter-spacing:0;font-size:11px}
+table.amort td.in{width:132px}
+table.amort td.in.ok .inbox{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+table.amort td.in.no .inbox{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+table.amort tr.start td{font-weight:700;background:var(--paper)}
+table.amort tr.fb td{border-top:0;padding-top:0;text-align:left;font-family:var(--f-body);white-space:normal}
+table.amort tr.wk td{text-align:left;font-family:var(--f-num);font-size:12px;color:var(--muted);border-top:0;padding-top:0;white-space:normal}
+.aging tr.pending td{color:var(--muted)}
+.aging td.pendmsg{text-align:left;color:var(--muted);font-style:italic;font-family:var(--f-body)}
+.cvbar{margin:12px 0 4px;display:grid;gap:5px}
+.cvrow{display:grid;grid-template-columns:64px 1fr;gap:8px;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted)}
+.cvrow .track{height:14px;background:var(--paper);border-radius:3px;overflow:hidden}
+.cvrow .seg-f{height:100%;background:var(--rule-strong)}
+.cvrow .seg-c{height:100%;background:var(--navy);transition:width .45s ease}
+:root[data-theme="dark"] .cvrow .seg-c{background:var(--brand)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cvrow .seg-c{background:var(--brand)}}
+.st-wait{color:var(--muted);font-size:14px;padding:22px 6px;text-align:center}
+@media (max-width:520px){table.amort td.in{width:104px}.pvt th,.pvt td{padding:3px 5px}}
+
+/* calculator inputs (N, I/Y, PV, PMT, FV) */
+.tvm{border:1px solid var(--rule);border-radius:10px;padding:12px;margin:0 0 12px;background:var(--sheet)}
+.tvm-q{font-size:15px;margin:0 0 10px}
+.tvm .field{border:0;box-shadow:none;padding:0;margin:0 0 10px}
+.tvm .choices.stack{display:grid;grid-template-columns:1fr 1fr}
+.keys{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ck{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ck label{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;cursor:pointer}
+.ck small{font-size:11.5px;color:var(--muted);line-height:1.2;min-height:2.4em}
+.ck input{width:100%;min-width:0;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field);color:var(--ink);padding:7px 6px;font-family:var(--f-num);font-size:14.5px;text-align:right;min-height:38px}
+.ck input:focus{outline:2px solid var(--brand);outline-offset:1px}
+.ck.ok input{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.ck.no input{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.kmsgs .fmsg{margin-top:6px}
+.tvm .work{margin-top:10px}
+.cptrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.btn.cpt{font-family:var(--f-num);font-weight:700;background:var(--navy);border-color:var(--navy);color:#fff;border-bottom:3px solid var(--gold)}
+.btn.cpt:hover{filter:brightness(1.15)}
+.cptnote{font-size:13px;color:var(--muted)}
+.cptnote.ok{color:var(--good);font-weight:600}
+.cptnote.no{color:var(--bad);font-weight:600}
+.ck.computed input{background:var(--hl);color:var(--hl-ink);font-weight:600}
+.key{display:inline-block;min-width:44px;text-align:center;background:var(--navy);color:#fff;font-family:var(--f-num);font-weight:700;font-size:13px;border-radius:6px;padding:3px 7px;border-bottom:3px solid var(--gold)}
+.guide{font-size:14px}
+.guide h3{font-family:var(--f-display);font-size:15.5px;color:var(--brand);margin:14px 0 4px}
+.guide p{margin:6px 0}
+.guide ol{margin:4px 0;padding-left:20px}
+.guide li{margin:2px 0}
+.guide table{border-collapse:collapse;width:100%}
+.gk th{width:64px;text-align:left;vertical-align:top;padding:6px 8px 6px 0;border-bottom:1px solid var(--rule)}
+.gk td{padding:6px 0;border-bottom:1px solid var(--rule)}
+.gq th,.gq td{border:1px solid var(--rule);padding:6px 8px;text-align:left;font-size:13.5px;vertical-align:top}
+.gq thead th{background:var(--brand-soft);color:var(--brand)}
+.gq tbody th{background:var(--paper);font-weight:600}
+kbd{font-family:var(--f-num);font-size:12px;background:var(--paper);border:1px solid var(--rule-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;white-space:nowrap}
+code{font-family:var(--f-num);font-size:12.5px;background:var(--paper);border-radius:4px;padding:1px 4px}
+@media (max-width:640px){.keys{grid-template-columns:repeat(3,minmax(0,1fr))}.tvm .choices.stack{grid-template-columns:1fr}}
+@media (max-width:380px){.keys{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Graded mode */
+.modesw{display:inline-flex;gap:2px;padding:2px;border:1px solid rgba(255,255,255,.32);border-radius:999px;margin-right:12px}
+.modesw button{border:0;background:transparent;color:var(--mast-ink);font-size:13.5px;font-weight:600;border-radius:999px;padding:2px 13px;min-height:26px;cursor:pointer}
+.modesw button:hover{background:rgba(255,255,255,.12)}
+.modesw button[aria-pressed="true"]{background:var(--gold);color:#111b2e}
+.modesw button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.setchip.graded{border-color:var(--gold);color:var(--gold);font-weight:600}
+.timeline.locked .tick{cursor:default}
+.timeline.locked .tick.can{cursor:pointer}
+.timeline.locked .tick.can:hover{border-color:var(--ink)}
+.rv-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;background:var(--est-soft);color:var(--est)}
+.rv-ans{font-family:var(--f-num);font-weight:600;white-space:nowrap}
+.score.graded{background:var(--navy);color:#fff}
+:root[data-theme="dark"] .score.graded{background:var(--gold);color:#111b2e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .score.graded{background:var(--gold);color:#111b2e}}
+.gnote{font-size:13.5px;font-weight:600;background:var(--est-soft);color:var(--est);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:7px 12px;margin:0 0 12px}
+dialog.gdlg{width:min(580px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;border:0;border-radius:10px;padding:0;background:var(--sheet);color:var(--ink);box-shadow:0 24px 70px rgba(0,20,60,.4)}
+dialog.gdlg::backdrop{background:rgba(0,18,48,.6)}
+.gdlg-h{background:var(--mast-bg);color:#fff;border-bottom:4px solid var(--gold);padding:14px 20px 12px}
+.gdlg-h h2{font-size:25px;font-weight:700}
+.gdlg-b{padding:16px 20px 18px;font-size:15px}
+.gdlg-b ul{margin:6px 0 0;padding-left:20px}
+.gdlg-b li{margin-bottom:7px}
+.gdlg-note{margin-top:12px;background:var(--brand-soft);border-radius:8px;padding:9px 12px;font-size:14.5px}
+.gdlg-note.warn{background:var(--bad-soft);color:var(--bad)}
+.gdlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
+.signin{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.signin label{font-weight:600;font-size:14.5px}
+.signin input{font:inherit;font-size:15px;padding:7px 10px;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field);color:var(--ink);max-width:340px}
+.signin .who{font-size:14px;color:var(--muted)}
+.final{background:var(--good-soft);border-radius:8px;padding:12px 14px;margin:12px 0 4px;font-size:15px}
+.final b{font-family:var(--f-display);font-size:18px}
+.btn[aria-busy="true"]{opacity:.65;cursor:progress}
+details.pts{margin-top:14px;font-size:14px}
+details.pts summary{cursor:pointer;font-weight:600;color:var(--brand)}
+table.ptab{width:100%;border-collapse:collapse;margin-top:8px}
+.ptab td{padding:5px 6px;border-bottom:1px solid var(--rule)}
+.ptab td.r{text-align:right;font-family:var(--f-num);white-space:nowrap}
+.ptab tr.miss td.r{color:var(--bad);font-weight:600}
+.pledge{display:flex;gap:10px;align-items:flex-start;margin-top:14px;border:1px solid var(--rule-strong);border-radius:8px;padding:10px 12px;font-size:14.5px;font-weight:600;cursor:pointer}
+.pledge input{width:18px;height:18px;margin:2px 0 0;flex:none;accent-color:var(--navy)}
+.pledge:has(input:checked){border-color:var(--good);background:var(--good-soft)}
+.gclass{margin-top:8px}.gclass .gterm{font-weight:400;color:var(--muted)}
+/* A step outside the concepts the instructor assigned: filled in for the student, not scored */
+.dfy-note{margin:0 0 10px;font-size:14px;border-radius:8px;padding:9px 12px;border:1px dashed var(--rule-strong);background:var(--paper);color:var(--ink)}
+.tick.dfy{border-style:dashed}
+.ticks .tick.dfy.done{background:var(--paper);border-color:var(--muted);color:var(--muted)}
+</style>
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- The concepts in each lab, for assignments that include only some (see fa-lab-platform topics.js) -->
+<script src="/interacctive/topics.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+
+<header class="band1" id="band1">
+  <div class="wrap">
+    <div class="b1-row">
+      <div>
+        <div class="eyebrow">University of New Haven · Financial Accounting · Chapter 10</div>
+        <h1>Time Value of Money &amp; Bonds Lab</h1>
+      </div>
+      <p class="biz" id="biz"></p>
+      <div class="setchip" id="setChip">Problem set <b>—</b></div>
+    </div>
+    <div class="views">
+      <span class="opt-label">Mode</span>
+      <div class="modesw" id="modeSw" role="group" aria-label="Mode"><button type="button" data-mode="practice" aria-pressed="true">Practice</button><button type="button" data-mode="graded" aria-pressed="false">Graded</button></div>
+      <span class="opt-label">Show</span>
+      <label class="vchip"><input type="checkbox" id="v-calc" checked> Calculator guide</label>
+      <label class="vchip"><input type="checkbox" id="v-bs" checked> Balance sheet impact</label>
+      <label class="vchip"><input type="checkbox" id="v-t" checked> T-accounts</label>
+      <label class="vchip"><input type="checkbox" id="v-j" checked> Journal</label>
+    </div>
+  </div>
+</header>
+<div class="band2" id="band2">
+  <div class="wrap">
+    <div class="timeline" id="timeline" aria-label="Steps in the lab"></div>
+    <div class="status">
+      <div id="where"></div>
+      <span class="score" id="score" hidden></span>
+      <div class="legend-dots" id="legendDots"><span><i style="background:var(--good)"></i>First try</span><span><i style="background:var(--gold)"></i>Retried</span><span><i style="background:var(--muted)"></i>Answer shown</span></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="grid-top" id="gridTop">
+    <div class="col">
+      <section class="panel" id="pEntry" aria-labelledby="entryH">
+        <div class="panel-h"><h2 id="entryH">Your calculation</h2><span class="sub" id="entrySub"></span></div>
+        <div class="panel-b" id="entry"></div>
+      </section>
+      <section class="panel" id="pBS" aria-labelledby="bsH">
+        <div class="panel-h"><h2 id="bsH">Balance sheet impact</h2><span class="sub">Bonds payable at carrying value</span></div>
+        <div class="panel-b" id="bs"></div>
+      </section>
+    </div>
+    <div class="col" id="colR">
+      <section class="panel" id="pCalc" aria-labelledby="calcH">
+        <div class="panel-h"><h2 id="calcH">Calculator guide</h2><span class="sub">Financial calculator or spreadsheet</span></div>
+        <div class="panel-b guide">
+          <table class="gk"><tbody>
+            <tr><th><span class="key">N</span></th><td>Number of periods: years × payments per year.</td></tr>
+            <tr><th><span class="key">I/Y</span></th><td>Interest rate <b>per period</b>, as a percent: enter 6 for 6%. With semiannual payments, use the annual rate ÷ 2.</td></tr>
+            <tr><th><span class="key">PV</span></th><td>A single amount today.</td></tr>
+            <tr><th><span class="key">PMT</span></th><td>An equal payment at the end of every period (an ordinary annuity).</td></tr>
+            <tr><th><span class="key">FV</span></th><td>A single amount at the end.</td></tr>
+          </tbody></table>
+          <p>Enter the four values you know, using <b>0</b> for any key the problem doesn't use, then solve for the fifth. In this lab, leave the fifth box blank and press <b>Calculate</b>. It works like the CPT key and rounds to the nearest dollar.</p>
+          <h3>Which approach?</h3>
+          <table class="gq"><thead><tr><th></th><th>Worth today</th><th>Worth later</th></tr></thead><tbody>
+            <tr><th>One amount</th><td>Present value of a single sum</td><td>Future value of a single sum</td></tr>
+            <tr><th>Equal payment every period</th><td>Present value of an ordinary annuity</td><td>Future value of an ordinary annuity</td></tr>
+          </tbody></table>
+          <h3>Signs</h3>
+          <p>A financial calculator gives money paid out and money received opposite signs, so a positive PV produces a negative FV. In this lab signs don't matter: enter every amount as a positive number.</p>
+          <h3>BA II Plus</h3>
+          <ol>
+            <li>Clear old values: <kbd>2ND</kbd> <kbd>CLR TVM</kbd>.</li>
+            <li>Set one payment per period: <kbd>2ND</kbd> <kbd>P/Y</kbd>, type 1, <kbd>ENTER</kbd>, then <kbd>2ND</kbd> <kbd>QUIT</kbd>. Keep END mode (BGN off) for ordinary annuities.</li>
+            <li>Type each value and press its key, for example 10 <kbd>N</kbd> and 6 <kbd>I/Y</kbd>.</li>
+            <li>Press <kbd>CPT</kbd>, then the key you're solving for.</li>
+          </ol>
+          <h3>Excel or Google Sheets</h3>
+          <p><code>=PV(rate, nper, pmt, fv)</code> and <code>=FV(rate, nper, pmt, pv)</code>, with the rate per period. For example, <code>=PV(4%, 10, 3000, 50000)</code>. The result shows as negative; enter it without the sign.</p>
+        </div>
+      </section>
+      <section class="panel" id="pT" aria-labelledby="tH">
+        <div class="panel-h">
+          <h2 id="tH">T-accounts (general ledger)</h2>
+          <div class="t-tools">
+            <span class="sub">Numbers beside amounts are entry references.</span>
+            <label class="chipbox"><input type="checkbox" id="hideIdle"> Only accounts with activity</label>
+          </div>
+        </div>
+        <div class="panel-b" id="taccts"></div>
+      </section>
+    </div>
+  </div>
+  <section class="panel" id="pJ" aria-labelledby="jH">
+    <div class="panel-h"><h2 id="jH">General journal</h2><span class="sub">Every entry you have posted, in order.</span></div>
+    <div class="panel-b"><div id="journal"></div></div>
+  </section>
+</main>
+<footer class="wrap">Problem Solvers, Inc. and all figures are illustrative. Present and future values are calculated exactly and rounded to the nearest whole dollar only at the end. Bonds are amortized with the effective-interest method. Each problem set changes the amounts, rates, and terms.</footer>
+<dialog class="gdlg" id="gDlg" aria-labelledby="gDlgH">
+  <div class="gdlg-h"><div class="eyebrow">Time Value of Money &amp; Bonds Lab</div><h2 id="gDlgH">Graded mode</h2></div>
+  <div class="gdlg-b" id="gDlgB"></div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+const PYEAR=new Date().getFullYear();
+let YEAR=PYEAR, Y2=PYEAR+1; // Graded mode switches these to the attempt's lab_year (see setYear)
+const MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const KEY="bondlab2";
+// Graded mode: graded on the server by the lab-attempt edge function (fa-lab-platform).
+// The page is opened from the course page with ?course=<id>&lab=tvm-bonds.
+const LAB_SLUG="tvm-bonds";
+const SB_URL="https://yoijetxcolixkjqsxkpo.supabase.co", SB_KEY="sb_publishable_R7CQN_jmNSlHZiGvXa9Jqw_bQv3q3fE";
+const GKEY=KEY+".graded", MKEY=KEY+".mode"; // GKEY holds only a pointer to the server attempt
+const $=id=>document.getElementById(id);
+function fmt(n){return Math.abs(n).toLocaleString("en-US");}
+function d$(n){return "$"+fmt(n);}
+function money(n,dollar){return (n<0?"(":"")+(dollar?"$":"")+fmt(n)+(n<0?")":"");}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function parseAmt(s){s=String(s==null?"":s).trim();const neg=/^\(.*\)$/.test(s)||/^[-−–]/.test(s);s=s.replace(/[$,%\s()−–-]/g,"");if(s==="")return null;const n=Number(s);return isFinite(n)?(neg?-n:n):NaN;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function randomSeed(){return 10000+Math.floor(Math.random()*90000);}
+
+function paintBiz(){$("biz").innerHTML='<b>Problem Solvers, Inc.</b> is planning for the future: it practices present and future value with a few business decisions, then issues bonds on <b>January 1, '+YEAR+'</b> to pay for a new print shop. Work each problem like a financial calculator: enter <b>N, I/Y, PV, PMT, and FV</b>, and round only the final answer to the nearest whole dollar.';}
+paintBiz();
+
+// ---------- Time value of money math (exact; only the final answer is rounded) ----------
+const TYPES={
+  fv:{name:"Future value of a single sum",tick:"FV"},
+  pv:{name:"Present value of a single sum",tick:"PV"},
+  fva:{name:"Future value of an ordinary annuity",tick:"FVA"},
+  pva:{name:"Present value of an ordinary annuity",tick:"PVA"}
+};
+const TOPTS=Object.keys(TYPES).map(t=>[t,TYPES[t].name]);
+const SOLVE={
+  fv:(a,i,n)=>a*Math.pow(1+i/100,n),
+  pv:(a,i,n)=>a/Math.pow(1+i/100,n),
+  fva:(p,i,n)=>p*(Math.pow(1+i/100,n)-1)/(i/100),
+  pva:(p,i,n)=>p*(1-Math.pow(1+i/100,-n))/(i/100)
+};
+// which calculator key holds the given amount, the answer, or zero
+const ROLE={fv:{PV:"amt",PMT:0,FV:"ans"},pv:{PV:"ans",PMT:0,FV:"amt"},fva:{PV:0,PMT:"amt",FV:"ans"},pva:{PV:"ans",PMT:"amt",FV:0}};
+const KEYS=["N","I","PV","PMT","FV"];
+const KLAB={N:["N","Number of periods"],I:["I/Y","Rate per period (%)"],PV:["PV","Present value"],PMT:["PMT","Payment each period"],FV:["FV","Future value"]};
+const nearHalf=x=>Math.abs(x-Math.floor(x)-0.5)<0.02;
+const pctOf=v=>v>0&&v<1?v*100:v;
+const lc=s=>s.charAt(0).toLowerCase()+s.slice(1);
+
+// ---------- Chart of accounts (course chart of accounts; sorted by account number) ----------
+const ACCTS=[
+  {id:"ap",no:2000,name:"Accounts Payable",normal:"C",g:"liab"},
+  {id:"bp",no:2600,name:"Bonds Payable",normal:"C",g:"liab"},
+  {id:"cash",no:1000,name:"Cash",normal:"D",g:"asset"},
+  {id:"disc",no:2610,name:"Discount on Bonds Payable",normal:"D",g:"liab"},
+  {id:"ix",no:6060,name:"Interest Expense",normal:"D",g:"ie"},
+  {id:"ip",no:2040,name:"Interest Payable",normal:"C",g:"liab"},
+  {id:"irev",no:4200,name:"Interest Revenue",normal:"C",g:"ie"},
+  {id:"np",no:2500,name:"Notes Payable",normal:"C",g:"liab"},
+  {id:"prem",no:2620,name:"Premium on Bonds Payable",normal:"C",g:"liab"}
+];
+const ORDER=ACCTS.slice().sort((x,y)=>x.no-y.no);
+const A=Object.fromEntries(ACCTS.map(a=>[a.id,a]));
+const GROUPS=[
+  {key:"asset",label:"Assets",note:"normal debit balance"},
+  {key:"liab",label:"Liabilities",note:"Discount on Bonds Payable is a contra-liability with a debit balance"},
+  {key:"ie",label:"Revenues and expenses",note:""}
+];
+
+// ---------- Problem generator ----------
+function gen(seed){
+  const r=mulberry32(seed);
+  const R=(a,b,s)=>{s=s||1;return a+s*Math.floor(r()*(Math.floor((b-a)/s)+1));};
+  const pick=a=>a[Math.floor(r()*a.length)];
+  const mk=t=>{const i=pick([3,4,5,6,7,8,9,10]), n=t==="fva"?R(4,12):R(4,15);
+    const amt=t==="fv"?R(40,300)*100:t==="pv"?R(100,600)*100:t==="fva"?R(10,60)*100:R(20,80)*100;
+    const ex=SOLVE[t](amt,i,n);return {t,i,n,amt,ex,v:Math.round(ex)};};
+  for(let attempt=0;attempt<20000;attempt++){
+    // ----- time value of money practice: one of each type, then a mixed set -----
+    const T=["fv","pv","fva","pva"].map(mk);
+    let mt; do{mt=[0,1,2,3].map(()=>pick(["fv","pv","fva","pva"]));}while(new Set(mt).size<3);
+    const MX=mt.map((t,q)=>Object.assign(mk(t),{tpl:R(0,1)}));
+    const all=T.concat(MX);
+    if(all.some(x=>nearHalf(x.ex)))continue;
+    if(new Set(all.map(x=>x.i+"/"+x.n)).size<all.length)continue;
+    // ----- bond -----
+    const F=R(2,10)*50000, yrs=pick([4,5,6,8,10]), N=2*yrs, s=pick([4,6,8,10]), m=s+pick([-2,2]);
+    if(m<4||m>12)continue;
+    const i=m/2, j=s/2, C=F*j/100;
+    const ex=SOLVE.pv(F,i,N)+SOLVE.pva(C,i,N);
+    if(nearHalf(ex))continue;
+    const price=Math.round(ex), disc=price<F;
+    let cv=price, ok=true; const rows=[];
+    for(let t=1;t<=3;t++){
+      if((cv*i)%100===50){ok=false;break;}
+      const ie=Math.round(cv*i/100), am=disc?ie-C:C-ie, beg=cv;
+      cv=disc?cv+am:cv-am; rows.push({beg,cash:C,ie,am,cv});
+    }
+    if(!ok||rows.some(x=>x.am<=0))continue;
+    const info={T,MX,F,yrs,N,s,m,i,j,C,price,disc,rows};
+    return {steps:build(info),info};
+  }
+  throw new Error("Could not generate a problem set");
+}
+
+// Calculator boxes (N, I/Y, PV, PMT, FV) for one problem. Signs are ignored: a calculator shows money paid out as negative.
+function calcFields(p,x){
+  const role=ROLE[x.t], amtKey=KEYS.find(k=>role[k]==="amt");
+  const isAnn=x.t.length===3, nm=lc(TYPES[x.t].name);
+  const desc={PV:"PV is the single amount today, given in the problem.",PMT:"PMT is the equal payment made every year, given in the problem.",FV:"FV is the single amount at the end, given in the problem."};
+  const zeroMsg={PV:"Nothing is invested or received today; the series of payments goes in PMT. Enter 0.",
+    PMT:"This is a single amount, not a series of payments, so PMT is 0.",
+    FV:"Nothing extra is paid or received at the end; the series of payments goes in PMT. Enter 0."};
+  const out=[
+   {id:p+"N",box:"N",grp:p,ans:x.n,label:"N",work:"N = "+x.n,
+    wrong:v=>isAnn?"N is the number of payments. There's one payment a year here, so count the years.":"N is the number of compounding periods. Interest compounds once a year here, so count the years."},
+   {id:p+"I",box:"I",grp:p,pct:1,ans:x.i,label:"I/Y",work:"I/Y = "+x.i,
+    wrong:v=>"I/Y is the interest rate per period, entered as a percent (for 6%, enter 6)."}
+  ];
+  ["PV","PMT","FV"].forEach(k=>{
+    const rl=role[k];
+    if(rl===0)out.push({id:p+k,box:k,grp:p,ans:0,label:k,work:k+" = 0",wrong:v=>zeroMsg[k]});
+    else if(rl==="amt")out.push({id:p+k,box:k,grp:p,ans:x.amt,label:k,work:k+" = "+fmt(x.amt),
+      wrong:v=>Math.abs(v)===x.v?"That's the value you solve for. The amount given in the problem goes in "+k+".":
+        desc[k]});
+    else out.push({id:p+k,box:k,grp:p,ans:x.v,label:k,ansBox:1,work:k+" = "+fmt(x.v)+" (solved)",
+      wrong:(v,f)=>{const a=Math.abs(v);
+        if(Math.abs(a-x.ex)<=2.5)return "Close. Round only the final answer to the nearest whole dollar.";
+        if(a===x.amt)return "This is the value you solve for. The "+d$(x.amt)+" given in the problem goes in "+amtKey+".";
+        if(isAnn&&a===x.amt*x.n)return "That just adds up the payments and ignores interest. Solve with the calculator.";
+        for(const t2 of Object.keys(SOLVE))if(t2!==x.t&&a===Math.round(SOLVE[t2](x.amt,x.i,x.n)))return "That's the "+lc(TYPES[t2].name)+". This problem asks for the "+nm+".";
+        const n2=f[p+"N"], i2=f[p+"I"], a2=f[p+amtKey];
+        if([n2,i2,a2].every(z=>z!=null&&!isNaN(z)&&z!==0)){const ii=pctOf(i2), aa=Math.abs(a2);
+          if((n2!==x.n||ii!==x.i||aa!==x.amt)&&a===Math.round(SOLVE[x.t](aa,ii,n2)))return "Your calculation matches the inputs you entered, but at least one input is wrong.";}
+        return "Enter the other four values, then solve for "+k+" and round to the nearest dollar.";}});
+  });
+  return out;
+}
+function calcWork(x){const role=ROLE[x.t];return "N = "+x.n+" · I/Y = "+x.i+" · PV = "+(role.PV==="ans"?"?":fmt(role.PV==="amt"?x.amt:0))+" · PMT = "+(role.PMT==="amt"?fmt(x.amt):"0")+" · FV = "+(role.FV==="ans"?"?":fmt(role.FV==="amt"?x.amt:0))+" → "+KEYS.find(k=>role[k]==="ans")+" = "+d$(x.v);}
+
+function build(I){
+  const steps=[];
+  const {T,MX,F,yrs,N,s,m,i,j,C,price,disc,rows}=I;
+  const dname=disc?"discount":"premium", DA=disc?"disc":"prem", DN=disc?"Discount on Bonds Payable":"Premium on Bonds Payable";
+  // ----- one page for each type -----
+  const CASES={
+    fv:x=>({desc:"Problem Solvers deposits "+d$(x.amt)+" today in a savings account to replace its printing press in "+x.n+" years. The account earns "+x.i+"% interest, compounded annually. How much will be in the account in "+x.n+" years?",
+      tl:{n:x.n,unit:"Year",marks:[{t:0,lab:d$(x.amt)},{t:x.n,lab:"?",q:1}]},
+      hint:"One amount today grows to a later date. N = years, I/Y = the annual rate, PV = the deposit, PMT = 0 (no yearly payments), and solve for FV.",
+      why:"A future value grows a single amount forward with compound interest: each year's interest earns interest too. That's why "+d$(x.amt)+" becomes "+d$(x.v)+", more than "+d$(x.amt)+" plus "+x.n+" years of simple interest."}),
+    pv:x=>({desc:"Problem Solvers wants "+d$(x.amt)+" in "+x.n+" years to buy a delivery truck. How much must it deposit today in an account earning "+x.i+"% interest, compounded annually?",
+      tl:{n:x.n,unit:"Year",marks:[{t:0,lab:"?",q:1},{t:x.n,lab:d$(x.amt)}]},
+      hint:"One amount at a later date is brought back to today. N = years, I/Y = the annual rate, FV = the amount needed later, PMT = 0, and solve for PV.",
+      why:"A present value discounts a future amount back to today. Because money today can earn interest, "+d$(x.v)+" today is worth the same as "+d$(x.amt)+" in "+x.n+" years at "+x.i+"%."}),
+    fva:x=>({desc:"Problem Solvers will deposit "+d$(x.amt)+" at the end of each year for "+x.n+" years into a fund for a new building. The fund earns "+x.i+"% interest, compounded annually. How much will the fund hold right after the last deposit?",
+      tl:{n:x.n,unit:"Year",ann:d$(x.amt)+" at the end of each year",q:"end"},
+      hint:"Equal payments at the end of each year grow to a total at the end. N = years, I/Y = the annual rate, PMT = the yearly deposit, PV = 0, and solve for FV.",
+      why:"An ordinary annuity is a series of equal payments at the end of each period. Its future value adds every payment plus the interest each one earns until the end. The "+x.n+" deposits total "+d$(x.amt*x.n)+"; the rest is interest."}),
+    pva:x=>({desc:"A client offers to settle a contract by paying Problem Solvers "+d$(x.amt)+" at the end of each year for "+x.n+" years. At "+x.i+"% interest, what are those payments worth today?",
+      tl:{n:x.n,unit:"Year",ann:d$(x.amt)+" at the end of each year",q:"start"},
+      hint:"Equal payments at the end of each year are brought back to today. N = years, I/Y = the annual rate, PMT = the yearly payment, FV = 0, and solve for PV.",
+      why:"The present value of an annuity discounts every payment back to today and adds them up. The payments total "+d$(x.amt*x.n)+", but they're worth only "+d$(x.v)+" today because Problem Solvers has to wait for them."})
+  };
+  T.forEach(x=>{const c=CASES[x.t](x), nm=TYPES[x.t].name;
+    steps.push({type:"calc",phase:"tvm",ref:TYPES[x.t].tick,tickLabel:TYPES[x.t].tick,kind:"Time value of money",title:nm,desc:c.desc,tl:c.tl,
+      groups:[{pfx:"",work:calcWork(x)}],hint:c.hint,why:c.why,fields:calcFields("",x)});});
+  // ----- mixed: students decide which approach fits -----
+  const MT={
+    fv:[x=>"Problem Solvers invests "+d$(x.amt)+" today in a certificate of deposit that earns "+x.i+"% a year. What will the investment be worth in "+x.n+" years?",
+        x=>"A client's "+d$(x.amt)+" retainer is placed today in an account earning "+x.i+"% a year and left there for "+x.n+" years. How much will the account hold then?"],
+    pv:[x=>"A client will pay Problem Solvers a single "+d$(x.amt)+" fee "+x.n+" years from now. At "+x.i+"% a year, what is that fee worth today?",
+        x=>"How much must Problem Solvers set aside today, at "+x.i+"% a year, to have "+d$(x.amt)+" for a software upgrade in "+x.n+" years?"],
+    fva:[x=>"Problem Solvers puts "+d$(x.amt)+" into a reserve account at the end of every year for "+x.n+" years. The account earns "+x.i+"% a year. How much will it hold right after the last deposit?",
+         x=>"Starting a year from now, Problem Solvers will save "+d$(x.amt)+" a year for "+x.n+" years in a fund earning "+x.i+"% a year. What will the fund be worth when the last amount is added?"],
+    pva:[x=>"Problem Solvers could lease a binding machine for "+d$(x.amt)+" at the end of each year for "+x.n+" years. At "+x.i+"% a year, what are the lease payments worth today?",
+         x=>"A retiring founder will be paid "+d$(x.amt)+" at the end of each year for "+x.n+" years. At "+x.i+"% a year, how much would it cost to fund those payments today?"]
+  };
+  const mf=[], mg=[];
+  MX.forEach((x,q)=>{const p="m"+(q+1);
+    mg.push({pfx:p,title:"Problem "+(q+1),desc:MT[x.t][x.tpl](x),work:TYPES[x.t].name+": "+calcWork(x)});
+    mf.push({id:p+"type",kind:"sel",grp:p,label:"Which approach fits problem "+(q+1)+"?",ans:x.t,opts:TOPTS,work:TYPES[x.t].name,
+      wrong:v=>{const ann=v.length===3, xa=x.t.length===3;
+        if(ann!==xa)return xa?"There's an equal amount every year, so this is an annuity, not a single sum.":"There's only one amount here, so this is a single sum, not an annuity.";
+        return x.t.startsWith("pv")?"The question asks what the amount is worth today, so you need a present value.":"The question asks what the amount grows to later, so you need a future value.";}});
+    calcFields(p,x).forEach(f=>{f.label="Problem "+(q+1)+" "+f.label;mf.push(f);});
+  });
+  steps.push({type:"calc",phase:"tvm",ref:"Mixed",tickLabel:"Mixed",kind:"Choose the approach",title:"Mixed practice: which approach?",
+    desc:"These problems are mixed together. For each one, decide whether it's a present or future value of a single sum or of an ordinary annuity, then enter the calculator inputs and solve.",
+    groups:mg,
+    hint:"Ask two questions. Is there one amount, or an equal amount every year (an annuity)? Does the question ask what it's worth today (present value) or what it grows to later (future value)?",
+    why:"Every time value problem uses the same five inputs. The skill is reading the situation: one amount or a series of equal payments, and today's value or a later value. That tells you which amount goes in PV, PMT, or FV, and which one you solve for.",
+    fields:mf});
+  // ----- bond issue price -----
+  const bondDesc="On January 1, "+YEAR+", Problem Solvers issued "+d$(F)+" of "+yrs+"-year, "+s+"% bonds to pay for a new print shop. Interest is paid every six months, on June 30 and December 31. Investors want a "+m+"% annual return (the market rate) on bonds like these.";
+  const ex2=SOLVE.pv(F,i,N)+SOLVE.pva(C,i,N);
+  const stPrice=Math.round(SOLVE.pv(F,j,N)+SOLVE.pva(C,j,N)), anPrice=Math.round(SOLVE.pv(F,m,yrs)+SOLVE.pva(2*C,m,yrs));
+  steps.push({type:"calc",phase:"bond",ref:"Price",tickLabel:"Price",kind:"Bond issue price",date:"Jan 1",yr:YEAR,title:"Calculate the issue price",
+    desc:bondDesc+" The issue price is the present value of everything investors will receive, discounted at the market rate: the face value at maturity plus every interest payment.",
+    groups:[{pfx:"b",work:"N = "+N+" · I/Y = "+i+" · PMT = "+fmt(C)+" · FV = "+fmt(F)+" → PV = "+d$(price)}],
+    hint:"Interest is paid twice a year, so N = years × 2 and I/Y = market rate ÷ 2. PMT = face value × stated rate ÷ 2. FV = the face value repaid at maturity. Solve for PV.",
+    why:"A bond pays the face value at maturity (a single sum) and the same interest payment every six months (an ordinary annuity). Entering both in one calculation, PMT and FV, gives their combined present value: "+d$(price)+". The stated rate ("+s+"%) is "+(disc?"below":"above")+" the market rate ("+m+"%), so investors pay "+(disc?"less":"more")+" than face value: a "+dname+" of "+d$(Math.abs(F-price))+".",
+    fields:[
+     {id:"bN",box:"N",grp:"b",ans:N,label:"N",work:"N = "+yrs+" years × 2 = "+N,
+      wrong:v=>v===yrs?"Interest is paid twice a year, so count six-month periods: years × 2.":"N is the number of six-month interest periods."},
+     {id:"bI",box:"I",grp:"b",pct:1,ans:i,label:"I/Y",work:"I/Y = "+m+"% ÷ 2 = "+i,
+      wrong:v=>{const q=pctOf(v);return q===m?"That's the annual rate. Each period is six months, so divide by 2.":(q===j||q===s)?"Bond prices use the market rate, not the stated rate.":"I/Y is the market rate per six-month period.";}},
+     {id:"bPV",box:"PV",grp:"b",ans:price,label:"PV",ansBox:1,work:"PV = "+d$(price)+" (solved)",
+      wrong:(v,f)=>{const a=Math.abs(v);
+        if(Math.abs(a-ex2)<=2.5)return "Close. Round only the final answer to the nearest whole dollar.";
+        if(a===F||a===stPrice)return "That's the face value. Bonds sell at face value only when the market rate equals the stated rate. Discount at the market rate per period.";
+        if(a===anPrice)return "That uses annual periods and the annual rate. Interest is paid every six months.";
+        if(a===Math.round(SOLVE.pv(F,i,N)))return "That's only the face value's present value. Include the interest payments in PMT.";
+        if(a===Math.round(SOLVE.pva(C,i,N)))return "That's only the interest payments' present value. Include the face value in FV.";
+        return "Enter N, I/Y, PMT and FV, then solve for PV and round to the nearest dollar.";}},
+     {id:"bPMT",box:"PMT",grp:"b",ans:C,label:"PMT",work:"PMT = "+d$(F)+" × "+s+"% ÷ 2 = "+fmt(C),
+      wrong:v=>{const a=Math.abs(v);return a===F*s/100?"That's a full year of interest. Interest is paid twice a year, so divide by 2.":a===F*m/200?"Cash interest uses the bond's stated rate ("+s+"%), not the market rate.":"PMT is the cash interest paid every six months: face value × stated rate ÷ 2.";}},
+     {id:"bFV",box:"FV",grp:"b",ans:F,label:"FV",work:"FV = "+fmt(F)+" face value",
+      wrong:v=>Math.abs(v)===price?"That's the answer you solve for. FV is the face value repaid at maturity.":"FV is the face value repaid when the bonds mature."},
+     {id:"at",kind:"sel",label:"The bonds are issued at…",ans:disc?"disc":"prem",opts:[["disc","A discount (below face value)"],["prem","A premium (above face value)"],["par","Par (face value)"]],
+      work:"Stated "+s+"% is "+(disc?"below":"above")+" the market "+m+"%, so the price is "+(disc?"below":"above")+" face value.",
+      wrong:v=>v==="par"?"Bonds sell at par only when the stated rate equals the market rate. Here they differ.":disc?"The stated rate ("+s+"%) is below the market rate ("+m+"%), so investors pay less than face value.":"The stated rate ("+s+"%) is above the market rate ("+m+"%), so investors pay more than face value."}
+    ]});
+  let n=0; const E=o=>steps.push(Object.assign({type:"entry",ref:String(++n)},o));
+  E({phase:"bond",kind:"Bond issuance",date:"Jan 1",yr:YEAR,title:"Record the bond issuance",
+    desc:"Record the sale of the "+d$(F)+" of bonds for the issue price you calculated.",
+    calc:"Cash "+d$(price)+(disc?" + discount ":" − premium ")+d$(Math.abs(F-price))+" = face value "+d$(F),
+    lines:disc?[{a:"cash",dr:price},{a:"disc",dr:F-price},{a:"bp",cr:F}]:[{a:"cash",dr:price},{a:"bp",cr:F},{a:"prem",cr:price-F}],
+    why:"Bonds Payable is always recorded at face value, the amount owed at maturity. The "+d$(Math.abs(F-price))+" "+dname+" is recorded separately"+(disc?" as a contra-liability, so the bonds' carrying value is "+d$(price)+".":" as an adjunct liability, so the bonds' carrying value is "+d$(price)+"."),
+    miss:Object.assign({np:"These are bonds sold to investors, so use Bonds Payable.",ix:"No interest has built up yet. The bonds were issued today.",ip:"No interest is owed yet.",irev:"Problem Solvers is the borrower, so this isn't revenue."},
+      disc?{prem:"The price is below face value, so the difference is a discount."}:{disc:"The price is above face value, so the difference is a premium."}),
+    amtTips:{cashD:"Cash received = the issue price.",bpC:"Bonds Payable is always recorded at face value.",discD:"Discount = face value − issue price.",premC:"Premium = issue price − face value."},
+    amtMsg:{bpC:v=>v===price?"Record Bonds Payable at face value. The "+dname+" goes in its own account.":null,cashD:v=>v===F?"Cash received is the issue price, not face value.":null}});
+  // ----- amortization table -----
+  const dates=["June 30, "+YEAR,"December 31, "+YEAR,"June 30, "+Y2];
+  const flds=[];
+  rows.forEach((x,k)=>{const p=k+1, bl="Row "+p;
+    flds.push({id:"c"+p,row:k,col:"cash",ans:x.cash,label:bl+" cash paid",work:d$(F)+" × "+j+"% = "+d$(x.cash),
+      wrong:v=>v===F*s/100?"That's a full year. Use the stated rate per period ("+j+"%).":v===Math.round(F*i/100)?"Cash paid uses the stated rate ("+j+"% per period), not the market rate.":"Face value × stated rate per period."});
+    flds.push({id:"e"+p,row:k,col:"ie",ans:x.ie,label:bl+" interest expense",work:d$(x.beg)+" × "+i+"% = "+d$(x.ie),
+      wrong:(v,f)=>{if(v===C)return "That's the cash paid. Interest expense uses the market rate ("+i+"%) times the carrying value.";
+        if(v===Math.round(F*i/100))return "Use the carrying value at the start of the period, not face value.";
+        if(v===Math.round(x.beg*m/100))return "Use the market rate per period ("+i+"%), not the annual rate.";
+        const pb=k===0?price:f["v"+k]; if(k>0&&pb!=null&&!isNaN(pb)&&v===Math.round(pb*i/100)&&pb!==x.beg)return "Your multiplication is right, but the carrying value it starts from (the row above) is not.";
+        return "Carrying value at the start of the period × "+i+"%.";}});
+    flds.push({id:"a"+p,row:k,col:"am",ans:x.am,label:bl+" amortization",work:disc?d$(x.ie)+" − "+d$(x.cash)+" = "+d$(x.am):d$(x.cash)+" − "+d$(x.ie)+" = "+d$(x.am),
+      wrong:(v,f)=>{const e=f["e"+p], c=f["c"+p]; if(e!=null&&c!=null&&!isNaN(e)&&!isNaN(c)&&v===Math.abs(e-c)&&(e!==x.ie||c!==x.cash))return "Your subtraction is right, but cash paid or interest expense in this row is not.";
+        return "Amortization is the difference between interest expense and cash paid.";}});
+    flds.push({id:"v"+p,row:k,col:"cv",ans:x.cv,label:bl+" carrying value",work:disc?d$(x.beg)+" + "+d$(x.am)+" = "+d$(x.cv):d$(x.beg)+" − "+d$(x.am)+" = "+d$(x.cv),
+      wrong:v=>{if(disc&&v===x.beg-x.am)return "For a discount, amortization increases the carrying value toward face value: add it.";
+        if(!disc&&v===x.beg+x.am)return "For a premium, amortization decreases the carrying value toward face value: subtract it.";
+        return disc?"Carrying value at the start of the period + amortization.":"Carrying value at the start of the period − amortization.";}});
+  });
+  steps.push({type:"calc",phase:"pay",ref:"Table",tickLabel:"Table",kind:"Effective-interest amortization",date:"Jun 30",yr:YEAR,title:"Prepare the first rows of the amortization table",
+    desc:"Fill in the first three rows of the bond "+dname+" amortization table. Interest expense is the carrying value at the start of each period × the market rate per period ("+i+"%). Cash paid is face value × the stated rate per period ("+j+"%).",
+    amort:{dates,start:price},
+    hint:"Cash paid = "+d$(F)+" × "+j+"%. Interest expense = carrying value from the row above × "+i+"%. Amortization = "+(disc?"interest expense − cash paid. Add it to the carrying value.":"cash paid − interest expense. Subtract it from the carrying value."),
+    why:"The effective-interest method charges the market rate on what Problem Solvers actually owes (the carrying value). Because that rate differs from the stated rate, interest expense and cash paid differ, and the difference amortizes the "+dname+". Each period the carrying value moves closer to the "+d$(F)+" face value due at maturity.",
+    fields:flds});
+  const pay=(k,date,yr,extra)=>{const x=rows[k];
+    E({phase:"pay",kind:"Interest payment",date,yr,title:"Record the "+(k===0?"first":"second")+" interest payment",
+      desc:"Paid the semiannual interest on the bonds and amortized the "+dname+", using row "+(k+1)+" of your amortization table."+extra,
+      calc:"Interest expense "+d$(x.ie)+(disc?" = cash "+d$(x.cash)+" + discount amortized "+d$(x.am):" = cash "+d$(x.cash)+" − premium amortized "+d$(x.am)),
+      lines:disc?[{a:"ix",dr:x.ie},{a:"cash",cr:x.cash},{a:"disc",cr:x.am}]:[{a:"ix",dr:x.ie},{a:"prem",dr:x.am},{a:"cash",cr:x.cash}],
+      why:disc?"Interest expense ("+d$(x.ie)+") is more than the cash paid ("+d$(x.cash)+"). Crediting the discount for the difference shrinks the contra-liability, so the carrying value rises to "+d$(x.cv)+".":
+        "Interest expense ("+d$(x.ie)+") is less than the cash paid ("+d$(x.cash)+"). Debiting the premium for the difference shrinks it, so the carrying value falls to "+d$(x.cv)+".",
+      miss:Object.assign({bp:"Bonds Payable stays at face value until the bonds are repaid. Amortize the "+dname+" instead.",ip:"The interest was paid in cash today, so nothing is owed.",irev:"Problem Solvers is the borrower, so it has interest expense.",np:"The debt is the bonds, not a note."},
+        disc?{prem:"These bonds were issued at a discount, so amortize Discount on Bonds Payable."}:{disc:"These bonds were issued at a premium, so amortize Premium on Bonds Payable."}),
+      amtTips:{ixD:"Use interest expense from row "+(k+1)+" of your table.",cashC:"Cash paid = face value × stated rate per period.",discC:"Use the amortization from row "+(k+1)+".",premD:"Use the amortization from row "+(k+1)+"."},
+      amtMsg:{ixD:v=>v===x.cash?"Interest expense isn't the cash paid. Use the market-rate expense from row "+(k+1)+".":null,cashC:v=>v===x.ie?"Cash paid is face value × the stated rate, not interest expense.":null}});};
+  pay(0,"Jun 30",YEAR,"");
+  pay(1,"Dec 31",YEAR," December 31 is also the end of Problem Solvers' fiscal year; because the interest is paid today, nothing needs to be accrued.");
+  const r2=rows[1], unam=Math.abs(F-r2.cv), ixy=rows[0].ie+rows[1].ie;
+  steps.push({type:"calc",phase:"rep",ref:"BS",tickLabel:"BS",kind:"Balance sheet presentation",date:"Dec 31",yr:YEAR,title:"Report the bonds on the balance sheet",
+    desc:"Report the bonds on Problem Solvers' December 31, "+YEAR+" balance sheet, then answer two questions.",
+    hint:"Use the T-account balances after the December 31 payment. Carrying value = Bonds Payable "+(disc?"− the discount":"+ the premium")+" still unamortized.",
+    why:"Bonds are reported at carrying value: face value "+(disc?"less the unamortized discount":"plus the unamortized premium")+". The carrying value equals the present value of the remaining cash flows at the original market rate, and it reaches face value on the maturity date.",
+    fields:[
+     {id:"bp",label:"Bonds payable (face value)",ans:F,work:"Bonds Payable balance: "+d$(F),wrong:v=>v===r2.cv?"Report Bonds Payable at face value, then "+(disc?"subtract":"add")+" the "+dname+".":"Use the Bonds Payable T-account balance."},
+     {id:"un",label:(disc?"Less: Unamortized discount":"Add: Unamortized premium"),ans:unam,work:d$(Math.abs(F-price))+" − "+d$(rows[0].am)+" − "+d$(rows[1].am)+" = "+d$(unam),
+      wrong:v=>v===Math.abs(F-price)?"That's the original "+dname+". Subtract the amortization from both payments.":v===rows[0].am+rows[1].am?"That's the amortization so far. Report what is left unamortized.":"Use the "+DN+" T-account balance."},
+     {id:"cv",label:"Carrying value of the bonds",ans:r2.cv,work:disc?d$(F)+" − "+d$(unam)+" = "+d$(r2.cv):d$(F)+" + "+d$(unam)+" = "+d$(r2.cv),
+      wrong:v=>v===price?"That's the carrying value on January 1. Amortization has changed it since then.":v===F?"That's face value. "+(disc?"Subtract":"Add")+" the unamortized "+dname+".":(disc&&v===F+unam)||(!disc&&v===F-unam)?(disc?"A discount is subtracted from face value.":"A premium is added to face value."):"Face value "+(disc?"−":"+")+" unamortized "+dname+"; it matches row 2 of your table."},
+     {id:"ixy",label:"Interest expense for "+YEAR,ans:ixy,work:d$(rows[0].ie)+" + "+d$(rows[1].ie)+" = "+d$(ixy),
+      wrong:v=>v===2*C?"That's the cash paid. Interest expense "+(disc?"also includes":"is reduced by")+" the amortization.":v===rows[0].ie||v===rows[1].ie?"Include both interest payments made in "+YEAR+".":"Add interest expense from the two payments."},
+     {id:"q1",kind:"sel",label:"Why is interest expense "+(disc?"more":"less")+" than the cash interest paid?",ans:"amort",
+      opts:[["amort","The market rate differs from the stated rate, and amortizing the "+dname+" adjusts expense to the market rate"],["late","Some interest was paid late"],["face","Interest expense is always face value × the market rate"],["tax","Interest payments are reduced by income taxes"]],
+      work:"Amortizing the "+dname+" makes total interest expense reflect the market rate investors actually earn.",
+      wrong:v=>({late:"Every payment was made on time. The difference comes from the "+dname+".",face:"Under the effective-interest method, expense is the carrying value (not face value) × the market rate.",tax:"Taxes don't change interest expense here. The difference comes from amortizing the "+dname+"."})[v]},
+     {id:"q2",kind:"sel",label:"As the bonds get closer to maturity, their carrying value…",ans:"face",
+      opts:[["face","Moves toward face value"],["price","Stays at the issue price"],["zero","Moves toward zero"],["away","Moves further from face value"]],
+      work:"By the maturity date the "+dname+" is fully amortized, so carrying value equals face value.",
+      wrong:v=>({price:"Amortization changes the carrying value every period.",zero:"Problem Solvers still owes the full face value at maturity.",away:"Amortization shrinks the "+dname+", so carrying value gets closer to face value."})[v]}
+    ]});
+  return steps;
+}
+
+// ---------- Ledger engine ----------
+function emptyBook(){const b={};ACCTS.forEach(a=>b[a.id]={dr:[],cr:[],d:0,c:0});return b;}
+function postStep(book,step,si){(step.lines||[]).forEach(l=>{const t=book[l.a];if(l.dr){t.dr.push({ref:step.ref,amt:l.dr,si});t.d+=l.dr;}else{t.cr.push({ref:step.ref,amt:l.cr,si});t.c+=l.cr;}});}
+function nbal(b,id){const t=b[id];return A[id].normal==="D"?t.d-t.c:t.c-t.d;}
+function bsVals(b){const bp=nbal(b,"bp"),disc=nbal(b,"disc"),prem=nbal(b,"prem");return {cash:nbal(b,"cash"),bp,disc,prem,cv:bp-disc+prem,ix:nbal(b,"ix")};}
+
+let G=null,STEPS=[],N=0,BOOKS=[],seed=0,I0=null;
+function buildSet(sd){WORK=[];
+  seed=sd; G=gen(sd); STEPS=G.steps; N=STEPS.length; I0=G.info;
+  BOOKS=[]; const bk=emptyBook(); BOOKS.push(JSON.parse(JSON.stringify(bk)));
+  for(let i=0;i<N;i++){postStep(bk,STEPS[i],i);BOOKS.push(JSON.parse(JSON.stringify(bk)));}
+  markDfy(); setChip(); buildTimeline();
+}
+function setChip(){
+  const c=$("setChip"), g=MODE==="graded";
+  c.classList.toggle("graded",g);
+  c.innerHTML=g?"Graded attempt":'Problem set <b>#'+seed+'</b>';
+  c.title=g?"Show a hint and Show the answer are off. Only your first submission on each step counts.":"Each problem set uses different amounts, rates, and terms";
+}
+
+// ---------- state ----------
+let k=0, recap=false, status=[], F=null, confirmReset=false;
+// GS = the graded attempt as the server reports it. It never holds the seed or any answer the server hasn't returned.
+let MODE="practice", GS=null, PENDING=null, BUSY=false;
+let VIEW=null; // graded mode: the submitted step being looked at (view only), or null for the current step
+const VIEWS=["calc","bs","t","j"];
+function save(){try{
+  if(MODE==="graded"&&GS)localStorage.setItem(GKEY,JSON.stringify({attempt:GS.id,course:GS.course}));
+  else if(G)localStorage.setItem(KEY,JSON.stringify({seed,k,recap,status,year:YEAR,work:WORK}));
+  if(!PENDING)localStorage.setItem(MKEY,MODE);
+  const v={};VIEWS.forEach(x=>v[x]=$("v-"+x).checked);localStorage.setItem(KEY+".views",JSON.stringify(v));
+  localStorage.setItem(KEY+".hide",$("hideIdle").checked?"1":"0");
+}catch(e){}}
+function load(){
+  let m=null, ptr=null;
+  try{const v=JSON.parse(localStorage.getItem(KEY+".views")||"null");if(v)VIEWS.forEach(x=>{if(x in v)$("v-"+x).checked=!!v[x];});
+    $("hideIdle").checked=localStorage.getItem(KEY+".hide")!=="0";
+    ptr=JSON.parse(localStorage.getItem(GKEY)||"null"); m=localStorage.getItem(MKEY);}catch(e){$("hideIdle").checked=true;ptr=null;}
+  let hs=null; try{const mm=/^#set(\d{1,9})$/.exec(location.hash||"");if(mm)hs=+mm[1];}catch(e){}
+  // A graded attempt is resumed from the server once the Supabase library has loaded (see the end of the script).
+  if(!COURSE&&m==="graded"&&!hs&&ptr&&typeof ptr.attempt==="string"&&UUID_RE.test(ptr.course||""))useCourse({id:ptr.course},true);
+  if(m==="graded"&&!hs&&ptr&&typeof ptr.attempt==="string"&&COURSE&&ptr.course===COURSE)PENDING=ptr.attempt;
+  loadPractice(hs);
+}
+function loadPractice(hs){
+  let st=null;
+  try{st=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+  if(st&&st.year!==YEAR)st=null;
+  if(hs&&(!st||st.seed!==hs)){buildSet(hs);fresh();return;}
+  if(st&&st.seed){try{buildSet(st.seed);WORK=workIn(st.work);k=Math.max(0,Math.min(N,st.k|0));recap=!!st.recap&&k>0&&STEPS[k-1].type==="entry";status=Array.isArray(st.status)&&st.status.length===N?st.status:new Array(N).fill(null);if(k<N)startForm();return;}catch(e){}}
+  buildSet(randomSeed()); fresh();
+}
+function fresh(){k=0;recap=false;status=new Array(N).fill(null);startForm();}
+function startForm0(){const s=STEPS[k];F={rows:s&&s.type==="entry"?(s.lines||new Array(s.lineCount).fill(0)).map(()=>({a:"",dr:"",cr:""})):[],vals:{},cpt:{},fb:null,tries:0,revealed:false,hint:false,warn:null};confirmReset=false;}
+// Practice keeps each step's work (what was entered, checked or shown) so moving between steps, reloading
+// or leaving the page doesn't lose it. WORK[i] is step i's form; it's saved with the practice set.
+let WORK=[];
+function workIn(w){return Array.isArray(w)?w.map(x=>x&&typeof x==="object"&&Array.isArray(x.rows)?Object.assign({vals:{}},x,{warn:null}):null):[];}
+function startForm(){if(MODE!=="graded"&&WORK[k]){F=WORK[k];F.warn=null;confirmReset=false;return;}startForm0();if(MODE!=="graded")WORK[k]=F;}
+// Save practice work as it's typed, and when the page is left.
+document.addEventListener("input",()=>{if(MODE!=="graded")setTimeout(save,0);});
+document.addEventListener("change",()=>{if(MODE!=="graded")setTimeout(save,0);});
+window.addEventListener("pagehide",()=>{save();});
+
+// ---------- graded mode (server) ----------
+// The class and lab come from the course page link: ?course=<id>&lab=tvm-bonds
+let COURSE=(()=>{try{const q=new URLSearchParams(location.search);const c=q.get("course")||"";
+  return q.get("lab")===LAB_SLUG&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c)?c:null;}catch(e){return null;}})();
+// Opened from a plain link (a Canvas page, a bookmark), the link has no class. After sign-in the Graded
+// dialog looks up the student's classes that assign this lab as graded and uses their only one, or asks.
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COURSE_FROM_URL=!!COURSE;
+let CLASSES=null, CNAME="";
+// The chosen class goes into the address too, so a reload or the sign-in email comes back to it.
+function useCourse(c,quiet){
+  if(GS&&GS.course!==c.id&&!graded())GS=null;
+  COURSE=c.id; CNAME=c.name||"";
+  try{const u=new URL(location.href);u.searchParams.set("course",c.id);u.searchParams.set("lab",LAB_SLUG);history.replaceState(null,"",u.href);}catch(e){}
+  if(!quiet)loadTopics();
+}
+function clearCourse(){
+  if(COURSE_FROM_URL)return;
+  COURSE=null; CNAME="";
+  try{const u=new URL(location.href);u.searchParams.delete("course");u.searchParams.delete("lab");history.replaceState(null,"",u.href);}catch(e){}
+}
+async function loadClasses(){
+  CLASSES=null;
+  const fail=()=>{throw new Error("Your classes didn't load. Check your connection and try again.");};
+  const e=await sb().from("enrollments").select("course_id, courses(id,name,term)").eq("student_id",USER.id);
+  if(e.error)fail();
+  const cs=(e.data||[]).map(r=>r.courses).filter(Boolean);
+  let g=new Set();
+  if(cs.length){
+    const a=await sb().from("course_activities").select("course_id, mode, activities!inner(slug)").in("course_id",cs.map(c=>c.id)).eq("activities.slug",LAB_SLUG);
+    if(a.error)fail();
+    g=new Set((a.data||[]).filter(r=>r.mode==="graded").map(r=>r.course_id));
+  }
+  CLASSES=cs.filter(c=>g.has(c.id)).sort((x,y)=>String(x.name||"").localeCompare(String(y.name||"")));
+  if(CLASSES.length===1)useCourse(CLASSES[0]);
+}
+function classHTML(){
+  if(CLASSES==null)return DLG.busy?'<div class="gdlg-note">Finding your classes…</div>':'';
+  if(!CLASSES.length)return '<div class="gdlg-note warn"><b>None of your classes has this lab assigned as graded.</b> Check with your instructor, or keep working in Practice mode.</div>';
+  return '<p style="margin:14px 0 0"><b>Which class is this graded attempt for?</b></p>'+CLASSES.map((c,i)=>'<label class="pledge gclass"><input type="radio" name="gClass" value="'+esc(c.id)+'"'+(i===0?" checked":"")+'> <span>'+esc(c.name||"Class")+(c.term?' <span class="gterm">· '+esc(c.term)+'</span>':'')+'</span></label>').join("");
+}
+function focusDlg(){const d=$("gDlg");const p=d.querySelector("#gCode")||d.querySelector("#gEmail")||d.querySelector('input[name="gClass"]:checked')||d.querySelector("#pledge")||d.querySelector(".btn.primary");if(p)p.focus();}
+let SB=null;
+function sb(){
+  if(!SB){if(!window.supabase||!window.supabase.createClient){const e=new Error("The sign-in service didn't load. Check your connection and reload the page.");e.code="sdk";throw e;}
+    SB=window.supabase.createClient(SB_URL,SB_KEY);}
+  return SB;
+}
+async function currentUser(){const {data}=await sb().auth.getSession();return data&&data.session?data.session.user:null;}
+// Calls the lab-attempt edge function as the signed-in student. Throws an Error with .code and a message to show.
+async function api(body){
+  let res;
+  try{res=await sb().functions.invoke("lab-attempt",{body});}
+  catch(e){if(e&&e.code==="sdk")throw e;const x=new Error("Could not reach the grading server. Check your connection and try again.");x.code="network";throw x;}
+  if(!res.error)return res.data;
+  let msg="Could not reach the grading server. Check your connection and try again.", code="network";
+  try{const c=res.error.context;if(c&&typeof c.json==="function"){const j=await c.json();if(j&&j.message)msg=j.message;if(j&&(j.error||j.code))code=String(j.error||j.code);
+    if(c.status===401){code="unauthorized";msg="Your sign-in has expired. Sign in again to keep going.";}}}catch(e){}
+  const x=new Error(msg); x.code=code; throw x;
+}
+const graded=()=>MODE==="graded";
+function maxPts(i){return graded()&&GS?GS.max[i]:(STEPS[i].type==="calc"?STEPS[i].fields.length:1);}
+function totalMax(){let t=0;for(let i=0;i<N;i++)t+=maxPts(i);return t;}
+function earnedPts(){return GS?GS.pts.reduce((t,x)=>t+(x||0),0):0;}
+function scoredMax(){let t=0;for(let i=0;i<N;i++)if(GS&&GS.done[i])t+=maxPts(i);return t;}
+// Merge a solution the server returned into the step, so the journal, T-accounts and balance sheet can show it.
+function applySolution(i,sol){
+  const s=STEPS[i]; if(!s||!sol)return;
+  if(s.type==="entry"){if(Array.isArray(sol.lines))s.lines=sol.lines;if(sol.why)s.why=sol.why;if(sol.calc)s.calc=sol.calc;}
+  else{if(sol.why)s.why=sol.why;(sol.fields||[]).forEach(x=>{const f=s.fields.find(y=>y.id===x.id);if(f){f.ans=x.ans;f.work=x.work;}});
+    (sol.groups||[]).forEach(x=>{const g=(s.groups||[]).find(y=>y.pfx===x.pfx);if(g)g.work=x.work;});}
+}
+function rebuildBooks(){
+  BOOKS=[]; const bk=emptyBook(); BOOKS.push(JSON.parse(JSON.stringify(bk)));
+  for(let i=0;i<N;i++){postStep(bk,STEPS[i],i);BOOKS.push(JSON.parse(JSON.stringify(bk)));}
+}
+// Classes that hide answers send no solution. A student can only post an entry once every line is right,
+// so their own corrected entry is the correct one: post it to the journal, T-accounts and balance sheet.
+// It reveals nothing they haven't already entered. Corrected entries are kept in this browser so a reload keeps them.
+// The same goes for a calculation: the amortization table can only be left once every box is right, so the
+// student's own corrected table fills in the balance sheet's "Amortization so far".
+function ownLines(rows){return (rows||[]).map(r=>({a:r.a,dr:parseAmt(r.dr)||0,cr:parseAmt(r.cr)||0})).filter(l=>l.a&&(l.dr||l.cr));}
+function ownKey(){return "bondlab2.own."+(GS&&GS.id);}
+function ownLoad(){try{return JSON.parse(localStorage.getItem(ownKey())||"{}")||{};}catch(e){return {};}}
+function ownSave(i,lines){try{const o=ownLoad();o[i]=lines;localStorage.setItem(ownKey(),JSON.stringify(o));}catch(e){}}
+// A corrected calculation's own values, as the answers they stand for: signs dropped in calculator boxes, rates as percents.
+function ownCalc(s,vals){
+  if(!s||s.type!=="calc"||!vals)return;
+  s.fields.forEach(f=>{const raw=vals[f.id];if(raw==null||raw==="")return;
+    if(f.kind){f.ans=raw;return;}
+    const v=parseAmt(raw);if(v===null||isNaN(v))return;
+    f.ans=f.pct?pctOf(Math.abs(v)):f.box?Math.abs(v):v;});
+}
+// The problem facts the views need, from what the student has reached: the issuance entry gives face value and
+// price, and the amortization table step gives its rates and, once solved, its rows. Unknown facts stay null.
+function gInfo(){
+  const o={disc:null,F:null,price:null,rows:null,i:null,j:null};
+  const tb=STEPS.find(s=>s.ref==="Table"), iss=STEPS.find(s=>s.type==="entry"&&s.ref==="1"&&s.lines), pr=STEPS.find(s=>s.ref==="Price");
+  const pf=id=>{const f=pr&&pr.fields&&pr.fields.find(x=>x.id===id);return f&&f.ans!=null?f.ans:null;};
+  o.F=pf("bFV"); o.price=pf("bPV"); if(pf("at"))o.disc=pf("at")==="disc";
+  if(tb&&tb.amort&&tb.amort.i!=null){o.disc=tb.amort.disc;o.i=tb.amort.i;o.j=tb.amort.j;o.price=tb.amort.start;}
+  if(iss){const L=a=>iss.lines.find(l=>l.a===a)||{};o.F=L("bp").cr||o.F;o.price=L("cash").dr||o.price;o.disc=!!L("disc").dr;}
+  if(tb&&tb.fields&&tb.fields.every(f=>f.ans!=null)){const v=id=>tb.fields.find(f=>f.id===id).ans;
+    o.rows=[1,2,3].map(p=>({cash:v("c"+p),ie:v("e"+p),am:v("a"+p),cv:v("v"+p)}));}
+  return o;
+}
+function inf(){return graded()?gInfo():I0;}
+// Build the page state from the server's "problem" response: public steps, saved points, returned solutions.
+function applyProblem(p){
+  if(MODE==="practice"&&G)save();
+  MODE="graded"; G=null; seed=0; I0=null;
+  setYear(p.lab_year); // every date and label follows the attempt, even if it is finished after New Year
+  STEPS=JSON.parse(JSON.stringify(p.steps)); N=STEPS.length;
+  GS={id:p.attempt_id,course:COURSE,startedAt:p.started_at,finishedAt:p.finished_at||null,
+    score:p.score==null?null:p.score,total:p.total==null?null:p.total,max:p.max_points.slice(),pts:[],done:[],ans:[],fb:[],err:null};
+  VIEW=null;
+  status=new Array(N).fill(null);
+  const ownSaved=ownLoad();
+  Object.keys(p.progress||{}).forEach(key=>{const i=+key, r=p.progress[key];
+    if(r.doneForYou){dfyGraded(i,r);return;}
+    GS.done[i]=true; GS.pts[i]=r.points; GS.ans[i]=r.answer; GS.fb[i]=r.feedback; status[i]=r.points===r.maxPoints?"first":"retry";
+    if(r.solution)applySolution(i,r.solution);
+    else if(STEPS[i]&&STEPS[i].type==="entry"){
+      const ln=r.points===r.maxPoints&&r.answer&&r.answer.rows?ownLines(r.answer.rows):(ownSaved[i]||null);
+      if(ln&&ln.length)STEPS[i].lines=ln;}
+    else if(STEPS[i]&&STEPS[i].type==="calc")ownCalc(STEPS[i],r.points===r.maxPoints&&r.answer&&r.answer.vals?r.answer.vals:(ownSaved[i]&&ownSaved[i].vals));});
+  rebuildBooks(); setChip(); buildTimeline();
+  k=GS.finishedAt?N:Math.max(0,Math.min(N,p.next_step|0)); DFYSHOW=null;
+  if(k<N)while(k>0&&STEPS[k-1].doneForYou&&GS.done[k-1])k--; recap=false; startForm();
+}
+async function enterAttempt(id){
+  const p=await api({action:"problem",attempt_id:id});
+  applyProblem(p); render(true); scrollEntry(); focusFirst();
+}
+function exitGraded(){save();VIEW=null;MODE="practice";setYear(PYEAR);loadPractice(null);}
+// Blank or unreadable answers are never sent, so a stray click can't use up the first submission.
+function incomplete(s){
+  if(s.type==="entry"){
+    for(const r of F.rows){
+      if(!r.a)return "Choose an account on every line.";
+      const d=parseAmt(r.dr), c=parseAmt(r.cr);
+      if(Number.isNaN(d)||Number.isNaN(c))return "Amounts must be whole-dollar numbers, like 1200 or 1,200.";
+      if(!d&&!c)return "Enter an amount on every line.";}
+    return null;}
+  if(s.fields.some(f=>f.box&&parseAmt(F.vals[f.id])===null))return "Fill in every calculator box. Leave only the box you're solving for blank, press Calculate, then submit.";
+  for(const f of s.fields){const raw=F.vals[f.id];
+    if(f.kind){if(!raw)return "Answer every question.";continue;}
+    const v=parseAmt(raw);
+    if(v===null)return "Fill in every answer box.";
+    if(Number.isNaN(v))return "Enter numbers only, like 2400 or 2,400.";}
+  return null;
+}
+function when(ms){return new Date(ms).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"}).replace(/ /g," ");}
+function markBusy(act,label){const b=$("entry").querySelector('[data-act="'+act+'"]');if(b){b.disabled=true;b.setAttribute("aria-busy","true");if(label)b.textContent=label;}}
+function onApiError(e){if(e&&e.code==="unauthorized"){USER=null;openGDlg(e.message);}}
+// Send the answer to the server; show the feedback it returns. Points come only from the server.
+async function submitGraded(s){
+  if(BUSY)return;
+  if(!GS.done[k]){const w=incomplete(s);if(w){F.warn=w;renderEntry();return;}}
+  const i=k, cpt={};
+  Object.keys(F.cpt||{}).forEach(g=>{const c=F.cpt[g];if(c&&c.key)cpt[g]={key:c.key,val:c.val};});
+  const answer=s.type==="entry"?{rows:F.rows.map(r=>({a:r.a,dr:r.dr,cr:r.cr}))}:{vals:Object.assign({},F.vals),cpt};
+  F.warn=null; BUSY=true; markBusy("check","Submitting…");
+  try{
+    const r=await api({action:"submit-step",attempt_id:GS.id,step:i,answer,signals:window.IACSignals?IACSignals.take():null});
+    if(!graded()||k!==i)return;
+    F.tries++; F.fb=r.feedback; GS.done[i]=true; GS.pts[i]=r.points;
+    (r.doneForYou||[]).forEach(g=>dfyGraded(g.step,g));
+    if(r.after&&STEPS[r.after.step]&&STEPS[r.after.step].locked)STEPS[r.after.step]=r.after.public;
+    if(r.doneForYou){if(typeof rebuildBooks==="function")rebuildBooks(GS.info&&GS.info.par);if(typeof gI0==="function"){I0=gI0();paintBiz();}buildTimeline();}
+    if(r.first&&GS.ans[i]===undefined){GS.ans[i]=answer;GS.fb[i]=JSON.parse(JSON.stringify(r.feedback));} // the scored submission, for looking back
+    if(r.next&&STEPS[i+1]&&STEPS[i+1].locked)STEPS[i+1]=r.next; // the server sends each step's text when it is reached
+    if(r.solution){applySolution(i,r.solution);rebuildBooks();}
+    else if(s.type==="entry"&&(r.correct||(r.feedback&&r.feedback.all))){
+      const ln=ownLines(answer.rows); if(ln.length){s.lines=ln;ownSave(i,ln);rebuildBooks();}}
+    else if(s.type==="calc"&&(r.correct||(r.feedback&&r.feedback.all))){ownCalc(s,answer.vals);ownSave(i,{vals:answer.vals});}
+    if(s.type==="calc"&&F.fb.all)status[i]=GS.pts[i]===maxPts(i)?"first":"retry";
+    BUSY=false; render(false);
+    const bad=$("entry").querySelector(".line.bad-a select,.line.bad-s input.filled,.line.bad-n input,.field.no input,.ck.no input,td.no input");
+    if(bad)bad.focus();else focusAct("post")||focusAct("cont")||focusAct("finishG");
+  }catch(e){BUSY=false;F.warn=e.message;renderEntry();onApiError(e);}
+  finally{BUSY=false;}
+}
+async function finishGraded(){
+  if(BUSY)return;
+  BUSY=true; GS.err=null; markBusy("finishG","Finishing…");markBusy("finish","Finishing…");markBusy("cont","Finishing…");
+  try{
+    const r=await api({action:"finish",attempt_id:GS.id});
+    GS.finishedAt=r.finished_at; GS.score=r.score; GS.total=r.total;
+    k=N; recap=false; BUSY=false; render(false); scrollEntry();
+  }catch(e){BUSY=false;GS.err=e.message;k=N;recap=false;render(false);onApiError(e);}
+  finally{BUSY=false;}
+}
+function renderGradedDone(){
+  const fin=!!GS.finishedAt;
+  $("entryH").textContent=fin?"Graded attempt complete":"Finish your graded attempt";
+  $("entrySub").textContent=fin?"Your score is saved":"";
+  let rows="";
+  STEPS.forEach((s,i)=>{if(s.doneForYou&&!(GS.max&&GS.max[i]))return;const p=GS.pts[i]||0,mx=maxPts(i);
+    rows+='<tr class="'+(p<mx?"miss":"")+'"><td>'+esc(s.type==="entry"?s.ref:s.tickLabel)+'</td><td>'+esc(s.title)+'</td><td class="r">'+(GS.done[i]?p:"—")+' / '+mx+'</td></tr>';});
+  const table='<details class="pts"><summary>Your points by step</summary><table class="ptab"><tbody>'+rows+'</tbody></table></details>';
+  if(!fin){
+    $("entry").innerHTML='<h3 class="entry-title" style="margin-top:0">You have submitted every step</h3>'+
+      '<p class="entry-desc">Finish the attempt to record your score. After you finish, your score can\'t change.</p>'+
+      (GS.err?'<div class="overall no"><b>Not finished yet.</b> '+esc(GS.err)+'</div>':'')+table+
+      controls('<button class="btn primary" data-act="finishG">Finish and see your score →</button>');
+    return;
+  }
+  const pct=GS.total?Math.round(GS.score/GS.total*100):0;
+  $("entry").innerHTML='<h3 class="entry-title" style="margin-top:0">You finished the graded lab: '+GS.score+' of '+GS.total+' points ('+pct+'%)</h3>'+
+    '<div class="final"><b>Score: '+GS.score+' / '+GS.total+'</b><br>Finished '+esc(when(GS.finishedAt))+'<br>Started '+esc(when(GS.startedAt))+'</div>'+
+    '<p class="entry-desc">Your score is saved to your class, so there is nothing to copy or turn in. Your instructor sees it in the gradebook.</p>'+
+    table+controls('');
+}
+
+// mode switch, sign-in and rules dialog
+let dlgConfirm=false, USER=null, DLG={stage:"email",email:"",err:null,info:null,busy:false};
+function rulesHTML(){
+  const pts=graded()&&GS?totalMax():null;
+  return '<ul>'+
+    '<li><b>No hints or answers.</b> Show a hint and Show the answer are turned off.</li>'+
+    '<li><b>Only your first submission counts.</b> Each journal entry is worth 1 point, and each answer box in a calculation step is worth 1 point'+(pts?' ('+pts+' points in all)':'')+'. After you submit, you\'ll see what is wrong and why, and you must fix it to move on, but retries don\'t change your score.</li>'+
+    '<li><b>Look back, but no changes.</b> Click an earlier step in the timeline to see what you submitted and its feedback. You can\'t change a submitted step or start over during the attempt.</li>'+
+    '<li><b>Saved to your account.</b> You get a new problem set, graded and saved on the server as you go. You can leave and come back, even on another device, but the clock keeps running.</li>'+
+    '<li><b>Your score goes to your class.</b> When you finish, your score and finish time are recorded for your instructor. There is nothing to copy or paste.</li>'+
+    '<li><b>Work on your own.</b> Getting help from another person or an AI tool, or sharing your answers, is academic dishonesty. Every attempt has its own numbers.</li>'+
+    '<li><b>How you answer is recorded.</b> Along with your answers and times, the lab notes how they were entered (typing, pasting, leaving this page, and signs of AI or automation tools) for your instructor to review. It never records what you type anywhere else.</li></ul>';
+}
+function signInHTML(){
+  if(DLG.stage==="code")return '<div class="signin"><p style="margin:0">We sent a sign-in email to <b>'+esc(DLG.email)+'</b>. Enter the code from the email here.</p>'+
+    '<label for="gCode">Code from the email</label><input id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10">'+
+    '<div class="gdlg-actions" style="justify-content:flex-start;margin-top:4px"><button class="btn primary" data-g="verify">Sign in</button><button class="btn" data-g="restart">Use a different email</button></div></div>';
+  return '<div class="signin"><p style="margin:0"><b>Sign in to start a graded attempt.</b> Use the email address you use for your course page.</p>'+
+    '<label for="gEmail">Email</label><input id="gEmail" type="email" autocomplete="email" value="'+esc(DLG.email)+'">'+
+    '<div class="gdlg-actions" style="justify-content:flex-start;margin-top:4px"><button class="btn primary" data-g="send">Email me a sign-in code</button></div></div>';
+}
+function paintGDlg(){
+  const live=GS&&!GS.finishedAt, fin=GS&&GS.finishedAt;
+  let h='<p style="margin:0">Graded mode works like a quiz:</p>'+rulesHTML(), btn='<button class="btn" data-g="cancel">'+(graded()?"Back to the lab":"Stay in practice")+'</button>';
+  if(DLG.err)h+='<div class="gdlg-note warn">'+esc(DLG.err)+'</div>';
+  if(DLG.info)h+='<div class="gdlg-note">'+esc(DLG.info)+'</div>';
+  if(!USER){
+    h+=signInHTML();
+  } else if(!COURSE){
+    h+='<div class="signin"><span class="who">Signed in as '+esc(USER.email||"")+'. <button class="btn small" data-g="signout">Sign out</button></span></div>';
+    h+=classHTML();
+    if(CLASSES==null&&!DLG.busy)btn+='<button class="btn primary" data-g="classes">Find my classes</button>';
+    else if(CLASSES&&CLASSES.length>1)btn+='<button class="btn primary" data-g="pick">Continue</button>';
+  } else {
+    h+='<div class="signin"><span class="who">Signed in as '+esc(USER.email||"")+'. <button class="btn small" data-g="signout">Sign out</button></span>'+
+      (CNAME?'<span class="who">Class: <b>'+esc(CNAME)+'</b>'+(!COURSE_FROM_URL&&CLASSES&&CLASSES.length>1&&!graded()?' <button class="btn small" data-g="change">Change class</button>':'')+'</span>':'')+'</div>';
+    if(dlgConfirm){
+      h+='<div class="gdlg-note warn"><b>Start another graded attempt?</b> Your finished attempt and its score stay saved. A new attempt gets new numbers, if your class allows more than one attempt.</div>';
+      btn+='<button class="btn primary" data-g="start">Yes, start a new attempt</button>';
+    } else if(live&&graded()){
+      h+='<div class="gdlg-note">You are in a graded attempt that started '+esc(when(GS.startedAt))+'.</div>';
+      btn='<button class="btn primary" data-g="cancel">Back to the lab</button>';
+    } else if(live){
+      h+='<div class="gdlg-note">You have a graded attempt in progress. It started '+esc(when(GS.startedAt))+'.</div>';
+      btn+='<button class="btn primary" data-g="resume">Resume my attempt</button>';
+    } else if(fin){
+      h+='<div class="gdlg-note">You finished a graded attempt on '+esc(when(GS.finishedAt))+' with '+GS.score+' of '+GS.total+' points.</div>';
+      btn+='<button class="btn" data-g="new">Start a new attempt</button><button class="btn primary" data-g="resume">View my score</button>';
+    } else {
+      h+='<div class="gdlg-note">If you already started a graded attempt for this class, you\'ll pick up where you left off.</div>';
+      btn+='<button class="btn primary" data-g="start">Start graded attempt</button>';
+    }
+    if(btn.indexOf('data-g="start"')>=0){
+      h+='<label class="pledge"><input type="checkbox" id="pledge"> <span>I will complete this graded attempt on my own, without help from another person or an AI tool, and I will not share my answers.</span></label>';
+      btn=btn.replace('data-g="start"','data-g="start" disabled');}
+  }
+  $("gDlgB").innerHTML=h+'<div class="gdlg-actions">'+btn+'</div>';
+  if(DLG.busy)$("gDlgB").querySelectorAll(".btn").forEach(b=>{b.disabled=true;});
+}
+async function openGDlg(note){
+  dlgConfirm=false; DLG.err=note||null; DLG.info=null;
+  try{USER=await currentUser();}catch(e){USER=null;DLG.err=e.message;}
+  paintGDlg();
+  const d=$("gDlg");if(!d.open){if(d.showModal)d.showModal();else d.setAttribute("open","");}
+  focusDlg();
+  if(USER&&!COURSE&&CLASSES==null)dlgRun(loadClasses).then(focusDlg);
+}
+function closeGDlg(){const d=$("gDlg");if(d.close)d.close();else d.removeAttribute("open");}
+async function dlgRun(fn){
+  if(DLG.busy)return; DLG.busy=true; DLG.err=null; DLG.info=null; paintGDlg();
+  try{await fn();}catch(e){DLG.err=e&&e.message?e.message:"Something went wrong. Try again.";onApiError(e);}
+  finally{DLG.busy=false;if($("gDlg").open)paintGDlg();}
+}
+$("gDlgB").addEventListener("click",e=>{
+  const b=e.target.closest("[data-g]"); if(!b||b.disabled)return; const g=b.dataset.g;
+  if(g==="cancel"){closeGDlg();return;}
+  if(g==="new"){dlgConfirm=true;paintGDlg();const p=$("pledge");if(p)p.focus();return;}
+  if(g==="restart"){DLG.stage="email";DLG.err=null;paintGDlg();return;}
+  if(g==="send"){const email=($("gEmail").value||"").trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){DLG.err="Enter your email address.";paintGDlg();return;}
+    DLG.email=email;
+    dlgRun(async()=>{const {error}=await sb().auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.href.split("#")[0]}});
+      if(error)throw new Error(/signups? not allowed|not found/i.test(error.message)?"There is no account for that email. Join your class on the course page first.":error.message);
+      DLG.stage="code";});
+    return;}
+  if(g==="verify"){const token=($("gCode").value||"").replace(/\s/g,"");
+    if(!token){DLG.err="Enter the code from the email.";paintGDlg();return;}
+    dlgRun(async()=>{const {data,error}=await sb().auth.verifyOtp({email:DLG.email,token,type:"email"});
+      if(error)throw new Error("That code didn't work. Check it, or send a new one.");
+      USER=data.user; DLG.stage="email"; if(!COURSE)await loadClasses();});
+    return;}
+  if(g==="signout"){dlgRun(async()=>{await sb().auth.signOut();USER=null;if(graded()){exitGraded();render(true);}GS=null;CLASSES=null;clearCourse();try{localStorage.removeItem(GKEY);}catch(x){}});return;}
+  if(g==="classes"){dlgRun(loadClasses).then(focusDlg);return;}
+  if(g==="pick"){const r=$("gDlgB").querySelector('input[name="gClass"]:checked');const c=r&&CLASSES&&CLASSES.find(x=>x.id===r.value);if(c){useCourse(c);paintGDlg();focusDlg();}return;}
+  if(g==="change"){clearCourse();if(!graded())GS=null;paintGDlg();focusDlg();return;}
+  if(g==="start"&&!($("pledge")&&$("pledge").checked))return;
+  if(g==="start"||g==="resume"){
+    dlgRun(async()=>{
+      const id=g==="resume"?GS.id:(await api({action:"start",course_id:COURSE,lab:LAB_SLUG})).attempt_id;
+      if(window.IACSignals)IACSignals.reset();
+      await enterAttempt(id); closeGDlg();});
+  }
+});
+$("gDlgB").addEventListener("change",e=>{if(e.target.id==="pledge"){const b=$("gDlgB").querySelector('[data-g="start"]');if(b)b.disabled=!e.target.checked;}});
+$("gDlgB").addEventListener("keydown",e=>{if(e.key!=="Enter")return;
+  if(e.target.id==="gEmail"){e.preventDefault();const b=$("gDlgB").querySelector('[data-g="send"]');if(b)b.click();}
+  else if(e.target.id==="gCode"){e.preventDefault();const b=$("gDlgB").querySelector('[data-g="verify"]');if(b)b.click();}});
+$("modeSw").addEventListener("click",e=>{
+  const b=e.target.closest("[data-mode]"); if(!b)return;
+  if(b.dataset.mode==="graded")openGDlg();
+  else if(graded()){exitGraded();render(true);scrollEntry();}
+});
+function stepAccounts(i){return i>=0&&i<N?new Set((STEPS[i].lines||[]).map(l=>l.a)):new Set();}
+function lastEntryBefore(i){for(let j=i-1;j>=0;j--)if(STEPS[j].type==="entry"&&STEPS[j].lines)return j;return -1;}
+// Graded mode: how many posted entries the views can't show because the server returned no solution for them.
+function hiddenPosted(){let n=0;for(let i=0;i<k&&i<N;i++)if(STEPS[i].type==="entry"&&!STEPS[i].lines)n++;return n;}
+function hiddenNote(){const n=hiddenPosted();return n?'<div class="bs-note">'+(n===1?"1 entry you fixed after a wrong first try isn't":n+" entries you fixed after a wrong first try aren't")+' shown here, because it was corrected on another device or browser. Your class doesn\'t show answers in Graded mode.</div>':"";}
+
+// ---------- timeline ----------
+const PH={tvm:{g:"h",label:"Time value of money"},bond:{g:"est",label:"Issue the bonds · Jan 1"},pay:{g:"h",label:"Interest payments"},rep:{g:"bs",label:"Report"}};
+// Every label built from the year. Practice uses the current year; a graded attempt uses its lab_year throughout.
+function setYear(y){YEAR=y; Y2=y+1; paintBiz();}
+function buildTimeline(){
+  let h="";
+  ["tvm","bond","pay","rep"].forEach(ph=>{
+    h+='<div class="phase ph-'+PH[ph].g+'"><div class="phase-label">'+PH[ph].label+'</div><div class="ticks">';
+    STEPS.forEach((s,i)=>{if(s.phase===ph)h+='<button class="tick" data-i="'+i+'">'+esc(s.tickLabel||s.ref)+'</button>';});
+    h+='</div></div>';});
+  $("timeline").innerHTML=h;
+}
+$("timeline").addEventListener("click",e=>{const t=e.target.closest(".tick");if(t)goTo(+t.dataset.i);});
+function goTo(i){
+  if(graded()){reviewStep(i);return;}
+  i=Math.max(0,Math.min(N-1,i));
+  if(i>k)for(let j=k;j<i;j++)if(!status[j])status[j]="skipped";
+  k=i; recap=false; startForm(); render(true); scrollEntry();
+}
+
+// ---------- graded mode: look back at submitted steps (view only) ----------
+// The step the student is working on (or the entry just posted). Any submitted step can be opened to view
+// the scored first submission, its feedback and, when the class shows answers, the solution. Nothing can be changed.
+function curStep(){return recap?k-1:Math.min(k,N-1);}
+function isCur(i){return i===curStep()&&k<N;}
+function canView(i){return graded()&&!!GS&&i>=0&&i<N&&(isCur(i)||!!GS.done[i]);}
+function reviewStep(i){
+  if(!graded()||BUSY||!canView(i))return;
+  VIEW=isCur(i)?null:i;
+  render(false); scrollEntry();
+  if(VIEW!=null)focusAct("rvBack");else focusAct("next")||focusAct("finish")||focusFirst();
+}
+function reviewNav(i){
+  let prev=-1,next=-1;
+  for(let j=i-1;j>=0;j--)if(GS.done[j]&&!isCur(j)){prev=j;break;}
+  for(let j=i+1;j<N;j++)if(GS.done[j]&&!isCur(j)){next=j;break;}
+  const lab=j=>esc(STEPS[j].tickLabel||STEPS[j].ref);
+  const nav='<div class="grp">'+(prev>=0?'<button class="btn small" data-act="rvGo" data-i="'+prev+'">← '+lab(prev)+'</button>':'')+(next>=0?'<button class="btn small" data-act="rvGo" data-i="'+next+'">'+lab(next)+' →</button>':'')+'</div>';
+  const back=k>=N?(GS.finishedAt?"Back to your score":"Back to finishing"):recap?"Back to where you left off":"Back to step "+(k+1);
+  return '<div class="actions">'+nav+'<div class="grp"><button class="btn primary" data-act="rvBack">'+back+' →</button></div></div>';
+}
+// How a submitted value reads in the review, following the page's own field types.
+function rvMoney(f){return !f.kind&&!f.pct&&!f.dec&&f.box!=="N"&&(!f.unit||f.unit==="$");}
+function rvVal(f,v){
+  if(v==null||v==="")return "(blank)";
+  const t=String(v).trim();
+  if(f.kind&&f.opts){const o=f.opts.find(o=>String(o[0])===t);return o?String(o[1]):t;}
+  if(f.pct||f.unit==="%")return t.replace(/%$/,"")+"%";
+  if(f.unit&&f.unit!=="$")return t+" "+f.unit;
+  if(!rvMoney(f)||/^[-−(]/.test(t))return t;
+  return "$"+t.replace(/^\$\s*/,"");
+}
+function rvMark(r){if(!r)return '';const ok=r.ok===true||r.cls==="ok";return '<div class="fmsg '+(ok?"ok":"no")+'"><span>'+(ok?"✓":"✗")+'</span><span>'+esc(r.msg||"")+'</span></div>';}
+function renderReview(i){
+  if(STEPS[i]&&STEPS[i].doneForYou){renderDfyView(i,false);return;}
+  const s=STEPS[i], a=GS.ans[i], fb=GS.fb[i], p=GS.pts[i]||0, mx=maxPts(i);
+  $("entryH").textContent="Looking back"; $("entrySub").textContent="View only";
+  let h='<div class="rv-note"><b>View only.</b> You already submitted this step, so it can\'t be changed. Your first submission earned '+p+' of '+mx+(mx===1?" point":" points")+'.</div>'+
+    metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>';
+  if(s.type==="entry"){
+    if(a&&Array.isArray(a.rows)){
+      h+='<p class="note" style="margin-top:0">Your first submission (the one that was scored):</p><table class="je"><thead><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+      a.rows.forEach((r,j)=>{const f=fb&&fb.res?fb.res[j]:null;
+        h+='<tr><td'+(r.cr&&!r.dr?' class="cr-name"':'')+'>'+esc(r.a&&A[r.a]?A[r.a].name:"(no account)")+'</td><td class="r num dr-amt">'+esc(r.dr||"")+'</td><td class="r num cr-amt">'+esc(r.cr||"")+'</td></tr>';
+        if(f)h+='<tr class="fb"><td colspan="3">'+rvMark(f)+'</td></tr>';});
+      h+='</tbody></table>';
+      if(fb&&fb.notes&&fb.notes.length)h+='<div class="overall no"><ul>'+fb.notes.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul></div>';
+    } else h+='<p class="note">Your first submission isn\'t available.</p>';
+    if(s.lines)h+='<p class="note">The entry as posted:</p>'+(s.calc?'<div class="calc">'+esc(s.calc)+'</div>':'')+jeTable(s)+(s.why?'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>':'');
+  } else {
+    h+=s.pre||"";
+    const vals=a&&a.vals||{};
+    h+='<div class="fields">';
+    s.fields.forEach(f=>{const r=fb&&fb.res?fb.res[f.id]:null, shown=rvVal(f,vals[f.id]);
+      const sub=f.kind==="cls"&&f.amt!=null?'<small class="num">'+d$(f.amt)+'</small>':f.sub?'<small>'+esc(f.sub)+'</small>':'';
+      h+='<div class="field'+(r?(r.ok?" ok":" no"):"")+'"><div class="frow"><div class="flabel">'+esc(f.label)+sub+'</div><div class="rv-ans">'+esc(shown)+'</div></div>'+rvMark(r);
+      if(f.ans!=null&&!(r&&r.ok)){const c=typeof f.ans==="number"&&rvMoney(f)?d$(f.ans):rvVal(f,f.ans);h+='<div class="work">Correct answer: '+esc(c)+'</div>';}
+      if(f.work!=null)h+='<div class="work">'+esc(f.work)+'</div>';
+      h+='</div>';});
+    h+='</div>';
+    if(!a)h+='<p class="note">Your first submission isn\'t available.</p>';
+    if(s.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(s.why)+'</div>';
+  }
+  $("entry").innerHTML=h+reviewNav(i);
+}
+
+// ---------- shared pieces ----------
+function stepLabel(s){return s.type==="calc"?(s.phase==="rep"?"Balance sheet":s.phase==="tvm"?"Practice":"Calculation"):"Transaction";}
+function metaLine(s,i){return '<div class="entry-meta"><span class="pill '+PH[s.phase].g+'">'+stepLabel(s)+(s.type==="entry"?" "+esc(s.ref):"")+'</span>'+(s.date?'<span>'+s.date+', '+s.yr+'</span>':'')+(s.kind?'<span>· '+esc(s.kind)+'</span>':'')+'<span>· Step '+(i+1)+' of '+N+'</span></div>';}
+function jeTable(s){
+  let h='<table class="je"><thead><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+  s.lines.filter(l=>l.dr).forEach(l=>{h+='<tr><td>'+esc(A[l.a].name)+'</td><td class="r num dr-amt">'+fmt(l.dr)+'</td><td></td></tr>';});
+  s.lines.filter(l=>l.cr).forEach(l=>{h+='<tr><td class="cr-name">'+esc(A[l.a].name)+'</td><td></td><td class="r num cr-amt">'+fmt(l.cr)+'</td></tr>';});
+  return h+'</tbody></table>';
+}
+function radios(name,opts,val,lock,state,label,stack){
+  return '<fieldset class="cg'+(state==="ok"?" grp-ok":state==="no"?" grp-no":"")+'"><legend class="sr">'+esc(label)+'</legend><div class="choices'+(stack?" stack":"")+'">'+
+    opts.map(o=>'<label class="choice"><input type="radio" name="'+name+'" value="'+esc(o[0])+'"'+(val===o[0]?" checked":"")+(lock?" disabled":"")+'><span>'+esc(o[1])+'</span></label>').join("")+'</div></fieldset>';
+}
+function acctOptions(sel){return '<option value="">Choose an account…</option>'+ORDER.map(a=>'<option value="'+a.id+'"'+(sel===a.id?" selected":"")+'>'+a.no+' '+esc(a.name)+'</option>').join("");}
+function controls(primary){
+  let nav;
+  if(graded())nav='<button class="btn small" data-act="exitGraded" title="Your graded attempt is saved to your account, and you can come back to it. The clock keeps running.">Exit to practice</button>';
+  else if(confirmReset)nav='<span class="ask">Start over with:</span><button class="btn small" data-act="resetNew">New problem set</button><button class="btn small" data-act="resetSame">Same numbers</button><button class="btn small" data-act="cancelReset">Cancel</button>';
+  else nav='<button class="btn small" data-act="back"'+(k===0?" disabled":"")+' title="Go back one step">← Back</button><button class="btn small" data-act="reset"'+(k===0&&!recap&&!F.fb?" disabled":"")+'>⟲ Start over</button>';
+  return '<div class="actions"><div class="grp">'+nav+'</div><div class="grp">'+primary+'</div></div>';
+}
+function timelineSVG(tl){
+  const W=560,H=118,L=34,Rr=34,y=64,n=tl.n,X=t=>L+(W-L-Rr)*t/n;
+  let g='<line x1="'+L+'" x2="'+(W-Rr)+'" y1="'+y+'" y2="'+y+'" class="tl-axis"/>';
+  for(let t=0;t<=n;t++){g+='<line x1="'+X(t)+'" x2="'+X(t)+'" y1="'+(y-5)+'" y2="'+(y+5)+'" class="tl-axis"/>';
+    if(n<=12||t%2===0||t===n)g+='<text x="'+X(t)+'" y="'+(y+22)+'" text-anchor="middle" class="tl-tick">'+t+'</text>';}
+  g+='<text x="'+(W/2)+'" y="'+(H-4)+'" text-anchor="middle" class="tl-cap">'+tl.unit+'s from today</text>';
+  if(tl.marks)tl.marks.forEach(mk=>{g+='<circle cx="'+X(mk.t)+'" cy="'+y+'" r="7" class="'+(mk.q?"tl-q":"tl-dot")+'"/><text x="'+X(mk.t)+'" y="'+(y-16)+'" text-anchor="middle" class="tl-lab'+(mk.q?" q":"")+'">'+esc(mk.lab)+'</text>';});
+  if(tl.ann){for(let t=1;t<=n;t++)g+='<circle cx="'+X(t)+'" cy="'+y+'" r="5" class="tl-dot"/>';
+    g+='<path d="M'+X(1)+' '+(y-12)+' V'+(y-18)+' H'+X(n)+' V'+(y-12)+'" class="tl-br"/><text x="'+((X(1)+X(n))/2)+'" y="'+(y-26)+'" text-anchor="middle" class="tl-lab">'+esc(tl.ann)+'</text>';
+    const qt=tl.q==="start"?0:n;g+='<circle cx="'+X(qt)+'" cy="'+y+'" r="8" class="tl-q"/><text x="'+X(qt)+'" y="'+(y+40)+'" text-anchor="middle" class="tl-lab q">?</text>';}
+  return '<div class="tlwrap"><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Cash flow timeline">'+g+'</svg></div>';
+}
+
+// ---------- grading ----------
+function missMsg(s,id){
+  if(s.miss&&s.miss[id])return s.miss[id];
+  return A[id].name+" is not affected by this transaction. Ask which accounts actually change and why.";
+}
+function gradeEntry(s){
+  const sol={}, accts=new Set();
+  s.lines.forEach(l=>{sol[l.a+(l.dr?"D":"C")]=l.dr||l.cr;accts.add(l.a);});
+  const seen=new Set(); let sumD=0,sumC=0;
+  const res=F.rows.map(r=>{
+    const d=parseAmt(r.dr), c=parseAmt(r.cr);
+    if(!r.a)return {cls:"bad-a",msg:"Choose an account for this line."};
+    if(d&&!isNaN(d))sumD+=d; if(c&&!isNaN(c))sumC+=c;
+    if((d===null||d===0)&&(c===null||c===0))return {cls:"bad-n",msg:"Enter an amount in the Debit or Credit column."};
+    if(isNaN(d)||isNaN(c))return {cls:"bad-n",msg:"Amounts must be whole-dollar numbers, like 1200 or 1,200."};
+    if(d&&c)return {cls:"bad-s",msg:"Put the amount in only one column."};
+    const side=d?"D":"C", key=r.a+side, amt=d||c;
+    if(seen.has(key))return {cls:"bad-a",msg:A[r.a].name+" is already used on another line."};
+    seen.add(key);
+    if(!accts.has(r.a))return {cls:"bad-a",msg:missMsg(s,r.a)};
+    if(sol[key]==null){const other=side==="D"?"C":"D", inc=other===A[r.a].normal;
+      return {cls:"bad-s",msg:"Right account, wrong side. "+A[r.a].name+" "+(inc?"increases":"decreases")+" here. It has a normal "+(A[r.a].normal==="D"?"debit":"credit")+" balance, so it is "+(other==="D"?"debited":"credited")+"."};}
+    if(amt!==sol[key]){const spec=s.amtMsg&&s.amtMsg[key]&&s.amtMsg[key](amt);
+      const tip=spec||(s.amtTips&&s.amtTips[key])||s.amtTip||"Recheck the calculation. Show a hint if you need it.";
+      return {cls:"bad-n",msg:"Right account and side, but the amount is not correct. "+tip};}
+    return {cls:"ok",msg:"Correct."};
+  });
+  const missing=Object.keys(sol).filter(x=>!seen.has(x)).length;
+  const all=res.every(r=>r.cls==="ok")&&missing===0, notes=[];
+  if(!all){if(sumD!==sumC)notes.push("Debits ("+d$(sumD)+") do not equal credits ("+d$(sumC)+"). Every entry must balance.");
+    if(missing>0)notes.push(missing===1?"One account that belongs in this entry is missing.":missing+" accounts that belong in this entry are missing.");}
+  return {res,all,notes};
+}
+function eqAns(f,v){if(f.box)v=Math.abs(v);if(f.pct)return Math.abs(v-f.ans)<1e-9||Math.abs(v*100-f.ans)<1e-9;return v===f.ans;}
+function gradeCalc(s){
+  const res={}; let all=true;
+  const nums={}; s.fields.forEach(f=>{if(!f.kind)nums[f.id]=parseAmt(F.vals[f.id]);});
+  s.fields.forEach(f=>{
+    const raw=F.vals[f.id];
+    if(f.kind){
+      if(!raw){res[f.id]={ok:false,msg:"Make a choice."};all=false;return;}
+      if(raw===f.ans){res[f.id]={ok:true,msg:"Correct."};return;}
+      res[f.id]={ok:false,msg:f.wrong(raw)||"Not quite."};all=false;return;}
+    const v=nums[f.id];
+    if(v===null){res[f.id]={ok:false,msg:f.box?"This box is blank. Enter a value (0 for a key the problem doesn't use), or press Calculate to solve for it.":"Enter an answer."};all=false;return;}
+    if(isNaN(v)){res[f.id]={ok:false,msg:"Enter a number only, like 2400"+(f.pct?" or 6":"")+"."};all=false;return;}
+    if(eqAns(f,v)){res[f.id]={ok:true,msg:"Correct."};return;}
+    if(!f.pct&&!Number.isInteger(v)){res[f.id]={ok:false,msg:f.ansBox&&Math.abs(Math.abs(v)-f.ans)<=2.5?"Close. Round the final answer to the nearest whole dollar.":"Round to the nearest whole "+(f.box==="N"||f.unit?"number":"dollar")+"."};all=false;return;}
+    const c=f.box&&!f.ansBox&&F.cpt[f.grp];
+    if(c&&c.key===f.box&&F.vals[f.id]===c.val){res[f.id]={ok:false,msg:"You solved for "+KLAB[f.box][0]+", but the problem gives you this value. Enter it here, and solve for the value the question asks for."};all=false;return;}
+    res[f.id]={ok:false,msg:f.wrong(v,nums)};all=false;});
+  return {res,all};
+}
+function showVal(f){return f.kind?f.ans:(f.pct||f.unit||f.box==="N")?String(f.ans):fmt(f.ans);}
+
+// ---------- entry card ----------
+// ---------- done for you: steps outside the concepts the instructor assigned ----------
+// Graded attempts mark them on the server (doneForYou, with the answers). Practice opened from the class
+// page follows the same concepts (window.IAC_TOPICS, /interacctive/topics.js). Either way the step shows
+// filled in, nothing to enter, worth no points, and the journal, T-accounts and statements stay complete.
+let PTOPICS=null, DFYSHOW=null;
+const DFY_NOTE='<div class="dfy-note"><b>Done for you.</b> Your instructor didn\'t include this step in the assignment, so it\'s filled in with the correct answer. Read it, then go on. It isn\'t scored.</div>';
+function isDfy(i){const s=STEPS[i];return !!(s&&s.doneForYou&&(!graded()||(GS&&GS.done[i])));}
+function markDfy(){
+  const T=window.IAC_TOPICS; DFYSHOW=null;
+  (STEPS||[]).forEach((s,i)=>{const g=!!(T&&PTOPICS&&T.isGiven(LAB_SLUG,s,PTOPICS));s.doneForYou=g;
+    if(!g&&Array.isArray(status)&&status[i]==="given")status[i]=null;});
+}
+function dfyGraded(i,r){
+  if(r.public&&(!STEPS[i]||STEPS[i].locked))STEPS[i]=r.public;
+  const s=STEPS[i]; if(!s)return;
+  s.doneForYou=true; GS.done[i]=true; GS.pts[i]=0; GS.ans[i]=r.answer; GS.fb[i]=r.feedback; status[i]="given";
+  if(r.solution)applySolution(i,r.solution);
+}
+function dfyAnswer(f){
+  if(f.ans==null)return "";
+  if(typeof f.ans==="number"&&typeof rvMoney==="function"&&rvMoney(f))return d$(f.ans);
+  return rvVal(f,f.ans);
+}
+function renderDfyView(i,live){
+  const s=STEPS[i];
+  $("entryH").textContent=live?"Done for you":"Looking back"; $("entrySub").textContent="Not part of this assignment";
+  let h=DFY_NOTE+metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3>'+(s.desc?'<p class="entry-desc">'+esc(s.desc)+'</p>':'');
+  if(s.type==="entry"&&s.lines){
+    h+=(s.calc?'<div class="calc">'+esc(s.calc)+'</div>':'')+jeTable(s)+(s.why?'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>':'');
+  } else {
+    const ex=typeof dfyExtra==="function"?dfyExtra(s,i):null;
+    if(ex)h+=ex;
+    else if(s.fields){
+      h+='<div class="fields">';
+      s.fields.forEach(f=>{
+        const sub=f.kind==="cls"&&f.amt!=null?'<small class="num">'+d$(f.amt)+'</small>':f.sub?'<small>'+esc(f.sub)+'</small>':'';
+        h+='<div class="field ok"><div class="frow"><div class="flabel">'+esc(f.label||f.id)+sub+'</div><div class="rv-ans">'+esc(dfyAnswer(f))+'</div></div>'+(f.work!=null?'<div class="work">'+esc(f.work)+'</div>':'')+'</div>';});
+      h+='</div>';
+    }
+    if(s.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(s.why)+'</div>';
+  }
+  let nav;
+  if(!live)nav=reviewNav(i);
+  else nav=controls(k<N?'<button class="btn primary" data-act="next">Next step →</button>':graded()?'<button class="btn primary" data-act="finishG">Finish and see your score →</button>':'<button class="btn primary" data-act="next">See your results →</button>');
+  $("entry").innerHTML=h+nav;
+}
+// Leaving a done-for-you card goes through the page's own Next and Finish.
+$("entry").addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b&&DFYSHOW!=null&&/^(next|finish|finishG)$/.test(b.dataset.act))DFYSHOW=null;},true);
+// Practice opened from the class page follows the concepts the instructor assigned (signed-in students only;
+// otherwise, or if anything fails, practice is the whole lab).
+async function loadTopics(){
+  if(!COURSE||!window.IAC_TOPICS)return;
+  try{
+    if(!(await currentUser()))return;
+    const r=await sb().from("course_activities").select("topics, activities!inner(slug)").eq("course_id",COURSE).eq("activities.slug",LAB_SLUG).maybeSingle();
+    const t=r&&r.data?window.IAC_TOPICS.cleanTopics(LAB_SLUG,r.data.topics):null;
+    if(JSON.stringify(t)===JSON.stringify(PTOPICS))return;
+    PTOPICS=t;
+    if(!graded()){markDfy();buildTimeline();render(false);}
+  }catch(e){}
+}
+
+function renderEntry(){
+  if(graded()&&VIEW!=null){renderReview(VIEW);return;}
+  if(DFYSHOW!=null&&(recap||k!==DFYSHOW+1))DFYSHOW=null;
+  if(DFYSHOW==null&&!recap&&k<N&&isDfy(k)){status[k]="given";DFYSHOW=k;k++;}
+  if(DFYSHOW!=null){renderDfyView(DFYSHOW,true);return;}
+  if(k>=N&&!recap){renderDone();return;}
+  if(recap){renderRecap();return;}
+  const s=STEPS[k];
+  if(s.type==="calc"){renderCalc();return;}
+  const lock=(F.fb&&F.fb.all)||F.revealed;
+  $("entryH").textContent="Journal entry";
+  let h=metaLine(s,k)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>';
+  if(graded()&&!GS.done[k])h+='<div class="gnote">Graded: only your first submission on this entry counts (1 point). Complete every line before you submit.</div>';
+  h+='<p class="note" style="margin-top:0">Choose the accounts and enter whole-dollar amounts. This entry has '+(s.lines?s.lines.length:s.lineCount)+' lines. List debits first, then credits.</p>';
+  h+='<table class="rec"><thead><tr><th>Account</th><th class="r">Debit</th><th class="r">Credit</th></tr></thead><tbody>';
+  F.rows.forEach((r,i)=>{
+    const f=F.fb&&!F.revealed?F.fb.res[i]:null;
+    h+='<tr class="line '+(f?f.cls:"")+'" data-row="'+i+'"><td><select data-i="'+i+'" data-f="a" aria-label="Account, line '+(i+1)+'"'+(lock?" disabled":"")+'>'+acctOptions(r.a)+'</select></td>'+
+      '<td class="amt"><input data-i="'+i+'" data-f="dr" inputmode="numeric" autocomplete="off" aria-label="Debit, line '+(i+1)+'" value="'+esc(r.dr)+'" class="'+(r.dr?"filled":"")+'"'+(lock?" disabled":"")+'></td>'+
+      '<td class="amt"><input data-i="'+i+'" data-f="cr" inputmode="numeric" autocomplete="off" aria-label="Credit, line '+(i+1)+'" value="'+esc(r.cr)+'" class="'+(r.cr?"filled":"")+'"'+(lock?" disabled":"")+'></td></tr>';
+    if(f)h+='<tr class="fb"><td colspan="3"><div class="fmsg '+(f.cls==="ok"?"ok":"no")+'"><span>'+(f.cls==="ok"?"✓":"✗")+'</span><span>'+esc(f.msg)+'</span></div></td></tr>';
+  });
+  const sd=F.rows.reduce((t,r)=>t+(parseAmt(r.dr)||0),0), sc=F.rows.reduce((t,r)=>t+(parseAmt(r.cr)||0),0);
+  h+='</tbody><tfoot><tr><td>Totals</td><td id="totD">'+fmt(sd)+'</td><td id="totC">'+fmt(sc)+'</td></tr></tfoot></table>';
+  if(F.warn)h+='<div class="overall no"><b>Not submitted yet.</b> '+esc(F.warn)+' Only your first complete submission is scored.</div>';
+  if(F.fb&&!F.revealed&&graded()){
+    const p=GS.pts[k]||0;
+    if(F.fb.all)h+='<div class="overall ok"><b>✓ Correct.</b> '+(p===1?"Your first submission earned 1 of 1 point.":"Your first submission earned 0 of 1 point; retries don't change your score.")+(s.why?' '+esc(s.why):'')+'</div>';
+    else h+='<div class="overall no"><b>Not quite.</b> Your first submission earned 0 of 1 point. Fix the lines marked ✗ to post the entry and move on; retries don\'t change your score.'+(F.fb.notes.length?'<ul>'+F.fb.notes.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>':'')+'</div>';}
+  else if(F.fb&&!F.revealed){
+    if(F.fb.all)h+='<div class="overall ok"><b>✓ '+(F.tries===1?"Correct on the first try.":"Correct after "+F.tries+" tries.")+'</b> '+esc(s.why)+'</div>';
+    else h+='<div class="overall no"><b>Not quite yet.</b> Fix the lines marked ✗ and check again.'+(F.fb.notes.length?'<ul>'+F.fb.notes.map(n=>'<li>'+esc(n)+'</li>').join("")+'</ul>':'')+'</div>';}
+  if(F.revealed)h+='<div class="overall shown" style="margin-bottom:10px"><b>Correct entry.</b> Compare it with yours, then post it.</div>'+jeTable(s)+'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>';
+  if(s.calc&&(F.hint||F.revealed))h+='<div class="hintbox"><b>Calculation:</b> <span class="num">'+esc(s.calc)+'</span></div>';
+  const prim=lock?'<button class="btn primary" data-act="post">Post the entry →</button>':
+    graded()?'<button class="btn primary" data-act="check">'+(GS.done[k]?"Check my entry":"Submit entry")+'</button>':
+    (s.calc&&!F.hint?'<button class="btn small" data-act="hint">Show a hint</button>':'')+'<button class="btn small" data-act="show">Show the answer</button><button class="btn primary" data-act="check">Check my entry</button>';
+  $("entry").innerHTML=h+controls(prim);
+  $("entrySub").textContent=lock?"Ready to post":"Record the entry";
+}
+function impactTable(i){
+  const I0=inf();
+  const a=bsVals(BOOKS[i]), b=bsVals(BOOKS[i+1]);
+  const row=(lab,x,y,cls)=>{const d=y-x;return '<tr class="'+(cls||"")+'"><td>'+lab+'</td><td class="n">'+money(x)+'</td><td class="n">'+money(y)+'</td><td class="dl '+(d>0?"up":d<0?"down":"zero")+'">'+(d>0?"↑ "+fmt(d):d<0?"↓ "+fmt(d):"no change")+'</td></tr>';};
+  return '<table class="st" style="margin-top:12px"><thead><tr><th style="text-align:left">Balance sheet impact</th><th>Before</th><th>After</th><th class="dl">Change</th></tr></thead><tbody>'+
+    row("Bonds payable",a.bp,b.bp)+(I0.disc?row("Discount on bonds payable",a.disc,b.disc):row("Premium on bonds payable",a.prem,b.prem))+row("Carrying value of the bonds",a.cv,b.cv,"nrv")+row("Cash",a.cash,b.cash)+'</tbody></table>';
+}
+function renderRecap(){
+  const i=k-1, s=STEPS[i], st=status[i];
+  $("entryH").textContent="Journal entry"; $("entrySub").textContent="Posted";
+  const banner=graded()?(GS.pts[i]===1?'<div class="result ok">✓ Posted. Your first submission was correct: 1 of 1 point.</div>':'<div class="result no">Posted. Your first submission earned 0 of 1 point. Review why the entry works before moving on.</div>'):
+    st==="first"?'<div class="result ok">✓ Posted. You recorded this entry correctly on the first try.</div>':
+    st==="retry"?'<div class="result ok">✓ Posted. You recorded this entry correctly after more than one try.</div>':
+    '<div class="result no">Posted from the answer. Review why it works before moving on.</div>';
+  if(!s.lines){
+    const own={lines:F.rows.map(r=>({a:r.a,dr:parseAmt(r.dr)||0,cr:parseAmt(r.cr)||0}))}, nx=STEPS[k];
+    const pr=k<N?'<button class="btn primary" data-act="next">'+(nx.type==="calc"?"Next: "+(nx.phase==="rep"?"balance sheet":"calculation")+" →":"Record next entry →")+'</button>':'<button class="btn primary" data-act="finish">Finish and see your score →</button>';
+    $("entry").innerHTML=banner+metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>'+
+      '<p class="note" style="margin-top:0">Your entry, as you submitted it:</p>'+jeTable(own)+
+      '<p class="note">Your class doesn\'t show answers in Graded mode, so the explanation and the balance sheet effects aren\'t shown.</p>'+controls(pr);
+    return;
+  }
+  const a=bsVals(BOOKS[i]), b=bsVals(BOOKS[i+1]);
+  const chip=(n,v,extra)=>'<span class="eff '+(v>0?"up":v<0?"down":"none")+(extra?" "+extra:"")+'">'+n+' <span class="num">'+(v>0?"↑ "+fmt(v):v<0?"↓ "+fmt(v):"no change")+'</span></span>';
+  const nx=STEPS[k];
+  const prim=k<N?'<button class="btn primary" data-act="next">'+(nx.type==="calc"?"Next: "+(nx.phase==="rep"?"balance sheet":"calculation")+" →":"Record next entry →")+'</button>':'<button class="btn primary" data-act="finish">'+(graded()?"Finish and see your score →":"See your results →")+'</button>';
+  $("entry").innerHTML=banner+metaLine(s,i)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>'+(s.calc?'<div class="calc">'+esc(s.calc)+'</div>':'')+jeTable(s)+
+    (s.why?'<div class="why"><b>Why this entry</b><br>'+esc(s.why)+'</div>':'')+
+    '<div class="effects">'+chip("Carrying value of the bonds",b.cv-a.cv,"nrv")+chip("Cash",b.cash-a.cash)+chip("Interest expense",b.ix-a.ix)+'</div>'+
+    impactTable(i)+controls(prim);
+}
+function fieldHTML(f,res,lock){
+  const r=res&&res[f.id], cls=F.revealed?"":r?(r.ok?" ok":" no"):"", val=F.vals[f.id]==null?"":F.vals[f.id];
+  let h='<div class="field'+cls+'">';
+  if(f.kind==="sel"){
+    h+='<div class="flabel" style="margin-bottom:6px">'+esc(f.label)+'</div>'+radios("cf-"+f.id,f.opts,val,lock,F.revealed?"":r?(r.ok?"ok":"no"):"",f.label,true);
+  } else {
+    h+='<div class="frow"><label class="flabel" for="cf-'+f.id+'">'+esc(f.label)+(f.sub?'<small>'+esc(f.sub)+'</small>':'')+'</label><div class="inbox">'+(f.dec||f.unit?'':'<span class="pre">$</span>')+
+      '<input id="cf-'+f.id+'" data-cf="'+f.id+'" inputmode="decimal" autocomplete="off"'+(f.dec?' placeholder="0.0000"':'')+' value="'+esc(val)+'"'+(lock?" disabled":"")+'>'+(f.unit?'<span class="post">'+esc(f.unit)+'</span>':'')+'</div></div>';
+  }
+  if(r&&!F.revealed&&!r.ok)h+='<div class="fmsg no"><span>✗</span><span>'+esc(r.msg)+'</span></div>';
+  if((F.revealed||(r&&r.ok&&F.fb.all))&&f.work!=null)h+='<div class="work">'+esc(f.work)+'</div>';
+  else if(r&&r.ok)h+='<div class="fmsg ok"><span>✓</span><span>Correct.</span></div>';
+  return h+'</div>';
+}
+function keyHTML(f,res,lock){
+  const r=res&&res[f.id], cls=F.revealed?"":r?(r.ok?" ok":" no"):"", val=F.vals[f.id]==null?"":F.vals[f.id], kl=KLAB[f.box];
+  const c=!lock&&F.cpt[f.grp], comp=c&&c.key===f.box&&val===c.val?" computed":"";
+  return '<div class="ck'+cls+comp+'"><label for="cf-'+f.id+'"><span class="key">'+kl[0]+'</span><small>'+kl[1]+'</small></label><input id="cf-'+f.id+'" data-cf="'+f.id+'" inputmode="decimal" autocomplete="off" value="'+esc(val)+'"'+(lock?" disabled":"")+'></div>';
+}
+const CPT_TIP="Leave the box you're solving for blank, then press Calculate.";
+// Works like the CPT key: solves for the one blank box (PV or FV) from the other four. Signs are ignored.
+function cpt(p){
+  const s=STEPS[k], by={}; s.fields.forEach(f=>{if(f.box&&f.grp===p)by[f.box]=f;});
+  const prev=F.cpt[p]; if(prev&&prev.key&&F.vals[by[prev.key].id]===prev.val)F.vals[by[prev.key].id]="";
+  const v={}, blank=[]; KEYS.forEach(kk=>{const x=parseAmt(F.vals[by[kk].id]);if(x===null)blank.push(kk);else v[kk]=x;});
+  const fail=m=>{F.cpt[p]={err:1,msg:m};renderEntry();};
+  if(!blank.length)return fail("Clear the box you're solving for, then press Calculate.");
+  if(blank.length>1)return fail("Leave only one box blank: the one you're solving for. Enter 0 for any key the problem doesn't use.");
+  if(Object.values(v).some(x=>isNaN(x)))return fail("Enter numbers only, then press Calculate.");
+  const key=blank[0];
+  if(key!=="PV"&&key!=="FV")return fail("This lab solves for PV or FV. Enter a value for "+KLAB[key][0]+" (0 if the problem doesn't use it).");
+  const n=v.N, i=pctOf(Math.abs(v.I))/100, pmt=Math.abs(v.PMT);
+  if(!(n>0))return fail("Enter the number of periods in N.");
+  const g=Math.pow(1+i,n);
+  const out=key==="FV"?Math.abs(v.PV)*g+(i?pmt*(g-1)/i:pmt*n):Math.abs(v.FV)/g+(i?pmt*(1-1/g)/i:pmt*n);
+  const val=fmt(Math.round(out)), id=by[key].id; F.vals[id]=val;
+  if(F.fb&&F.fb.res)delete F.fb.res[id];
+  F.cpt[p]={key,val,msg:"Calculated "+KLAB[key][0]+" = "+val+" from your inputs. Check your answers when you're ready."};
+  renderEntry(); const c=$("cf-"+id); if(c)c.focus({preventScroll:true});
+}
+// Editing an input after Calculate clears the calculated value, as on a real calculator.
+function cptEdit(el,f){
+  const c=F.cpt[f.grp]; if(!c)return; delete F.cpt[f.grp];
+  const box=el.closest(".tvm"); if(!box)return;
+  if(c.key&&c.key!==f.box){const cf=STEPS[k].fields.find(x=>x.grp===f.grp&&x.box===c.key);
+    if(cf&&F.vals[cf.id]===c.val){F.vals[cf.id]="";const ci=$("cf-"+cf.id);if(ci){ci.value="";clearField(ci);}}}
+  box.querySelectorAll(".ck.computed").forEach(x=>x.classList.remove("computed"));
+  const n=box.querySelector(".cptnote"); if(n){n.className="cptnote";n.textContent=CPT_TIP;}
+}
+function groupHTML(s,g,res,lock){
+  const gf=s.fields.filter(f=>f.grp===g.pfx), keys=KEYS.map(kk=>gf.find(f=>f.box===kk)).filter(Boolean), other=gf.filter(f=>!f.box);
+  let h='<div class="tvm">';
+  if(g.title)h+='<p class="tvm-q"><b>'+esc(g.title)+'.</b> '+esc(g.desc)+'</p>';
+  other.forEach(f=>{h+=fieldHTML(f,res,lock);});
+  h+='<div class="keys" role="group" aria-label="Calculator inputs'+(g.title?", "+esc(g.title):"")+'">'+keys.map(f=>keyHTML(f,res,lock)).join("")+'</div>';
+  if(!lock){const c=F.cpt[g.pfx], nid="cn-"+(g.pfx||"x");h+='<div class="cptrow"><button class="btn small cpt" data-act="cpt" data-grp="'+g.pfx+'" aria-describedby="'+nid+'">Calculate</button><span class="cptnote'+(c?(c.err?" no":" ok"):"")+'" id="'+nid+'" aria-live="polite">'+esc(c?c.msg:CPT_TIP)+'</span></div>';}
+  if(res&&!F.revealed){const bad=keys.filter(f=>res[f.id]&&!res[f.id].ok);if(bad.length)h+='<div class="kmsgs">'+bad.map(f=>'<div class="fmsg no" data-for="'+f.id+'"><span>✗</span><span><b>'+KLAB[f.box][0]+':</b> '+esc(res[f.id].msg)+'</span></div>').join("")+'</div>';}
+  if((F.revealed||(F.fb&&F.fb.all))&&g.work!=null)h+='<div class="work">'+esc(g.work)+'</div>';
+  return h+'</div>';
+}
+function amortHTML(s,res,lock){
+  const I0=inf();
+  const ag=s.amort, FF=Object.fromEntries(s.fields.map(f=>[f.id,f]));
+  const cell=id=>{const f=FF[id], r=res&&res[id], cls=F.revealed?"":r?(r.ok?" ok":" no"):"", val=F.vals[id]==null?"":F.vals[id];
+    return '<td class="in'+cls+'"><div class="inbox"><span class="pre">$</span><input data-cf="'+id+'" inputmode="numeric" autocomplete="off" aria-label="'+esc(f.label)+'" value="'+esc(val)+'"'+(lock?" disabled":"")+'></div></td>';};
+  let h='<div style="overflow-x:auto"><table class="aging amort"><caption>Bond '+(I0.disc?"discount":"premium")+' amortization table (effective-interest method)</caption><thead><tr><th>Date</th><th>Cash paid<br><small>'+I0.j+'% × face</small></th><th>Interest expense<br><small>'+I0.i+'% × carrying value</small></th><th>'+(I0.disc?"Discount":"Premium")+' amortized</th><th>Carrying value</th></tr></thead><tbody>';
+  h+='<tr class="start"><td>January 1, '+YEAR+'</td><td></td><td></td><td></td><td>'+d$(ag.start)+'</td></tr>';
+  ag.dates.forEach((dt,kx)=>{const p=kx+1, ids=["c"+p,"e"+p,"a"+p,"v"+p];
+    h+='<tr><td>'+dt+'</td>'+ids.map(cell).join("")+'</tr>';
+    if(res&&!F.revealed){const bad=ids.filter(id=>res[id]&&!res[id].ok);if(bad.length)h+='<tr class="fb"><td colspan="5">'+bad.map(id=>'<div class="fmsg no"><span>✗</span><span><b>'+esc(FF[id].label.replace(/^Row \d (\w)/,(m,c)=>c.toUpperCase()))+':</b> '+esc(res[id].msg)+'</span></div>').join("")+'</td></tr>';}
+    if((F.revealed||(F.fb&&F.fb.all))&&ids.every(id=>FF[id].work!=null))h+='<tr class="wk"><td colspan="5">'+ids.map(id=>esc(FF[id].work)).join(" · ")+'</td></tr>';});
+  return h+'</tbody></table></div>';
+}
+function renderCalc(){
+  const s=STEPS[k], lock=!!(F.fb&&F.fb.all)||F.revealed, res=F.fb&&F.fb.res;
+  $("entryH").textContent=s.phase==="rep"?"Balance sheet":"Your calculation";
+  let h=metaLine(s,k)+'<h3 class="entry-title">'+esc(s.title)+'</h3><p class="entry-desc">'+esc(s.desc)+'</p>';
+  if(graded()&&!GS.done[k])h+='<div class="gnote">Graded: only your first submission on this step counts. Each answer is worth 1 point ('+s.fields.length+' points). Fill in every answer before you submit.</div>';
+  if(s.tl)h+=timelineSVG(s.tl);
+  if(s.groups){
+    h+='<p class="note" style="margin-top:0">Enter the four values you know (0 for any key the problem doesn\'t use), leave the one you\'re solving for blank, and press <b>Calculate</b>. Then check your answers. Signs don\'t matter. <b>Round each dollar answer to the nearest whole dollar</b>, only at the end (enter 24,158, not 24,157.65).</p>';
+    s.groups.forEach(g=>{h+=groupHTML(s,g,res,lock);});
+    const rest=s.fields.filter(f=>!("grp" in f)); if(rest.length)h+='<div class="fields">'+rest.map(f=>fieldHTML(f,res,lock)).join("")+'</div>';}
+  else if(s.amort)h+='<p class="note" style="margin-top:0"><b>Round each amount to the nearest whole dollar</b> before you carry it to the next row.</p>'+amortHTML(s,res,lock);
+  else{h+='<p class="note" style="margin-top:0"><b>Enter whole dollars.</b> Round to the nearest dollar.</p><div class="fields">'; s.fields.forEach(f=>{h+=fieldHTML(f,res,lock);}); h+='</div>';}
+  if(F.warn)h+='<div class="overall no"><b>Not submitted yet.</b> '+esc(F.warn)+' Only your first complete submission is scored.</div>';
+  if(F.revealed)h+='<div class="overall shown"><b>Answers shown.</b> Work through each answer before moving on.</div>';
+  else if(F.fb&&graded()){
+    const p=GS.pts[k]||0, mx=maxPts(k);
+    if(F.fb.all)h+='<div class="overall ok"><b>✓ All correct.</b> Your first submission earned '+p+' of '+mx+' points.'+(p<mx?" Retries don't change your score.":"")+'</div>';
+    else{const n=Object.values(F.fb.res).filter(x=>!x.ok).length;h+='<div class="overall no"><b>Not quite.</b> Your first submission earned '+p+' of '+mx+' points. Fix the '+(n===1?"answer":n+" answers")+' marked ✗ to move on; retries don\'t change your score.</div>';}}
+  else if(F.fb){
+    if(F.fb.all)h+='<div class="overall ok"><b>✓ '+(F.tries===1?"All correct on the first try.":"All correct after "+F.tries+" tries.")+'</b></div>';
+    else{const n=Object.values(F.fb.res).filter(x=>!x.ok).length;h+='<div class="overall no"><b>Not quite yet.</b> Fix the '+(n===1?"answer":n+" answers")+' marked ✗ and check again.</div>';}}
+  if(lock&&s.why)h+='<div class="why"><b>Why it matters</b><br>'+esc(s.why)+'</div>';
+  if(F.hint&&!lock)h+='<div class="hintbox"><b>Hint:</b> '+esc(s.hint)+'</div>';
+  let prim;
+  if(lock){const nx=STEPS[k+1];prim='<button class="btn primary" data-act="cont">'+(!nx?(graded()?"Finish and see your score →":"See your results →"):nx.type==="entry"?"Next: record the entry →":"Next step →")+'</button>';}
+  else if(graded())prim='<button class="btn primary" data-act="check">'+(GS.done[k]?"Check my answers":"Submit answers")+'</button>';
+  else prim=(!F.hint?'<button class="btn small" data-act="hint">Show a hint</button>':'')+'<button class="btn small" data-act="show">Show the answer</button><button class="btn primary" data-act="check">Check my answers</button>';
+  $("entry").innerHTML=h+controls(prim);
+  $("entrySub").textContent=lock?(F.revealed?"Answers shown":"Complete"):"Enter your answers";
+}
+function renderDone(){
+  if(graded()){renderGradedDone();return;}
+  $("entryH").textContent="Lab complete"; $("entrySub").textContent="";
+  const c=x=>status.filter(v=>v===x).length, I=I0;
+  $("entry").innerHTML='<h3 class="entry-title" style="margin-top:0">You finished the lab</h3>'+
+    '<p class="entry-desc">Problem Solvers issued '+d$(I.F)+' of bonds for '+d$(I.price)+'. After two payments their carrying value is '+d$(I.rows[1].cv)+', on its way to '+d$(I.F)+' at maturity.</p>'+
+    '<div class="effects"><span class="eff up">First try <span class="num">'+c("first")+'</span></span><span class="eff none">Retried <span class="num">'+c("retry")+'</span></span><span class="eff none">Answer shown or skipped <span class="num">'+(c("shown")+c("skipped"))+'</span></span></div>'+
+    '<p class="note">Start a new problem set to practice with different amounts, rates, and terms. Some problem sets issue the bonds at a discount, others at a premium.</p>'+
+    controls('<button class="btn primary" data-act="resetNew">New problem set →</button>');
+}
+
+$("entry").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b||b.disabled)return;
+  const act=b.dataset.act, s=STEPS[k];
+  if(act==="rvGo"){reviewStep(+b.dataset.i);return;}
+  if(act==="rvBack"){if(graded()){VIEW=null;render(false);scrollEntry();focusAct("next")||focusAct("finish")||focusAct("finishG")||focusFirst();}return;}
+  if(graded()&&/^(hint|show|back|reset|cancelReset|resetSame|resetNew)$/.test(act))return;
+  if(graded()&&BUSY)return;
+  if(graded()&&act==="check"){submitGraded(s);return;}
+  if(graded()&&(act==="finishG"||act==="finish"||(act==="cont"&&k>=N-1))){finishGraded();return;}
+  if(act==="check"){F.tries++;
+    if(s.type==="calc"){F.fb=gradeCalc(s);if(F.fb.all)status[k]=F.tries===1?"first":"retry";}
+    else F.fb=gradeEntry(s);
+    if(!F.fb.all&&F.tries>=2)F.hint=true;
+    render(false);
+    const bad=$("entry").querySelector(".line.bad-a select,.line.bad-s input.filled,.line.bad-n input,.field.no input,.ck.no input,td.no input");
+    if(bad)bad.focus();else focusAct("post")||focusAct("cont");}
+  else if(act==="cpt"){cpt(b.dataset.grp);}
+  else if(act==="hint"){F.hint=true;renderEntry();}
+  else if(act==="show"){F.revealed=true;
+    if(s.type==="calc"){status[k]="shown";s.fields.forEach(f=>F.vals[f.id]=showVal(f));F.fb=null;}
+    render(false);focusAct("post")||focusAct("cont");}
+  else if(act==="exitGraded"){exitGraded();render(true);scrollEntry();}
+  else if(act==="post"){status[k]=F.revealed?"shown":graded()?(GS.pts[k]===1?"first":"retry"):(F.tries===1&&F.fb&&F.fb.all?"first":"retry");k++;recap=true;confirmReset=false;render(true);focusAct("next")||focusAct("finish");}
+  else if(act==="cont"){k++;recap=false;startForm();render(true);scrollEntry();focusFirst();}
+  else if(act==="next"){recap=false;startForm();render(false);scrollEntry();focusFirst();}
+  else if(act==="finish"){recap=false;render(false);}
+  else if(act==="back"){goTo(k-1);}
+  else if(act==="reset"){confirmReset=true;renderEntry();}
+  else if(act==="cancelReset"){confirmReset=false;renderEntry();}
+  else if(act==="resetSame"){fresh();render(true);scrollEntry();}
+  else if(act==="resetNew"){let sd=randomSeed();if(sd===seed)sd++;buildSet(sd);fresh();render(true);scrollEntry();}
+});
+function focusAct(a){const p=$("entry").querySelector('[data-act="'+a+'"]');if(p){p.focus({preventScroll:true});return true;}return false;}
+function focusFirst(){const f=$("entry").querySelector("select:not([disabled]),input:not([disabled])");if(f)f.focus({preventScroll:true});}
+function onField(e){
+  const el=e.target;
+  if(el.type==="radio"&&el.name.startsWith("cf-")){F.vals[el.name.slice(3)]=el.value;clearField(el);return;}
+  if(el.dataset&&el.dataset.cf){F.vals[el.dataset.cf]=el.value;const f=STEPS[k].fields.find(x=>x.id===el.dataset.cf);if(f&&f.box&&e.type==="input")cptEdit(el,f);clearField(el);return;}
+  if(el.matches(".rec select,.rec input")){const i=+el.dataset.i;F.rows[i][el.dataset.f]=el.value;if(el.tagName==="INPUT")el.classList.toggle("filled",!!el.value);clearLine(i);
+    const tD=$("totD"),tC=$("totC");if(tD){tD.textContent=fmt(F.rows.reduce((s,r)=>s+(parseAmt(r.dr)||0),0));tC.textContent=fmt(F.rows.reduce((s,r)=>s+(parseAmt(r.cr)||0),0));}}
+}
+function clearLine(i){if(!F.fb||!F.fb.res[i])return;F.fb.res[i]=null;const tr=$("entry").querySelector('tr.line[data-row="'+i+'"]');if(tr){tr.className="line";const nx=tr.nextElementSibling;if(nx&&nx.classList.contains("fb"))nx.remove();}}
+function clearField(el){
+  if(!F.fb)return; const id=el.dataset.cf||el.name.slice(3); if(!F.fb.res[id])return; delete F.fb.res[id];
+  const td=el.closest("td.in"); if(td){td.className="in";return;}
+  const ck=el.closest(".ck"); if(ck){ck.className="ck";const m=$("entry").querySelector('.fmsg[data-for="'+id+'"]');if(m){const w=m.parentNode;m.remove();if(!w.children.length)w.remove();}return;}
+  const box=el.closest(".field");if(box){box.className="field";const fs=box.querySelector("fieldset");if(fs)fs.className="cg";const m=box.querySelector(".fmsg");if(m)m.remove();}
+}
+$("entry").addEventListener("input",onField);
+$("entry").addEventListener("change",onField);
+$("entry").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input:not([type=radio])")){e.preventDefault();if(graded()&&!GS.done[k])return;/* graded: submit only with the button */const c=$("entry").querySelector('[data-act="check"]');if(c)c.click();}});
+function scrollEntry(){const p=$("pEntry");const r=p.getBoundingClientRect();const top=parseFloat(getComputedStyle(p).scrollMarginTop)||0;if(r.top<top-2||r.top>window.innerHeight*0.6)p.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});}
+
+// ---------- balance sheet impact ----------
+function renderBS(){
+  const I0=inf();
+  const b=BOOKS[k], c=bsVals(b), j=lastEntryBefore(k);
+  if(j<0){$("bs").innerHTML='<div class="st-wait">The bonds appear here once you record the issuance on January 1, '+YEAR+'. Until then, Problem Solvers has no bonds outstanding.</div>'+(graded()?hiddenNote():'');return;}
+  const p=bsVals(BOOKS[j]), last=STEPS[j], cur=stepAccounts(j);
+  const dl=(x,y)=>{const d=y-x;return '<td class="dl '+(d>0?"up":d<0?"down":"zero")+'">'+(d>0?"↑ "+fmt(d):d<0?"↓ "+fmt(d):"—")+'</td>';};
+  const R=(lab,v,x,o)=>{o=o||{};return '<tr class="'+(o.cls||"")+(o.chg?" chg":"")+'"><td class="'+(o.i?"i"+o.i:"")+'">'+lab+'</td><td class="n'+(o.ul?" ul":"")+'">'+(o.raw||money(v))+'</td>'+dl(x,v)+'</tr>';};
+  const disc=I0.disc;
+  let h='<table class="st"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">Balance Sheet (excerpt): Long-term Liabilities</div><div class="cap-date">'+last.date.replace("Jan","January").replace("Jun","June").replace("Dec","December")+', '+last.yr+'</div></caption>'+
+    '<thead><tr><th></th><th></th><th class="dl">Last entry</th></tr></thead><tbody>';
+  h+=R("Bonds payable",c.bp,p.bp,{chg:cur.has("bp")});
+  h+=disc?R("Less: Discount on bonds payable",c.disc,p.disc,{i:1,ul:1,chg:cur.has("disc"),raw:"("+fmt(c.disc)+")"}):R("Add: Premium on bonds payable",c.prem,p.prem,{i:1,ul:1,chg:cur.has("prem")});
+  h+=R("Carrying value of the bonds",c.cv,p.cv,{cls:"nrv"});
+  h+='</tbody></table>';
+  const bar=Math.max(c.bp,c.cv)||1, wF=c.bp/bar*100, wC=c.cv/bar*100;
+  h+='<div class="cvbar" role="img" aria-label="Carrying value '+d$(c.cv)+' compared with face value '+d$(c.bp)+'"><div class="cvrow"><span>Face</span><div class="track"><div class="seg-f" style="width:'+wF.toFixed(2)+'%"></div></div></div><div class="cvrow"><span>Carrying</span><div class="track"><div class="seg-c" style="width:'+wC.toFixed(2)+'%"></div></div></div></div>';
+  let note;
+  if(last.ref==="1")note='<b>The bonds are on the books.</b> Bonds Payable shows the '+d$(I0.F)+' face value; the '+(disc?"discount reduces":"premium increases")+' it to the '+d$(I0.price)+' carrying value, the cash Problem Solvers actually received.';
+  else note='<b>Carrying value '+(disc?"rose":"fell")+' by '+d$(Math.abs(c.cv-p.cv))+'.</b> Amortizing the '+(disc?"discount":"premium")+' moves the carrying value toward the '+d$(I0.F)+' face value due at maturity.';
+  h+='<div class="bs-note">'+note+'</div>'+(graded()?hiddenNote():'');
+  const ti=STEPS.findIndex(x=>x.ref==="Table"), known=status[ti]&&k>ti&&!!I0.rows;
+  h+='<div class="is-mini"><h3>Amortization so far</h3><div style="overflow-x:auto"><table class="aging"><thead><tr><th>Date</th><th>Cash paid</th><th>Interest expense</th><th>Amortized</th><th>Carrying value</th></tr></thead><tbody><tr><td>Jan 1, '+YEAR+'</td><td></td><td></td><td></td><td>'+d$(I0.price)+'</td></tr>'+
+    (known?I0.rows.map((x,q)=>{const posted=q<2&&STEPS.some((s,si)=>s.type==="entry"&&si<k&&s.ref===String(q+2));return '<tr class="'+(posted?"":"pending")+'"><td>'+["Jun 30, "+YEAR,"Dec 31, "+YEAR,"Jun 30, "+Y2][q]+'</td><td>'+d$(x.cash)+'</td><td>'+d$(x.ie)+'</td><td>'+d$(x.am)+'</td><td>'+d$(x.cv)+'</td></tr>';}).join(""):'<tr><td colspan="5" class="pendmsg">'+(status[ti]&&k>ti?"Not shown: you fixed the table after a wrong first try on another device or browser, and your class doesn't show answers in Graded mode.":"Rows appear after you complete the amortization table.")+'</td></tr>')+'</tbody></table></div></div>';
+  h+='<div class="is-mini"><h3>Income statement effect, '+YEAR+' to date</h3><table class="st"><tbody><tr class="'+(cur.has("ix")?"chg":"")+'"><td>Interest expense</td><td class="n">'+money(c.ix)+'</td></tr><tr><td>Cash paid for interest</td><td class="n">'+money(STEPS.slice(0,k).filter(s=>s.phase==="pay"&&s.type==="entry"&&s.lines).reduce((t,s)=>t+((s.lines.find(l=>l.a==="cash")||{}).cr||0),0))+'</td></tr></tbody></table></div>';
+  $("bs").innerHTML=h;
+}
+
+// ---------- T-accounts ----------
+function renderT(){
+  const b=BOOKS[k], cur=lastEntryBefore(k), hide=$("hideIdle").checked;
+  let h="";
+  GROUPS.forEach(g=>{
+    const accts=ORDER.filter(a=>a.g===g.key).filter(a=>!hide||b[a.id].dr.length||b[a.id].cr.length);
+    if(!accts.length)return;
+    h+='<div class="t-group"><h3>'+g.label+' <span>'+g.note+'</span></h3><div class="t-grid">';
+    accts.forEach(a=>{
+      const t=b[a.id], used=t.dr.length||t.cr.length, touch=t.dr.concat(t.cr).some(x=>x.si===cur);
+      const row=x=>'<div class="t-row'+(x.si===cur?" cur":"")+'"><span class="ref">'+x.ref+'</span><span class="amt">'+fmt(x.amt)+'</span></div>';
+      const bal=t.d-t.c;
+      let L=t.dr.map(row).join(""), R=t.cr.map(row).join("");
+      if(used&&bal!==0){const br='<div class="t-row balrow"><span class="ref">Bal.</span><span class="amt">'+fmt(bal)+'</span></div>';if(bal>0)L+=br;else R+=br;}
+      h+='<div class="tacct'+(used?"":" idle")+(touch?" touch":"")+'"><div class="t-head"><span class="no">'+a.no+'</span><span>'+esc(a.name)+'</span></div>'+
+        '<div class="t-body"><div class="t-side l"><span class="lab">Dr</span>'+L+'</div><div class="t-side r"><span class="lab">Cr</span>'+R+'</div></div>'+
+        (used&&bal===0?'<div class="t-zero">Balance 0</div>':'')+'</div>';
+    });
+    h+='</div></div>';
+  });
+  $("taccts").innerHTML=(graded()?hiddenNote():'')+(h||'<div class="empty">No account has activity yet. Entries start when the bonds are issued.</div>');
+}
+
+// ---------- Journal ----------
+function renderJournal(){
+  let h="", lastG="";
+  for(let i=0;i<k;i++){const s=STEPS[i]; if(s.type!=="entry")continue;
+    const g=PH[s.phase].label; if(g!==lastG){h+='<div class="jhead '+PH[s.phase].g+'">'+g+'</div>';lastG=g;}
+    if(!s.lines){h+='<div class="jitem"><span class="ref">'+s.ref+'</span><span class="dt">'+s.date+'</span><span class="lines"><span class="t">'+esc(s.title)+'</span><span class="empty">Not shown: your class doesn\'t show answers in Graded mode.</span></span></div>';continue;}
+    const ln=s.lines.filter(l=>l.dr).map(l=>'<div class="jl"><span class="nm">'+esc(A[l.a].name)+'</span><span>'+fmt(l.dr)+'</span></div>').join("")+
+      s.lines.filter(l=>l.cr).map(l=>'<div class="jl c"><span class="nm">'+esc(A[l.a].name)+'</span><span>'+fmt(l.cr)+'</span></div>').join("");
+    h+='<div class="jitem'+(i===lastEntryBefore(k)?" cur":"")+'"><span class="ref">'+s.ref+'</span><span class="dt">'+s.date+'</span><span class="lines"><span class="t">'+esc(s.title)+'</span>'+ln+'</span></div>';}
+  if(!h)h='<div class="empty">No entries posted yet.</div>';
+  const left=STEPS.slice(k).filter(s=>s.type==="entry").length;
+  if(left>0)h+='<div class="empty">'+left+' more '+(left===1?"entry":"entries")+' to record.</div>';
+  $("journal").innerHTML=h;
+}
+
+// ---------- views / bar ----------
+function applyViews(){
+  const v={};VIEWS.forEach(x=>v[x]=$("v-"+x).checked);
+  $("pCalc").hidden=!v.calc; $("pBS").hidden=!v.bs; $("pT").hidden=!v.t; $("pJ").hidden=!v.j;
+  $("gridTop").classList.toggle("solo",!v.calc&&!v.t);
+}
+const SLAB={given:"done for you, not in this assignment",first:"correct on first try",retry:"correct after retrying",shown:"answer shown",skipped:"skipped"};
+function renderBar(){
+  const working=!recap&&k<N;
+  const done=status.filter(Boolean).length, first=status.filter(v=>v==="first").length;
+  $("where").innerHTML='<b>'+done+' of '+N+'</b> steps finished'+(working?' · now on '+esc(STEPS[k].title.toLowerCase()):'');
+  const sc=$("score"), g=graded();
+  sc.classList.toggle("graded",g);
+  if(g){sc.hidden=false;sc.textContent=GS.finishedAt?"Graded · final score "+GS.score+" of "+GS.total+" points":scoredMax()?"Graded · "+earnedPts()+" of "+scoredMax()+" points so far ("+totalMax()+" possible)":"Graded · "+totalMax()+" points possible";}
+  else{sc.hidden=done===0; sc.textContent="First-try correct: "+first+" of "+done;}
+  $("legendDots").innerHTML=g?'<span><i style="background:var(--good)"></i>Full credit</span><span><i style="background:var(--gold)"></i>Partial or no credit</span>':
+    '<span><i style="background:var(--good)"></i>First try</span><span><i style="background:var(--gold)"></i>Retried</span><span><i style="background:var(--muted)"></i>Answer shown</span>';
+  $("timeline").classList.toggle("locked",g);
+  document.querySelectorAll("#modeSw [data-mode]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===MODE)));
+  document.querySelectorAll(".tick").forEach(t=>{const i=+t.dataset.i, s=STEPS[i];
+    const cur=g&&VIEW!=null?i===VIEW:(working&&i===k)||(recap&&i===k-1), can=g&&canView(i);
+    t.className="tick"+(STEPS[+t.dataset.i]&&STEPS[+t.dataset.i].doneForYou?" dfy":"")+(status[i]&&status[i]!=="skipped"?" done":"")+(cur?" cur":"")+(status[i]?" s-"+status[i]:"")+(can?" can":"");
+    if(g){t.setAttribute("aria-disabled",String(!can));if(cur)t.setAttribute("aria-current","step");else t.removeAttribute("aria-current");}else{t.removeAttribute("aria-disabled");t.removeAttribute("aria-current");}
+    t.title=(s.tickLabel||"Entry "+s.ref)+" · "+s.title+(status[i]?" ("+SLAB[status[i]]+")":"");
+    t.setAttribute("aria-label",stepLabel(s)+" "+(s.tickLabel||s.ref)+": "+s.title+(status[i]?", "+SLAB[status[i]]:""));});
+}
+function render(flash){
+  applyViews();renderBar();renderEntry();renderBS();renderT();renderJournal();save();
+  if(flash&&!matchMedia("(prefers-reduced-motion: reduce)").matches){document.querySelectorAll("#bs .st tr.chg").forEach(n=>{n.classList.remove("flash");void n.offsetWidth;n.classList.add("flash");});}
+  const ct=document.querySelector(".tick.cur");
+  if(ct){const tl=$("timeline");const cr=ct.getBoundingClientRect(),tr=tl.getBoundingClientRect();if(cr.left<tr.left||cr.right>tr.right)tl.scrollLeft+=cr.left-tr.left-tr.width/2;}
+}
+VIEWS.forEach(x=>$("v-"+x).addEventListener("change",()=>{applyViews();save();}));
+$("hideIdle").addEventListener("change",()=>{renderT();save();});
+function measure(){const r=document.documentElement;r.style.setProperty("--b1",$("band1").offsetHeight+"px");r.style.setProperty("--b2",$("band2").offsetHeight+"px");}
+try{new ResizeObserver(measure).observe($("band1"));new ResizeObserver(measure).observe($("band2"));}catch(e){window.addEventListener("resize",measure);}
+measure();
+
+window.__lab={gen,ACCTS,SOLVE};
+load();
+render(false);
+// Graded mode: once the Supabase library has loaded (it is deferred), resume a graded attempt from the server,
+// or reopen the Graded dialog after the student follows the sign-in link from their email.
+(function(){
+  const go=async()=>{
+    loadTopics();
+    const fromEmail=/(^#|&)(access_token|error_description)=/.test(location.hash);
+    if(PENDING){
+      const id=PENDING;
+      try{if(!(await currentUser()))throw Object.assign(new Error("signed out"),{code:"unauthorized"});await enterAttempt(id);}
+      catch(e){if(e&&e.code==="not_found"){try{localStorage.removeItem(GKEY);}catch(x){}}
+        PENDING=null;openGDlg(e&&e.code==="unauthorized"?"Sign in to resume your graded attempt.":e&&e.message);}
+      PENDING=null; save();
+    } else if(fromEmail){openGDlg();}
+  };
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go,{once:true});else go();
+})();
+})();
+</script>
+</body>
+</html>
