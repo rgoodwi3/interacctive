@@ -435,7 +435,7 @@ function gPartCard(h, s, lock) {
   if (s.fb && GS.done[cur]) {
     const p = GS.pts[cur] || 0, mx = GS.max[cur];
     if (s.fb.all) h += '<div class="overall ok"><b>✓ All correct.</b> Your first submission earned ' + p + ' of ' + mx + ' points.' + (p < mx ? " Retries don't change your score." : "") + '</div>';
-    else { const n = Object.values(s.fb.res).filter(x => x && !x.ok).length; h += '<div class="overall no"><b>Not quite.</b> Your first submission earned ' + p + ' of ' + mx + ' points. Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked ✗ to move on; retries don\'t change your score.</div>'; }
+    else { const n = Object.values(s.fb.res).filter(x => x && !x.ok).length; h += '<div class="overall no"><b>Not quite.</b> Your first submission earned ' + p + ' of ' + mx + ' points. Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked Incorrect to move on; retries don\'t change your score.</div>'; }
   } else if (GS.done[cur] && lock) h += '<div class="overall ok"><b>Submitted.</b> Your first submission earned ' + (GS.pts[cur] || 0) + ' of ' + GS.max[cur] + ' points.</div>';
   const prim = lock ? (cur < PARTS.length - 1 ? '<button class="btn primary" data-act="next">Next part →</button>' : '<button class="btn primary" data-act="finishG">Finish and see your score →</button>') :
     '<button class="btn primary" data-act="check">' + (GS.done[cur] ? "Check my answers" : "Submit answers") + '</button>';
@@ -568,7 +568,12 @@ function control(p, f, s, lock, label) {
   const pre = f.pre != null ? f.pre : f.kind === "$" ? "$" : "", post = f.post != null ? f.post : f.kind === "pct" ? "%" : "";
   return '<div class="inbox' + cls(s, f) + '">' + (pre ? '<span class="pre" aria-hidden="true">' + esc(pre) + '</span>' : '') + '<input data-f="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(label) + '" value="' + esc(val) + '"' + (lock ? " disabled" : "") + '>' + (post ? '<span class="post" aria-hidden="true">' + esc(post) + '</span>' : '') + '</div>';
 }
-function msgHTML(r) { return '<div class="fmsg ' + (r.ok ? "ok" : "no") + '"><span aria-hidden="true">' + (r.ok ? "✓" : "✗") + '</span><span>' + esc(r.msg) + '</span></div>'; }
+function msgHTML(r) {
+  // B-021: the verdict is a word as well as a glyph, so it is seen and spoken ("Correct" / "Incorrect").
+  const m = String(r.msg == null ? "" : r.msg), word = r.ok ? "Correct" : "Incorrect";
+  const body = r.ok && /^Correct\b/.test(m) ? '<b>' + esc(m) + '</b>' : '<b>' + word + '.</b>' + (m ? ' ' + esc(m) : '');
+  return '<div class="fmsg ' + (r.ok ? "ok" : "no") + '"><span aria-hidden="true">' + (r.ok ? "✓" : "✗") + '</span><span>' + body + '</span></div>';
+}
 function showWork(s, f) { return f.work != null && (s.revealed && s.shown[f.id] || !!(s.fb && s.fb.all && s.fb.res[f.id] && s.fb.res[f.id].ok)); }
 function listHTML(p, s, lock, fields) {
   let h = '<div class="fields">';
@@ -688,7 +693,7 @@ function renderPart() {
     if (s.revealed && s.walk < 0) h += '<div class="overall shown"><b>' + (s.status === "shown" ? "Answers shown." : "Walk-through closed.") + '</b> Work through each answer, then click Clear and try it on your own, or try new numbers.</div>';
     else if (s.fb && !s.revealed) {
       if (s.fb.all) h += '<div class="overall ok"><b>✓ ' + (s.tries === 1 ? "Correct on the first try." : "Correct after " + s.tries + " tries.") + '</b></div>';
-      else { const n = Object.values(s.fb.res).filter(x => !x.ok).length; h += '<div class="overall no"><b>Not quite yet.</b> Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked ✗ and check again.</div>'; }
+      else { const n = Object.values(s.fb.res).filter(x => !x.ok).length; h += '<div class="overall no"><b>Not quite yet.</b> Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked Incorrect and check again.</div>'; }
     }
   }
   if (lock && p.why) h += '<div class="why"><b>Why it matters</b><br>' + esc(p.why) + '</div>';
