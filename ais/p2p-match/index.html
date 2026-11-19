@@ -291,7 +291,7 @@ function buildParts(P) {
     desc: name(w) + " (" + vname(w) + ") passed within tolerance: supported " + cents(xw.S) + ", difference " + cents(xw.D) + ". " +
       (held.length === 1 ? name(held[0]) + " is" : names(held.map(name)) + " are") + " on hold." +
       (clean.length ? " " + names(clean.map(name)) + (clean.length === 1 ? " matches" : " match") + " exactly." : "") +
-      " For each bill, enter the amount approved for payment. Enter 0 for a bill on hold. Then post " + name(w) + "'s vendor bill in NetSuite: its item receipt already credited 2050 at PO cost.",
+      " For each bill, enter the amount approved for payment. Enter 0 for a bill on hold. Then post " + name(w) + " as NetSuite does, in two steps: the vendor bill itself, and the variance journal that Post Vendor Bill Variances (Transactions > Payables) creates at month-end. Its item receipt already credited 2050 at PO cost.",
     itemLabel: "Bill", cols: [{ key: "pay", label: "Amount approved for payment" }],
     items: sets.map((s, i) => ({ text: name(i) + " · " + vname(i) + ": " + optLabel(MATCH, X[i].res) })),
     fields: sets.map((s, i) => { const x = X[i]; return amt("pay" + i, name(i) + ": amount approved for payment", x.res === "pay" ? x.B : 0, v =>
@@ -300,24 +300,26 @@ function buildParts(P) {
       x.type === "within" && near(v, x.S) ? "A bill within tolerance is paid as billed: " + cents(x.B) + "." :
       x.partial && near(v, x.ord) ? "The bill is for the goods received. Approve it as billed: " + cents(x.B) + "." :
       "An approved bill is paid as billed, at its bill total.", payWork(i), { row: i, col: "pay" }); }).concat([
-      amt("dr2050", "Debit to 2050 Inventory Received Not Billed", xw.S, v =>
-        near(v, xw.B) ? "2050 is cleared at the value received, PO cost × quantity received: " + cents(xw.S) + ". The extra goes to 5200." :
-        xw.partial && near(v, xw.ord) ? "2050 holds only what was received. Clear it at PO cost × quantity received, not the PO total." :
-        "Debit 2050 for the value received: PO cost × quantity received.", "The value received: " + sWork(w), { sub: name(w) }),
-      amt("v5200", "Debit to 5200 Inventory Adjustments", xw.D, v =>
+      amt("dr2050", "Bill: debit to 2050 Inventory Received Not Billed", xw.B, v =>
+        near(v, xw.S) ? "The bill posts in full; the excess is moved later. NetSuite debits 2050 for the bill total, " + cents(xw.B) + ", and the month-end variance journal moves the difference to 5200." :
+        xw.partial && near(v, xw.ord) ? "The bill posts its own total, not the PO total. Debit 2050 for the bill total." :
+        near(v, xw.D) ? "That's the difference, which moves to 5200 at month-end. The bill itself debits 2050 for its full total." :
+        "Debit 2050 for the bill total: NetSuite posts the bill in full.", "The bill posts in full: " + cents(xw.B) + ".", { sub: name(w) }),
+      amt("v5200", "Month-end variance journal: debit to 5200 Inventory Adjustments (credit 2050)", xw.D, v =>
         near(v, xw.T) ? "Post the actual difference, not the tolerance." :
-        near(v, 0) ? "The accepted difference still has to be posted. Debit 5200 for bill − supported amount." :
+        near(v, 0) ? "The accepted difference still has to be posted. At month-end the variance journal moves bill − supported amount out of 2050 into 5200." :
         near(v, -xw.D) ? "The bill is above the value received, so 5200 takes a debit for the positive difference." :
+        near(v, xw.B) || near(v, xw.S) ? "The variance journal moves only the excess over the value received: bill total − supported amount." :
         "Debit 5200 for the accepted difference: bill total − supported amount.", "The accepted difference: " + dWork(w), { sub: name(w) }),
-      amt("cr2000", "Credit to 2000 Accounts Payable", xw.B, (v, n) =>
+      amt("cr2000", "Bill: credit to 2000 Accounts Payable", xw.B, (v, n) =>
         near(v, xw.S) ? "Accounts payable is what Trailhead owes the vendor: the bill total." :
-        n.dr2050 != null && n.v5200 != null && near(v, r2(n.dr2050 + n.v5200)) ? "Your addition is right, but your debits are not. Fix them first." :
+        n.dr2050 != null && !near(n.dr2050, xw.B) && near(v, n.dr2050) ? "Your bill balances, but your debit to 2050 is not right. Fix it first." :
         "Credit 2000 Accounts Payable for what Trailhead owes the vendor: the bill total.", "What Trailhead owes " + vname(w) + ": the bill total, " + cents(xw.B) + ".", { sub: name(w) })]),
-    hint: "The receipt credited 2050 at PO cost; the bill clears 2050 at that same amount and records what Trailhead owes in 2000. Any accepted amount billed above the value received goes to 5200.",
-    why: "2050 holds goods received but not yet billed. Matching clears it to zero, so a balance left in 2050 points to a missing or held bill.",
+    hint: "The bill posts its full amount: Dr 2050 / Cr 2000 for the bill total. At month-end, Post Vendor Bill Variances moves the accepted excess out of 2050 and into 5200.",
+    why: "2050 holds goods received but not yet billed. The receipt credits it at PO cost, the bill debits it in full and the variance journal credits the excess, so after both steps 2050 is back to zero for this PO. A balance left after month-end points to a missing or held bill.",
     walk: [{ keys: sets.map((s, i) => "pay" + i), text: "A held bill gets nothing until the vendor corrects it. A bill that passes is paid as billed.", formula: sets.map((s, i) => name(i) + ": " + (X[i].res === "pay" ? cents(X[i].B) : "$0.00")).join(" · ") },
-      { keys: ["dr2050", "v5200", "cr2000"], text: name(w) + " clears 2050 at the value received, puts the accepted difference in 5200 and owes the vendor the bill total.",
-        formula: "Dr 2050 " + cents(xw.S) + " + Dr 5200 " + cents(xw.D) + " = Cr 2000 " + cents(xw.B) }] });
+      { keys: ["dr2050", "v5200", "cr2000"], text: name(w) + " posts in full: Dr 2050 / Cr 2000 for the bill total. At month-end, Post Vendor Bill Variances moves the accepted difference out of 2050: Dr 5200 / Cr 2050. After both steps, 2050 is back to zero for this PO.",
+        formula: "Bill: Dr 2050 " + cents(xw.B) + " / Cr 2000 " + cents(xw.B) + " · Variance journal: Dr 5200 " + cents(xw.D) + " / Cr 2050 " + cents(xw.D) + " · 2050: Dr " + cents(xw.B) + " − Cr " + cents(xw.S) + " − Cr " + cents(xw.D) + " = $0.00" }] });
 
   // Part 4: vendor master requests (practice scenarios).
   const rq = P.reqs.map(k => REQS[k]);
