@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Staff interview transcripts (instructor) · ACCT 2250</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<link rel="stylesheet" href="staff.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the transcripts</a>
+<header class="band1 sc-head">
+  <div class="wrap">
+    <div class="eyebrow">University of New Haven · ACCT 2250 / ACCT 6641 · Instructor</div>
+    <h1>Staff interview transcripts</h1>
+    <p class="biz">Students' conversations with the Trailhead staff chatbots, for D1, D2 and M1. Only the class instructor can open them. Open this page from the class link: <code>ais/staff/instructor.html?course=&lt;class id&gt;</code>.</p>
+  </div>
+</header>
+<main class="wrap sc-main" id="main" tabindex="-1">
+  <div id="status" class="sc-status" role="status" aria-live="polite"></div>
+  <div id="alert" class="sc-alert" role="alert" hidden></div>
+
+  <section id="signin" class="panel sc-signin" aria-labelledby="signinH" hidden>
+    <div class="panel-h"><h2 id="signinH">Sign in</h2></div>
+    <div class="panel-b">
+      <form id="emailForm" novalidate>
+        <label for="email">Instructor email</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <button class="btn primary" type="submit">Email me a sign-in code</button>
+      </form>
+      <form id="codeForm" novalidate hidden>
+        <label for="code">Code from the email</label>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="app" class="panel" aria-labelledby="appH" hidden>
+    <div class="panel-h"><h2 id="appH">Export</h2><span class="sub" id="who"></span></div>
+    <div class="panel-b">
+      <form id="filters" class="sc-filters">
+        <label for="fAsg">Assignment</label>
+        <select id="fAsg"><option value="">All (including untagged)</option><option>D1</option><option>D2</option><option>M1</option></select>
+        <label for="fFrom">Started on or after</label>
+        <input id="fFrom" type="date">
+        <label for="fTo">Started before</label>
+        <input id="fTo" type="date">
+        <button class="btn primary" type="submit">Load</button>
+      </form>
+      <p class="sc-hint">Conversations are tagged D1, D2 or M1 when students open the directory from that assignment's Canvas link. Untagged ones show under All; use the dates to separate them.</p>
+      <div id="out" hidden>
+        <p id="summary"></p>
+        <div class="sc-actions">
+          <button class="btn" type="button" id="csv">Download all messages (CSV)</button>
+          <button class="btn" type="button" id="txt">Download transcripts (text, one block per conversation)</button>
+        </div>
+        <table class="sc-table">
+          <caption>Conversations by student and staff member</caption>
+          <thead><tr><th scope="col">Student</th><th scope="col">Staff member</th><th scope="col">Conversations</th><th scope="col">Questions</th><th scope="col">Card versions</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="instructor.js"></script>
+</body>
+</html>
