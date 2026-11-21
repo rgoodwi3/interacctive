@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trailhead staff directory · ACCT 2250</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<link rel="stylesheet" href="staff.css">
+<!-- Sign-in and the staff-chat server function. Staff details and replies come only from the server. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the staff directory</a>
+<header class="band1 sc-head">
+  <div class="wrap">
+    <div class="eyebrow">University of New Haven · ACCT 2250 / ACCT 6641 · Accounting Information Systems</div>
+    <h1>Trailhead staff directory</h1>
+    <p class="biz">Your controller, Marcus Oyelaran, wants you to document how a wholesale order turns into cash before the auditors visit. Marcus and Dana Whitfield are too busy for interviews, but six staff members can talk with you. Interview them about their part of the process.</p>
+  </div>
+</header>
+
+<main class="wrap sc-main" id="main" tabindex="-1">
+  <div class="sc-sim" role="note" aria-labelledby="simH">
+    <h2 id="simH">This is a simulation</h2>
+    <p>The staff here are AI chatbots playing fictional Trailhead Outfitters employees. Like real coworkers, they can be wrong, and they can disagree with each other. Write down what each person tells you, and attach your transcripts to your assignment.</p>
+    <p>Your questions and the replies are saved to your class account, and your instructor can read them. Questions go to an AI service (Anthropic) without your name or email. Don't type personal information.</p>
+  </div>
+
+  <div id="status" class="sc-status" role="status" aria-live="polite"></div>
+  <div id="alert" class="sc-alert" role="alert" hidden></div>
+
+  <section id="signin" class="panel sc-signin" aria-labelledby="signinH" hidden>
+    <div class="panel-h"><h2 id="signinH">Sign in</h2></div>
+    <div class="panel-b">
+      <form id="emailForm" novalidate>
+        <p>Use the email address you use for your InterACCtive course page. We'll email you a sign-in code.</p>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <button class="btn primary" type="submit">Email me a sign-in code</button>
+      </form>
+      <form id="codeForm" novalidate hidden>
+        <p id="codeSent"></p>
+        <label for="code">Code from the email</label>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required>
+        <button class="btn primary" type="submit">Sign in</button>
+        <button class="btn" type="button" id="otherEmail">Use a different email</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="app" class="sc-grid" hidden>
+    <section class="panel sc-dir" aria-labelledby="dirH">
+      <div class="panel-h"><h2 id="dirH">Staff</h2><span class="sub" id="who"></span></div>
+      <div class="panel-b">
+        <p class="sc-hint">Choose a person to start a new interview.</p>
+        <ul class="sc-people" id="people"></ul>
+        <h3 class="sc-h3" id="pastH">Your conversations</h3>
+        <p class="sc-hint" id="pastNone">None yet.</p>
+        <ul class="sc-past" id="past" aria-labelledby="pastH"></ul>
+        <p class="sc-usage" id="usage"></p>
+        <button class="btn small" type="button" id="signout">Sign out</button>
+      </div>
+    </section>
+
+    <section class="panel sc-chat" aria-labelledby="chatH" id="chat">
+      <div class="panel-h"><h2 id="chatH" tabindex="-1">No interview open</h2><span class="sub" id="chatSub"></span></div>
+      <div class="panel-b">
+        <p class="sc-hint" id="chatEmpty">Pick someone from the staff list. Start with open questions, such as "Walk me through what you do when an order comes in," then ask who else touches it and what happens if something goes wrong.</p>
+        <div id="log" class="sc-log" role="log" aria-live="off" aria-labelledby="chatH" tabindex="0" hidden></div>
+        <div id="announce" class="sr" aria-live="polite" aria-atomic="true"></div>
+        <form id="ask" class="sc-ask" hidden>
+          <label for="msg">Your question</label>
+          <textarea id="msg" rows="3" maxlength="600" aria-describedby="msgHelp msgCount"></textarea>
+          <div class="sc-askrow">
+            <span class="sc-hint" id="msgHelp">Enter sends. Shift+Enter starts a new line.</span>
+            <span class="sc-count" id="msgCount" aria-live="off"></span>
+          </div>
+          <div class="sc-actions">
+            <button class="btn primary" type="submit" id="send">Send</button>
+            <button class="btn" type="button" id="download">Download transcript</button>
+            <button class="btn" type="button" id="restart">New conversation with this person</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <p class="sc-foot">Trailhead Outfitters Co. and its staff are fictional. There is no time limit. If you need a written interview summary instead of the chat, ask your instructor.</p>
+</main>
+<script src="staff.js"></script>
+</body>
+</html>
