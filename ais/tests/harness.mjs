@@ -42,6 +42,7 @@ export function makeServer(opts = {}) {
       const bots = opts.includeAll ? all : all.filter((b) => b.group === g);
       const convs = opts.includeAll ? s.convs : s.convs.filter((c) => (c.bot === NORA[0]) === (g === "hr"));
       const json = { ready: s.ready, bots, conversations: convs, today: s.today, limits: s.limits };
+      if (opts.personaLimit && g === "hr") { json.persona_used = s.personaUsed || 0; json.persona_limit = opts.personaLimit; }
       if (opts.faq && g === "hr") json.faq = FAQ.map(({ id, question, alternates, section }) => ({ id, question, alternates, section }));
       return { status: 200, json };
     }
@@ -75,10 +76,12 @@ export function makeServer(opts = {}) {
         s.msgs[c.id].push({ role: "student", content: body.message, at: "2027-01-27T15:05:00.000Z" }, { role: "staff", source: "faq", section: hit.section, content: hit.answer, at: "2027-01-27T15:05:01.000Z" });
         return { status: 200, json: { reply: hit.answer, source: "faq", section: hit.section, student_messages: c.student_messages, today: s.today } };
       }
+      if (opts.personaLimit && c.bot === "nora-feldman" && (s.personaUsed || 0) >= opts.personaLimit) return fail(429, "persona_day_limit", "You've asked Nora 20 questions today. Saved answers still work, and the limit resets at midnight. For anything urgent, email Professor Goodwin.");
+      if (opts.personaLimit && c.bot === "nora-feldman") s.personaUsed = (s.personaUsed || 0) + 1;
       const reply = "The syllabus section on late work explains this. Ask Professor Goodwin about any exception.";
       s.msgs[c.id].push({ role: "student", content: body.message, at: "2027-01-27T15:05:00.000Z" }, { role: "staff", content: reply, at: "2027-01-27T15:05:05.000Z" });
       c.student_messages++; s.today++;
-      return { status: 200, json: { reply, student_messages: c.student_messages, today: s.today } };
+      return { status: 200, json: { reply, student_messages: c.student_messages, today: s.today, ...(opts.personaLimit ? { persona_used: s.personaUsed } : {}) } };
     }
     if (body.action === "transcript") {
       const c = s.convs.find((x) => x.id === body.conversation_id);

@@ -316,3 +316,33 @@ test("confirmation: Send with no conversation asks first; Cancel and Escape star
   assert.equal(starts(s).length, 2); assert.equal(d.activeElement.id, "msg");
   assert.equal(d.getElementById("chatH").textContent, "Conversation with Nora Feldman");
 });
+
+test("Nora's daily limit: usage line, 429 persona_day_limit message, saved answers still work", async () => {
+  const s = makeServer({ faq: true, personaLimit: 20 });
+  s.personaUsed = 18;
+  const { w, d } = await loadPage("hr", s);
+  const nu = d.getElementById("noraUsage"), msg = d.getElementById("msg");
+  assert.equal(nu.hidden, false);
+  assert.equal(nu.textContent, "Questions to Nora today: 18 of 20.");
+  type(w, msg, "Is the final cumulative?"); enter(w, msg); await settle(); await yes(d);
+  assert.equal(nu.textContent, "Questions to Nora today: 19 of 20.");
+  type(w, msg, "Is Exam 1 open book?"); enter(w, msg); await settle();
+  assert.equal(nu.textContent, "Questions to Nora today: 20 of 20.");
+  type(w, msg, "When is Exam 2?"); enter(w, msg); await settle();
+  assert.equal(d.getElementById("alert").textContent, "You've asked Nora 20 questions today. Saved answers still work, and the limit resets at midnight. For anything urgent, email Professor Goodwin.");
+  assert.equal(msg.value, "When is Exam 2?", "the question is kept");
+  assert.equal(d.querySelectorAll("#log .sc-msg").length, 4, "the refused question is not left in the log");
+  assert.equal(d.getElementById("send").disabled, false);
+  // Saved answers keep working.
+  const before = s.calls.filter((c) => c.action === "faq").length;
+  d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle();
+  assert.equal(s.calls.filter((c) => c.action === "faq").length, before + 1);
+  assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 1);
+  assert.equal(nu.textContent, "Questions to Nora today: 20 of 20.");
+});
+
+test("Nora's daily limit: the line is hidden when the server doesn't send it", async () => {
+  const s = makeServer();
+  const { d } = await loadPage("hr", s);
+  assert.equal(d.getElementById("noraUsage").hidden, true);
+});

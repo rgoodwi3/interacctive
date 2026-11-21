@@ -159,6 +159,10 @@
     var t = "Messages today, across all Trailhead chats: " + DIR.today + " of " + DIR.limits.per_day + ".";
     if (CUR) t += " This conversation: " + (CUR.student_messages || 0) + " of " + DIR.limits.per_conversation + ".";
     $("usage").textContent = t;
+    // Nora's own daily limit (spec 4j), shown only when the server sends it.
+    var nu = $("noraUsage"), used = DIR.persona_used, lim = DIR.persona_limit;
+    if (typeof used === "number" && typeof lim === "number") { nu.textContent = "Questions to " + first() + " today: " + Math.min(used, lim) + " of " + lim + "."; nu.hidden = false; }
+    else { nu.textContent = ""; nu.hidden = true; }
   }
   $("past").addEventListener("click", function (e) { var b = e.target.closest("button[data-conv]"); if (b) openConversation(b.dataset.conv); });
 
@@ -308,6 +312,7 @@
       showReply(r);   // r.source "faq": the server matched the typed question to a saved answer
       $("msg").value = ""; count();
       CUR.student_messages = r.student_messages; DIR.today = r.today;
+      if (typeof r.persona_used === "number") DIR.persona_used = r.persona_used;
       CONVS.forEach(function (c) { if (c.id === CUR.id) c.student_messages = r.student_messages; });
       renderPast(); renderUsage(); status("");
     } catch (e) {
@@ -316,6 +321,12 @@
       if (!log.children.length) log.hidden = true;
       status("");
       if (e.code === "unauthorized") showSignIn(e.message);
+      else if (e.code === "persona_day_limit") {
+        // Nora's daily limit: show the server's message; saved answers keep working; the question stays in the box.
+        alertMsg(e.message || "You've reached today's limit for questions to " + first() + ". Saved answers still work, and the limit resets at midnight.");
+        if (typeof DIR.persona_limit === "number") DIR.persona_used = DIR.persona_limit;
+        renderUsage();
+      }
       else if (e.code === "card_changed") { alertMsg(e.message + " Press Send again to start a new conversation."); clearChat(); }
       else alertMsg(e.message);
     } finally {
