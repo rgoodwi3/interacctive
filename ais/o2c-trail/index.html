@@ -100,7 +100,6 @@ function gen(seed) {
     // Skip a few reserved combinations and values (kept in step with the server module).
     const ids = [cu[0]].concat(otherChecks.map(c => c.id));
     if (RSV.ids.every(x => ids.indexOf(x) >= 0)) continue;
-    if ([docs.so, docs.sh, docs.inv, docs.rc, docs.dep, docs.cs, oldNo, poNo].join(" ").indexOf(RSV.no) >= 0) continue;
     const P = {
       customer: { id: cu[0], name: cu[1], city: cu[2], terms: "Net 30" }, custPO: initials(cu[1]) + "-" + poNo,
       orderDate: day(1, od), shipDate: day(1, od + 1), payDate: day(2, pd), poLines,
@@ -112,6 +111,8 @@ function gen(seed) {
     if (S.inv < 3000 || S.inv > 20000 || oldAmt === S.inv) continue;
     if (!degenerateFree(P, S)) continue;
     if (printed(P, S).some(x => { const t = String(Math.floor(x)); return t.indexOf(RSV.amt) === 0 && t.length % 3 === 0; })) continue;
+    // Every number in the problem and its parts, with thousands commas taken out.
+    if ((JSON.stringify(P) + JSON.stringify(buildParts(P))).replace(/(\d),(?=\d)/g, "$1").indexOf(RSV.no) >= 0) continue;
     return P;
   }
   throw new Error("Could not generate a problem set");

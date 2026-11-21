@@ -21,10 +21,6 @@
 .pol b{font-family:var(--f-display);color:var(--brand)}
 /* Row headers in the panel tables read as body text, not as column headings. */
 .dtab tbody th{font-size:14.5px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:600;border-bottom:1px solid var(--rule);vertical-align:top}
-/* Room for the longer choices, so a chosen label isn't cut off at 1,024 px. */
-.ctab td.sel:has(select[data-f^="comp"]){min-width:210px}
-.ctab td.sel:has(select[data-f^="prin"]){min-width:290px}
-.ctab td.sel:has(select[data-f^="sod"]){min-width:230px}
 /* The memo, the practice-scenario line and the task are separate paragraphs. */
 .part-desc{white-space:pre-line}
 </style>
@@ -137,12 +133,13 @@ const CTRL = [
   { ipo: "input", pd: "prev", am: "auto", text: "A vendor record can't be saved unless its tax ID field has nine digits.", work: "A format check at entry stops a mistyped tax ID." },
   { ipo: "input", pd: "prev", am: "manual", text: "Aisha reviews and approves each purchase order before NetSuite sends it to the vendor.", work: "A person authorizes the transaction before it goes forward." },
   { ipo: "input", pd: "det", am: "manual", text: "Before entering a stack of vendor invoices, Tomás totals them on a tape, then compares the tape with NetSuite's total of bills entered.", work: "A batch total compared after entry finds keying errors." },
-  { ipo: "processing", pd: "prev", am: "auto", text: "When a journal entry is posted, NetSuite refuses it if debits don't equal credits.", work: "A zero-balance test during posting stops an unbalanced entry." },
-  { ipo: "processing", pd: "prev", am: "auto", text: "NetSuite computes each invoice line as quantity × price and totals the invoice; users can't type over the total.", work: "The system does the calculation, so a math error can't happen." },
+  { ipo: "processing", pd: "prev", am: "auto", alt: ["input"], text: "When a journal entry is posted, NetSuite refuses it if debits don't equal credits.", work: "A zero-balance test during posting stops an unbalanced entry.",
+    altMsg: "Input is accepted too: many texts treat a debits-equal-credits check as an input control on the entry. Romney and Steinbart call it a zero-balance test, a processing control." },
+  { ipo: "processing", pd: "prev", am: "auto", text: "NetSuite computes each line and the invoice total from quantity × rate.", work: "The system does the calculation, so a math error can't happen." },
   { ipo: "processing", pd: "det", am: "auto", text: "After the overnight import of web orders, NetSuite recomputes the order count and dollar total and flags any difference from the totals the web store sent.", work: "Recalculating batch totals during processing catches lost or duplicated orders." },
-  { ipo: "processing", pd: "det", am: "manual", text: "Each month Priya recalculates depreciation for a sample of assets and compares it with what NetSuite posted.", work: "A person recomputes processed results to find errors." },
+  { ipo: "processing", pd: "det", am: "manual", text: "Each month Marcus recalculates depreciation for a sample of assets and compares it with what was posted.", work: "A person recomputes processed results to find errors." },
   { ipo: "output", pd: "det", am: "manual", text: "Marcus compares the monthly income statement with budget and investigates large differences before sending it to Dana.", work: "A person reviews the report before it's used." },
-  { ipo: "output", pd: "prev", am: "auto", text: "Only the Controller and CEO roles can run the report that lists vendor bank account numbers.", work: "The system limits who can see sensitive output." },
+  { ipo: "output", pd: "prev", am: "auto", text: "At a company like Trailhead, only the controller and CEO roles can run the report that lists vendor bank account numbers.", work: "The system limits who can see sensitive output." },
   { ipo: "output", pd: "det", am: "auto", text: "NetSuite emails Elena a list of invoices that bounced when they were emailed to customers.", work: "The system reports output that didn't reach its user." },
   { ipo: "output", pd: "prev", am: "manual", text: "Printed payroll summaries go only to a locked tray in the controller's office.", work: "A physical step keeps sensitive output from the wrong people." }];
 const IPOWHY = {
@@ -156,18 +153,18 @@ const AMWHY = { manual: "A person performs it, so it's manual.", auto: "The syst
 // ---------- Part 4: duty conflicts in a temporary coverage plan ----------
 const SODOPT = [["none", "No conflict"], ["auth_cust", "Authorization + custody"], ["auth_rec", "Authorization + recording"], ["cust_rec", "Custody + recording"]];
 const SOD = [
-  { who: "Mei Tanaka", role: "Warehouse Clerk", duty: "receives deliveries at the dock", add: "enter vendor bills while Tomás is out", ans: "cust_rec", work: "She could accept a short delivery and still record the full bill." },
+  { who: "Mei Tanaka", role: "Receiving Clerk", duty: "receives deliveries at the dock", add: "enter vendor bills while Tomás is out", ans: "cust_rec", work: "She could accept a short delivery and still record the full bill." },
   { who: "Tomás Rivera", role: "A/P Clerk", duty: "enters vendor bills", add: "receive deliveries at the dock while Mei is out", ans: "cust_rec", work: "He could accept a short delivery and record a bill for the full amount." },
   { who: "Aisha Rahman", role: "Purchasing Manager", duty: "approves purchase orders", add: "receive deliveries at the dock while Mei is out", ans: "auth_cust", work: "She could approve a purchase and confirm goods that never arrived." },
   { who: "Ben Castellano", role: "Warehouse Manager", duty: "runs the warehouse", add: "approve purchase orders under $5,000 while Aisha is out", ans: "auth_cust", work: "He could order goods and control them when they arrive." },
   { who: "Tomás Rivera", role: "A/P Clerk", duty: "enters vendor bills", add: "approve the weekly payment run while Marcus is out", ans: "auth_rec", work: "He could enter a bill and approve paying it." },
   { who: "Aisha Rahman", role: "Purchasing Manager", duty: "approves purchase orders", add: "enter vendor bills while Tomás is out", ans: "auth_rec", work: "She could approve a purchase and record the bill for it with no one checking." },
-  { who: "Luis Ortega", role: "Warehouse Clerk", duty: "picks, packs and ships orders", add: "post inventory adjustments after cycle counts", ans: "cust_rec", work: "He could take goods and record the shortage as an adjustment." },
+  { who: "Luis Ortega", role: "Shipping Clerk", duty: "picks, packs and ships orders", add: "post inventory adjustments after cycle counts", ans: "cust_rec", work: "He could take goods and record the shortage as an adjustment." },
   { who: "Elena Kowalczyk", role: "A/R Clerk", duty: "records customer payments", add: "approve customer write-offs while Marcus is out", ans: "auth_rec", work: "She could hide a missing payment by approving a write-off." },
-  { who: "Mei Tanaka", role: "Warehouse Clerk", duty: "receives deliveries at the dock", add: "approve purchase orders while Aisha is out", ans: "auth_cust", work: "She could order goods and receive them herself." },
+  { who: "Mei Tanaka", role: "Receiving Clerk", duty: "receives deliveries at the dock", add: "approve purchase orders while Aisha is out", ans: "auth_cust", work: "She could order goods and receive them herself." },
   { who: "Ben Castellano", role: "Warehouse Manager", duty: "runs the warehouse", add: "approve returns of damaged goods to vendors", ans: "auth_cust", work: "He could approve sending out goods from the warehouse he controls." },
-  { who: "Mei Tanaka", role: "Warehouse Clerk", duty: "receives deliveries at the dock", add: "pick, pack and ship orders while Luis is out", ans: "none", work: "Receiving and shipping are both custody of goods; neither approves transactions or keeps the accounting records." },
-  { who: "Luis Ortega", role: "Warehouse Clerk", duty: "picks, packs and ships orders", add: "receive deliveries at the dock while Mei is out", ans: "none", work: "Both duties are custody of goods, with no approval or accounting record." },
+  { who: "Mei Tanaka", role: "Receiving Clerk", duty: "receives deliveries at the dock", add: "pick, pack and ship orders while Luis is out", ans: "none", work: "Receiving and shipping are both custody of goods; neither approves transactions or keeps the accounting records." },
+  { who: "Luis Ortega", role: "Shipping Clerk", duty: "picks, packs and ships orders", add: "receive deliveries at the dock while Mei is out", ans: "none", work: "Both duties are custody of goods, with no approval or accounting record." },
   { who: "Aisha Rahman", role: "Purchasing Manager", duty: "approves purchase orders", add: "review vendor price lists for next season", ans: "none", work: "Reviewing price lists is planning work within her own function." },
   { who: "Tomás Rivera", role: "A/P Clerk", duty: "enters vendor bills", add: "run the AP aging report for Marcus", ans: "none", work: "Running a read-only report adds no approval or custody." },
   { who: "Elena Kowalczyk", role: "A/R Clerk", duty: "records customer payments", add: "prepare the AR aging summary for Marcus's month-end review", ans: "none", work: "Preparing a report from posted data adds no approval or custody." }];
@@ -185,11 +182,11 @@ const RISK = [
   { ans: "match", text: "A vendor bills $64 a pair for boots ordered at $62.", work: "Comparing the bill with the PO price catches the overcharge." },
   { ans: "ceoPay", text: "A $14,000 vendor payment goes out with only the controller's sign-off.", work: "Payments over $10,000 need the CEO's approval too." },
   { ans: "jeApproval", text: "An accountant records an accrual for the wrong amount and no one checks it.", work: "A second person reviews the entry and its support before it posts." },
-  { ans: "lock", text: "A January bill is posted into December after December's statements were issued.", work: "A locked period can't take new entries." },
+  { ans: "lock", text: "A March bill is posted into February after February's statements were issued.", work: "A locked period can't take new entries." },
   { ans: "bankRec", text: "A deposit recorded in NetSuite never reaches the bank.", work: "Comparing the books with the bank statement finds the missing deposit." },
   { ans: "poApproval", text: "An employee orders goods for personal use on Trailhead's account.", work: "An approver reviews what is being bought and why." },
   { ans: "bankRec", text: "Cash is taken after it's recorded in the books.", work: "A monthly reconciliation by someone who doesn't handle cash shows the shortfall." },
-  { ans: "lock", text: "Last quarter's revenue is changed after the statements are issued.", work: "Locking closed periods stops later changes to reported results." },
+  { ans: "lock", text: "Last month's revenue is changed after the statements are issued.", work: "Locking closed periods stops later changes to reported results." },
   { ans: "ceoPay", text: "A large payment to a new supplier goes out without senior review.", work: "The CEO approves any payment over $10,000." },
   { ans: "sameDayInv", text: "Revenue is understated because shipped orders sit unbilled at month-end.", work: "Same-day invoicing records the sale when the goods ship." }];
 
@@ -281,8 +278,8 @@ function buildParts(P) {
     itemLabel: "Control", cols: [{ key: "ipo", label: "Input, processing or output" }, { key: "pd", label: "Preventive or detective" }, { key: "am", label: "Automated or manual" }],
     items: ks.map(k => ({ text: k.text })),
     fields: ks.flatMap((k, i) => [
-      sel("ipo" + i, "Control " + (i + 1) + ": input, processing or output", IPO, k.ipo, k.work, v =>
-        not(IPO, v) + IPOWHY[[v, k.ipo].sort().join("-")] + " " + k.work, i, "ipo"),
+      Object.assign(sel("ipo" + i, "Control " + (i + 1) + ": input, processing or output", IPO, k.ipo, k.work, v =>
+        not(IPO, v) + IPOWHY[[v, k.ipo].sort().join("-")] + " " + k.work, i, "ipo"), k.alt ? { alt: k.alt, altMsg: k.altMsg } : {}),
       sel("pd" + i, "Control " + (i + 1) + ": preventive or detective", PD, k.pd,
         k.pd === "prev" ? "Preventive: it stops the problem before it happens." : "Detective: it finds the problem after it happens.", v =>
         not(PD, v) + PDWHY[k.ipo] + " " + k.work, i, "pd"),
@@ -326,7 +323,7 @@ function grade(p, vals) {
   p.fields.forEach(f => {
     const raw = vals[f.id], v = typeof raw === "string" ? raw : "";
     if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
-    else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, vals) };
+    else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : (f.alt || []).indexOf(v) >= 0 ? { ok: true, msg: "Correct. " + f.altMsg } : { ok: false, msg: f.wrong(v, vals) };
     if (!res[f.id].ok) all = false;
   });
   return { res, all };
@@ -356,20 +353,20 @@ const PEOPLE = [
   ["Luis Ortega", "Shipping Clerk", "Picks, packs, ships and records item fulfillments", "Warehouse Clerk"],
   ["Sam Okafor", "IT Administrator (contractor)", "NetSuite administration, users, web store", "Administrator"],
   ["Nora Feldman", "HR and Payroll Coordinator", "Hiring and terminations; sends payroll data", "No NetSuite access"]];
-// Policies P3-P9 and P11 as written (spec 3.7).
+// Policies P3-P9 and P11, word for word from Trailhead's published policy manual.
 const POLICIES = [
-  ["P3", "Shipping and billing", "Nothing ships without an approved sales order; each shipment is invoiced the same day."],
-  ["P4", "Cash receipts", "Checks are logged by the receptionist, applied by the AR specialist and deposited daily by the senior accountant."],
-  ["P5", "Purchasing", "Every inventory purchase needs a PO approved by the purchasing manager; orders over $25,000 also need the CEO."],
-  ["P6", "Vendor setup", "New vendors need a W-9, CEO approval and a call-back to confirm bank details; purchasing sets up vendors."],
-  ["P7", "Three-way match", "A vendor bill is paid only when it agrees with the PO and the item receipt within 2% or $50, whichever is less."],
-  ["P8", "Payments", "AP prepares the weekly payment run; the controller approves it; the CEO also approves any payment over $10,000."],
-  ["P9", "Journal entries", "Manual journal entries need support and approval by someone other than the preparer."],
-  ["P11", "Period close", "Periods are locked after close; bank accounts are reconciled monthly by someone who doesn't handle cash."]];
+  ["P3", "Shipping and billing", "Nothing ships without an approved sales order. Each shipment is invoiced the same day"],
+  ["P4", "Cash receipts", "Checks are logged by the receptionist, applied by the AR specialist and deposited daily by the senior accountant"],
+  ["P5", "Purchasing", "Every inventory purchase needs a purchase order approved by the purchasing manager; orders over $25,000 also need the CEO"],
+  ["P6", "Vendor setup", "New vendors need a W-9, CEO approval and a call-back to confirm bank details. Purchasing sets up vendors; accounts payable does not"],
+  ["P7", "Three-way match", "A vendor bill is paid only when it agrees with the purchase order and the item receipt within 2% or $50, whichever is less"],
+  ["P8", "Payments", "The AP specialist prepares the weekly payment run; the controller approves it; the CEO also approves any payment over $10,000"],
+  ["P9", "Journal entries", "Manual journal entries need support attached and approval by someone other than the preparer"],
+  ["P11", "Period close", "Each period is locked after close; bank accounts are reconciled monthly by someone who does not handle cash"]];
 const COSO_TABLE = [["Control environment", "1–5"], ["Risk assessment", "6–9"], ["Control activities", "10–12"], ["Information and communication", "13–15"], ["Monitoring activities", "16–17"]];
 const NOTE = '<p class="note">These situations are practice scenarios written for this lab. They are not Trailhead\'s records, and they don\'t describe how its NetSuite account is set up.</p>';
 const peopleBlock = () => dtab("People and NetSuite roles", ["Person", "Title", "Does", "NetSuite role"], PEOPLE);
-const policyBlock = () => '<ul class="pol" aria-label="Trailhead policies">' + POLICIES.map(p => '<li><b>' + esc(p[0]) + ' · ' + esc(p[1]) + '.</b> ' + esc(p[2]) + '</li>').join("") + '</ul>';
+const policyBlock = () => '<ul class="pol" aria-label="Trailhead policies">' + POLICIES.map(p => '<li><b>' + esc(p[0]) + ' · ' + esc(p[1]) + '.</b> ' + esc(p[2]) + '.</li>').join("") + '</ul>';
 const cosoBlock = () => dtab("COSO Internal Control: components and their principles", ["Component", "Principles"], COSO_TABLE);
 function dataHTML(c) {
   const id = c.part ? c.part.id : "";

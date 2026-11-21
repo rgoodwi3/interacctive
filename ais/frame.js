@@ -55,7 +55,7 @@ document.body.insertAdjacentHTML("afterbegin",
   '<div class="legend-dots" id="legendDots"><span><i style="background:var(--good)"></i>First try</span><span><i style="background:var(--gold)"></i>Retried</span><span><i style="background:var(--muted)"></i>Answer shown</span></div></div></div></div>' +
   '<main class="wrap" id="main"><div class="grid-top" id="gridTop">' +
   '<section class="panel" id="pData" aria-labelledby="dataH"><div class="panel-h"><h2 id="dataH">' + esc(L.dataTitle || "Data") + '</h2><span class="sub" id="dataSub"></span></div><div class="panel-b" id="data"></div></section>' +
-  '<section class="panel" id="pPart" aria-labelledby="partH" tabindex="-1"><div class="panel-h"><h2 id="partH">Your work</h2><span class="sub" id="partSub"></span></div><div class="panel-b" id="part" aria-live="polite"></div></section>' +
+  '<section class="panel" id="pPart" aria-labelledby="partH" tabindex="-1"><div class="panel-h"><h2 id="partH">Your work</h2><span class="sub" id="partSub"></span></div><div class="panel-b" id="part"></div></section>' +
   '</div></main>' +
   '<footer class="wrap">' + esc(L.footer || "Trailhead Outfitters Co. and every person, customer and vendor in it are fictional. Quantities, balances and document numbers here are generated for practice and differ from your NetSuite and Access data. The same problem set number always gives the same problem.") + '</footer>' +
   '<dialog class="gdlg" id="gDlg" aria-labelledby="gDlgH"><div class="gdlg-h"><div class="eyebrow">' + esc(L.title) + '</div><h2 id="gDlgH">Graded mode</h2></div><div class="gdlg-b" id="gDlgB"></div></dialog>');
@@ -249,7 +249,7 @@ function renderGradedDone() {
   const table = '<details class="pts"><summary>Your points by part</summary><table class="ptab"><tbody>' + rows + '</tbody></table></details>';
   if (!fin) {
     $("part").innerHTML = '<h3 class="part-title" style="margin-top:0">You have submitted every part</h3><p class="part-desc">Finish the attempt to record your score. After you finish, your score can\'t change.</p>' +
-      (GS.err ? '<div class="overall no"><b>Not finished yet.</b> ' + esc(GS.err) + '</div>' : '') + table + controls('<button class="btn primary" data-act="finishG">Finish and see your score →</button>');
+      (GS.err ? '<div class="overall no" role="status"><b>Not finished yet.</b> ' + esc(GS.err) + '</div>' : '') + table + controls('<button class="btn primary" data-act="finishG">Finish and see your score →</button>');
     return;
   }
   const pct = GS.total ? Math.round(GS.score / GS.total * 100) : 0;
@@ -481,9 +481,9 @@ function gPartCard(h, s, lock) {
   if (s.warn) h += '<div class="overall no" role="alert"><b>Not submitted yet.</b> ' + esc(s.warn) + ' Only your first complete submission is scored.</div>';
   if (s.fb && GS.done[cur]) {
     const p = GS.pts[cur] || 0, mx = GS.max[cur];
-    if (s.fb.all) h += '<div class="overall ok"><b>✓ All correct.</b> Your first submission earned ' + p + ' of ' + mx + ' points.' + (p < mx ? " Retries don't change your score." : "") + '</div>';
-    else { const n = Object.values(s.fb.res).filter(x => x && !x.ok).length; h += '<div class="overall no"><b>Not quite.</b> Your first submission earned ' + p + ' of ' + mx + ' points. Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked Incorrect to move on; retries don\'t change your score.</div>'; }
-  } else if (GS.done[cur] && lock) h += '<div class="overall ok"><b>Submitted.</b> Your first submission earned ' + (GS.pts[cur] || 0) + ' of ' + GS.max[cur] + ' points.</div>';
+    if (s.fb.all) h += '<div class="overall ok" role="status"><b>✓ All correct.</b> Your first submission earned ' + p + ' of ' + mx + ' points.' + (p < mx ? " Retries don't change your score." : "") + '</div>';
+    else { const n = Object.values(s.fb.res).filter(x => x && !x.ok).length; h += '<div class="overall no" role="status"><b>Not quite.</b> Your first submission earned ' + p + ' of ' + mx + ' points. Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked Incorrect to move on; retries don\'t change your score.</div>'; }
+  } else if (GS.done[cur] && lock) h += '<div class="overall ok" role="status"><b>Submitted.</b> Your first submission earned ' + (GS.pts[cur] || 0) + ' of ' + GS.max[cur] + ' points.</div>';
   const prim = lock ? (cur < PARTS.length - 1 ? '<button class="btn primary" data-act="next">Next part →</button>' : '<button class="btn primary" data-act="finishG">Finish and see your score →</button>') :
     '<button class="btn primary" data-act="check">' + (GS.done[cur] ? "Check my answers" : "Submit answers") + '</button>';
   return h + controls(prim);
@@ -608,12 +608,13 @@ function cls(s, f) {
 }
 function control(p, f, s, lock, label) {
   const val = s.vals[f.id] == null ? "" : s.vals[f.id];
+  const rr = s.fb && s.fb.res[f.id], inv = rr && !rr.ok && !(s.revealed && s.shown[f.id]) ? ' aria-invalid="true"' : '';
   if (isSel(f)) {
-    return '<select data-f="' + esc(f.id) + '" aria-label="' + esc(label) + '"' + (lock ? " disabled" : "") + ' class="' + cls(s, f).trim() + '"><option value="">Choose…</option>' +
+    return '<select data-f="' + esc(f.id) + '" aria-label="' + esc(label) + '"' + inv + (lock ? " disabled" : "") + ' class="' + cls(s, f).trim() + '"><option value="">Choose…</option>' +
       f.opts.map(o => '<option value="' + esc(o[0]) + '"' + (val === o[0] ? " selected" : "") + '>' + esc(o[1]) + '</option>').join("") + '</select>';
   }
   const pre = f.pre != null ? f.pre : f.kind === "$" ? "$" : "", post = f.post != null ? f.post : f.kind === "pct" ? "%" : "";
-  return '<div class="inbox' + cls(s, f) + '">' + (pre ? '<span class="pre" aria-hidden="true">' + esc(pre) + '</span>' : '') + '<input data-f="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(label) + '" value="' + esc(val) + '"' + (lock ? " disabled" : "") + '>' + (post ? '<span class="post" aria-hidden="true">' + esc(post) + '</span>' : '') + '</div>';
+  return '<div class="inbox' + cls(s, f) + '">' + (pre ? '<span class="pre" aria-hidden="true">' + esc(pre) + '</span>' : '') + '<input data-f="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(label) + '" value="' + esc(val) + '"' + inv + (lock ? " disabled" : "") + '>' + (post ? '<span class="post" aria-hidden="true">' + esc(post) + '</span>' : '') + '</div>';
 }
 function msgHTML(r) {
   // B-021: the verdict is a word as well as a glyph, so it is seen and spoken ("Correct" / "Incorrect").
@@ -621,6 +622,13 @@ function msgHTML(r) {
   const body = r.ok && /^Correct\b/.test(m) ? '<b>' + esc(m) + '</b>' : '<b>' + word + '.</b>' + (m ? ' ' + esc(m) : '');
   return '<div class="fmsg ' + (r.ok ? "ok" : "no") + '"><span aria-hidden="true">' + (r.ok ? "✓" : "✗") + '</span><span>' + body + '</span></div>';
 }
+// Table layouts: a verdict next to each checked control (a glyph you can see, a word a screen reader says), and
+// row messages that start with "Incorrect." so right and wrong are never carried by color alone.
+function mark(s, f) {
+  const r = f && s.fb && s.fb.res[f.id]; if (!r || (s.revealed && s.shown[f.id])) return "";
+  return '<span class="vmark ' + (r.ok ? "ok" : "no") + '"><span aria-hidden="true">' + (r.ok ? "✓" : "✗") + '</span><span class="sr-only">' + (r.ok ? "Correct" : "Incorrect") + '</span></span>';
+}
+const rowMsg = (label, msg) => '<li><b>Incorrect.</b> <b>' + esc(label) + ':</b> ' + esc(msg) + '</li>';
 function showWork(s, f) { return f.work != null && (s.revealed && s.shown[f.id] || !!(s.fb && s.fb.all && s.fb.res[f.id] && s.fb.res[f.id].ok)); }
 function listHTML(p, s, lock, fields) {
   let h = '<div class="fields">';
@@ -638,16 +646,18 @@ function tableHTML(p, s, lock) {
   let h = '<div class="scroll"><table class="ctab"><thead><tr><th scope="col">' + esc(p.itemLabel || "Item") + '</th>' + (hasAmt ? '<th scope="col" class="r">' + esc(p.amountLabel || "Amount") + '</th>' : '') + p.cols.map(c => '<th scope="col">' + esc(c.label) + '</th>').join("") + '</tr></thead><tbody>';
   p.items.forEach((it, i) => {
     const fs = p.cols.map(c => p.fields.find(f => f.row === i && f.col === c.key));
-    const msgs = [], shown = [];
+    const msgs = [], shown = [], notes = [];
     fs.forEach((f, k) => {
       if (!f) return;
       const r = s.fb && s.fb.res[f.id];
       if (s.revealed && s.shown[f.id]) { if (f.work) shown.push('<b>' + esc(p.cols[k].label) + ':</b> ' + esc(f.work)); }
-      else if (r && !r.ok) msgs.push('<li><b>' + esc(p.cols[k].label) + ':</b> ' + esc(r.msg) + '</li>');
+      else if (r && !r.ok) msgs.push(rowMsg(p.cols[k].label, r.msg));
+      else if (r && r.ok && /^Correct\. \S/.test(r.msg || "")) notes.push('<li><b>Correct.</b> <b>' + esc(p.cols[k].label) + ':</b> ' + esc(r.msg.slice(9)) + '</li>');
     });
-    const fb = msgs.length ? '<div class="fb no"><ul>' + msgs.join("") + '</ul></div>' : shown.length ? '<div class="fb shown">' + [...new Set(shown)].join("<br>") + '</div>' : "";
+    const fb = (msgs.length ? '<div class="fb no"><ul>' + msgs.join("") + '</ul></div>' : shown.length ? '<div class="fb shown">' + [...new Set(shown)].join("<br>") + '</div>' : "") +
+      (notes.length ? '<div class="fb okn"><ul>' + notes.join("") + '</ul></div>' : "");
     h += '<tr' + (fb ? ' class="has-fb"' : '') + '><td class="item">' + (p.numbered ? '<b>' + (i + 1) + '.</b> ' : '') + esc(it.text) + '</td>' + (hasAmt ? '<td class="amt">' + (it.amount != null ? "$" + fmt(it.amount) : "") + '</td>' : '') +
-      fs.map((f, k) => '<td class="sel">' + (f ? control(p, f, s, lock, p.cols[k].label + " for " + it.text) : "") + '</td>').join("") + '</tr>';
+      fs.map((f, k) => '<td class="sel">' + (f ? '<div class="cellv">' + control(p, f, s, lock, p.cols[k].label + " for " + it.text) + mark(s, f) + '</div>' : "") + '</td>').join("") + '</tr>';
     if (fb) h += '<tr class="fbrow"><td colspan="' + span + '">' + fb + '</td></tr>';
   });
   h += '</tbody></table></div>';
@@ -665,7 +675,7 @@ function jeHTML(p, s, lock) {
     [[fa, "Account"], [fv, "Amount"]].forEach(([f, lab]) => {
       const r = s.fb && s.fb.res[f.id];
       if (s.revealed && s.shown[f.id]) { if (f.work && lab === "Account") shown.push(esc(f.work)); }
-      else if (r && !r.ok) msgs.push('<li><b>' + lab + ':</b> ' + esc(r.msg) + '</li>');
+      else if (r && !r.ok) msgs.push(rowMsg(lab, r.msg));
     });
     const fb = msgs.length ? '<div class="fb no"><ul>' + msgs.join("") + '</ul></div>' : shown.length ? '<div class="fb shown">' + shown.join("<br>") + '</div>' : "";
     const amt = control(p, fv, s, lock, side + " amount, line " + (k + 1));
@@ -687,7 +697,7 @@ function gridHTML(p, s, lock, hl) {
     fs.forEach((f, k) => {
       if (!f) return;
       const r = s.fb && s.fb.res[f.id];
-      if (r && !r.ok && !(s.revealed && s.shown[f.id])) msgs.push('<li><b>' + esc(S.cols[k]) + ':</b> ' + esc(r.msg) + '</li>');
+      if (r && !r.ok && !(s.revealed && s.shown[f.id])) msgs.push(rowMsg(S.cols[k], r.msg));
     });
     const hit = hl && fs.some(f => f && hl.indexOf(f.id) >= 0);
     h += '<tr class="' + (ln.t || "line") + (hit ? " hl" : "") + (msgs.length ? " has-fb" : "") + '"><td class="lbl' + ind + '">' + esc(ln.label) + '</td>' +
@@ -708,7 +718,7 @@ function schedHTML(p, s, lock, hl) {
     const r = s.fb && s.fb.res[f.id], c = cls(s, f), bad = r && !r.ok && !(s.revealed && s.shown[f.id]);
     const inp = control(p, f, s, lock, ln.label || f.label);
     h += '<tr class="' + (ln.t || "line") + c + (hl && hl.indexOf(f.id) >= 0 ? " hl" : "") + (bad ? " has-fb" : "") + '" data-row="' + esc(f.id) + '"><td class="lbl' + ind + '">' + esc(ln.label || f.label) + '</td><td class="c' + (ln.col === 1 ? '' : ' e') + '">' + (ln.col === 1 ? inp : '') + '</td><td class="c' + (ln.col === 2 ? '' : ' e') + '">' + (ln.col === 2 ? inp : '') + '</td></tr>';
-    if (bad) h += '<tr class="fbrow"><td colspan="3"><div class="fb no">' + esc(r.msg) + '</div></td></tr>';
+    if (bad) h += '<tr class="fbrow"><td colspan="3"><div class="fb no"><b>Incorrect.</b> ' + esc(r.msg) + '</div></td></tr>';
   });
   return h + '</tbody></table></div>';
 }
@@ -737,10 +747,10 @@ function renderPart() {
       '<div class="actions"><div class="grp"><button class="btn small" data-act="walkBack"' + (s.walk === 0 ? " disabled" : "") + '>Back</button><button class="btn small" data-act="walkEnd">Close</button></div><div class="grp"><button class="btn primary" data-act="walkNext">' + (s.walk === walking.length - 1 ? "Finish" : "Next step") + '</button></div></div></div>';
   }
   if (!graded()) {
-    if (s.revealed && s.walk < 0) h += '<div class="overall shown"><b>' + (s.status === "shown" ? "Answers shown." : "Walk-through closed.") + '</b> Work through each answer, then click Clear and try it on your own, or try new numbers.</div>';
+    if (s.revealed && s.walk < 0) h += '<div class="overall shown" role="status"><b>' + (s.status === "shown" ? "Answers shown." : "Walk-through closed.") + '</b> Work through each answer, then click Clear and try it on your own, or try new numbers.</div>';
     else if (s.fb && !s.revealed) {
-      if (s.fb.all) h += '<div class="overall ok"><b>✓ ' + (s.tries === 1 ? "Correct on the first try." : "Correct after " + s.tries + " tries.") + '</b></div>';
-      else { const n = Object.values(s.fb.res).filter(x => !x.ok).length; h += '<div class="overall no"><b>Not quite yet.</b> Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked Incorrect and check again.</div>'; }
+      if (s.fb.all) h += '<div class="overall ok" role="status"><b>✓ ' + (s.tries === 1 ? "Correct on the first try." : "Correct after " + s.tries + " tries.") + '</b></div>';
+      else { const n = Object.values(s.fb.res).filter(x => !x.ok).length; h += '<div class="overall no" role="status"><b>Not quite yet.</b> Fix the ' + (n === 1 ? "answer" : n + " answers") + ' marked Incorrect and check again.</div>'; }
     }
   }
   if (lock && p.why) h += '<div class="why"><b>Why it matters</b><br>' + esc(p.why) + '</div>';
