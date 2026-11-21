@@ -48,7 +48,7 @@ function parse(v) {
 const near = (a, b) => Math.abs(a - b) < 0.005;
 const r2 = x => Math.round(x * 100) / 100;
 
-// The five inventory vendors IL2 uses and their terms. (Trailhead's tent and tarp vendor is never used in this lab.)
+// The five inventory vendors IL2 uses and their terms.
 const VENDORS = [["V-202", "Cascade Loft Textiles", "Net 30"], ["V-203", "Ironwood Pack Works", "Net 30"], ["V-204", "Tamarack Footwear Ltd.", "Net 60"],
   ["V-205", "Ember Camp Equipment", "Net 30"], ["V-206", "Brightline Gear", "Net 30"]];
 // Their item records: SKU, description, vendor, standard cost. A PO's unit cost is the item's standard cost.
