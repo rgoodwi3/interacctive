@@ -103,6 +103,7 @@ function load() {
   let m = null, ptr = null;
   try { ptr = JSON.parse(localStorage.getItem(GKEY) || "null"); m = localStorage.getItem(MKEY); } catch (e) { ptr = null; }
   // A graded attempt is resumed from the server once the Supabase library has loaded (see the end).
+  if (!COURSE && m === "graded" && !urlSet() && ptr && typeof ptr.attempt === "string" && UUID_RE.test(ptr.course || "")) useCourse({ id: ptr.course }, true);
   if (m === "graded" && !urlSet() && ptr && typeof ptr.attempt === "string" && COURSE && ptr.course === COURSE) PENDING = ptr.attempt;
   loadPractice();
 }
@@ -150,10 +151,48 @@ function ctx() {
 
 // ---------- graded mode (server) ----------
 // The class and lab come from the course page link: ?course=<id>&lab=<slug>
-const COURSE = (() => {
+let COURSE = (() => {
   try { const q = new URLSearchParams(location.search); const c = q.get("course") || "";
     return q.get("lab") === LAB_SLUG && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c) ? c : null; } catch (e) { return null; }
 })();
+// Opened from a plain link (a Canvas page, a bookmark), the link has no class. After sign-in the Graded
+// dialog looks up the student's classes that assign this lab as graded and uses their only one, or asks.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COURSE_FROM_URL = !!COURSE;
+let CLASSES = null, CNAME = "";
+// The chosen class goes into the address too, so a reload or the sign-in email comes back to it.
+function useCourse(c, quiet) {
+  if (GS && GS.course !== c.id && !graded()) GS = null;
+  COURSE = c.id; CNAME = c.name || "";
+  try { const u = new URL(location.href); u.searchParams.set("course", c.id); u.searchParams.set("lab", LAB_SLUG); history.replaceState(null, "", u.href); } catch (e) { /* ignore */ }
+  if (!quiet) loadTopics();
+}
+function clearCourse() {
+  if (COURSE_FROM_URL) return;
+  COURSE = null; CNAME = "";
+  try { const u = new URL(location.href); u.searchParams.delete("course"); u.searchParams.delete("lab"); history.replaceState(null, "", u.href); } catch (e) { /* ignore */ }
+}
+async function loadClasses() {
+  CLASSES = null;
+  const fail = () => { throw new Error("Your classes didn't load. Check your connection and try again."); };
+  const e = await sb().from("enrollments").select("course_id, courses(id,name,term)").eq("student_id", USER.id);
+  if (e.error) fail();
+  const cs = (e.data || []).map(r => r.courses).filter(Boolean);
+  let g = new Set();
+  if (cs.length) {
+    const a = await sb().from("course_activities").select("course_id, mode, activities!inner(slug)").in("course_id", cs.map(c => c.id)).eq("activities.slug", LAB_SLUG);
+    if (a.error) fail();
+    g = new Set((a.data || []).filter(r => r.mode === "graded").map(r => r.course_id));
+  }
+  CLASSES = cs.filter(c => g.has(c.id)).sort((x, y) => String(x.name || "").localeCompare(String(y.name || "")));
+  if (CLASSES.length === 1) useCourse(CLASSES[0]);
+}
+function classHTML() {
+  if (CLASSES == null) return DLG.busy ? '<div class="gdlg-note">Finding your classes…</div>' : '';
+  if (!CLASSES.length) return '<div class="gdlg-note warn"><b>None of your classes has this lab assigned as graded.</b> Check with your instructor, or keep working in Practice mode.</div>';
+  return '<p style="margin:14px 0 0"><b>Which class is this graded attempt for?</b></p>' + CLASSES.map((c, i) => '<label class="pledge gclass"><input type="radio" name="gClass" value="' + esc(c.id) + '"' + (i === 0 ? " checked" : "") + '> <span>' + esc(c.name || "Class") + (c.term ? ' <span class="gterm">· ' + esc(c.term) + '</span>' : '') + '</span></label>').join("");
+}
+function focusDlg() { const d = $("gDlg"); const p = d.querySelector("#gCode") || d.querySelector("#gEmail") || d.querySelector('input[name="gClass"]:checked') || d.querySelector("#pledge") || d.querySelector(".btn.primary"); if (p) p.focus(); }
 let SB = null;
 function sb() {
   if (!SB) {
@@ -256,12 +295,16 @@ function paintGDlg() {
   let h = '<p style="margin:0">Graded mode works like a quiz:</p>' + rulesHTML(), btn = '<button class="btn" data-g="cancel">' + (graded() ? "Back to the lab" : "Stay in practice") + '</button>';
   if (DLG.err) h += '<div class="gdlg-note warn" role="alert">' + esc(DLG.err) + '</div>';
   if (DLG.info) h += '<div class="gdlg-note">' + esc(DLG.info) + '</div>';
-  if (!COURSE) {
-    h += '<div class="gdlg-note warn"><b>Open this lab from your course page to use Graded mode.</b> Graded attempts belong to a class, and this link doesn\'t say which one.</div>';
-  } else if (!USER) {
+  if (!USER) {
     h += signInHTML();
-  } else {
+  } else if (!COURSE) {
     h += '<div class="signin"><span class="who">Signed in as ' + esc(USER.email || "") + '. <button class="btn small" data-g="signout">Sign out</button></span></div>';
+    h += classHTML();
+    if (CLASSES == null && !DLG.busy) btn += '<button class="btn primary" data-g="classes">Find my classes</button>';
+    else if (CLASSES && CLASSES.length > 1) btn += '<button class="btn primary" data-g="pick">Continue</button>';
+  } else {
+    h += '<div class="signin"><span class="who">Signed in as ' + esc(USER.email || "") + '. <button class="btn small" data-g="signout">Sign out</button></span>' +
+      (CNAME ? '<span class="who">Class: <b>' + esc(CNAME) + '</b>' + (!COURSE_FROM_URL && CLASSES && CLASSES.length > 1 && !graded() ? ' <button class="btn small" data-g="change">Change class</button>' : '') + '</span>' : '') + '</div>';
     if (dlgConfirm) {
       h += '<div class="gdlg-note warn"><b>Start another graded attempt?</b> Your finished attempt and its score stay saved. A new attempt gets new numbers, if your class allows more than one attempt.</div>';
       btn += '<button class="btn primary" data-g="start">Yes, start a new attempt</button>';
@@ -288,10 +331,11 @@ function paintGDlg() {
 }
 async function openGDlg(note) {
   dlgConfirm = false; DLG.err = note || null; DLG.info = null;
-  if (COURSE) { try { USER = await currentUser(); } catch (e) { USER = null; DLG.err = e.message; } }
+  try { USER = await currentUser(); } catch (e) { USER = null; DLG.err = e.message; }
   paintGDlg();
   const d = $("gDlg"); if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute("open", ""); }
-  const p = d.querySelector("#gCode") || d.querySelector("#gEmail") || d.querySelector("#pledge") || d.querySelector(".btn.primary"); if (p) p.focus();
+  focusDlg();
+  if (USER && !COURSE && CLASSES == null) dlgRun(loadClasses).then(focusDlg);
 }
 function closeGDlg() { const d = $("gDlg"); if (d.close) d.close(); else d.removeAttribute("open"); }
 async function dlgRun(fn) {
@@ -321,11 +365,14 @@ $("gDlgB").addEventListener("click", e => {
     dlgRun(async () => {
       const r = await sb().auth.verifyOtp({ email: DLG.email, token: token, type: "email" });
       if (r.error) throw new Error("That code didn't work. Check it, or send a new one.");
-      USER = r.data.user; DLG.stage = "email";
+      USER = r.data.user; DLG.stage = "email"; if (!COURSE) await loadClasses();
     });
     return;
   }
-  if (g === "signout") { dlgRun(async () => { await sb().auth.signOut(); USER = null; if (graded()) { exitGraded(); render(); } GS = null; try { localStorage.removeItem(GKEY); } catch (x) { /* ignore */ } }); return; }
+  if (g === "signout") { dlgRun(async () => { await sb().auth.signOut(); USER = null; if (graded()) { exitGraded(); render(); } GS = null; CLASSES = null; clearCourse(); try { localStorage.removeItem(GKEY); } catch (x) { /* ignore */ } }); return; }
+  if (g === "classes") { dlgRun(loadClasses).then(focusDlg); return; }
+  if (g === "pick") { const r = $("gDlgB").querySelector('input[name="gClass"]:checked'); const c = r && CLASSES && CLASSES.find(x => x.id === r.value); if (c) { useCourse(c); paintGDlg(); focusDlg(); } return; }
+  if (g === "change") { clearCourse(); if (!graded()) GS = null; paintGDlg(); focusDlg(); return; }
   if (g === "start" && !($("pledge") && $("pledge").checked)) return;
   if (g === "start" || g === "resume") {
     dlgRun(async () => {
@@ -813,7 +860,7 @@ async function loadTopics() {
         PENDING = null; openGDlg(e && e.code === "unauthorized" ? "Sign in to resume your graded attempt." : e && e.message);
       }
       PENDING = null; save();
-    } else if (fromEmail && COURSE) openGDlg();
+    } else if (fromEmail) openGDlg();
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go, { once: true }); else go();
 })();

@@ -304,3 +304,4 @@ table.ptab{width:100%;border-collapse:collapse;margin-top:8px}
 .pledge{display:flex;gap:10px;align-items:flex-start;margin-top:14px;border:1px solid var(--rule-strong);border-radius:8px;padding:10px 12px;font-size:14.5px;font-weight:600;cursor:pointer}
 .pledge input{width:18px;height:18px;margin:2px 0 0;flex:none;accent-color:var(--navy)}
 .pledge:has(input:checked){border-color:var(--good);background:var(--good-soft)}
+.gclass{margin-top:8px}.gclass .gterm{font-weight:400;color:var(--muted)}
