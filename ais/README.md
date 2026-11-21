@@ -24,4 +24,4 @@ Students ask Nora Feldman, Trailhead's HR and Payroll Coordinator, about the Com
 
 ## Tests (`ais/tests/`)
 
-jsdom tests for the HR page and the staff directory filter, with a mocked server: `cd ais/tests && npm install && npm test`. Set `PRIVATE_DIR` to the course's private folder to add the text-leak scan.
+jsdom tests for the HR page and the staff directory filter, with a mocked server: `cd ais/tests && npm install && npm test`. Set `PRIVATE_DIR` to the course's private folder (the course root or its `10 InterACCtive/staff-chat` folder) to add the text-leak scan.

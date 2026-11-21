@@ -12,6 +12,7 @@
   var COURSE = UUID.test(q.get("course") || "") ? q.get("course") : null;
   var FOR = /^(D1|D2|M1)$/.test(q.get("for") || "") ? q.get("for") : null;
   // The six order-to-cash interview bots. Other personas (such as the HR help desk, ais/hr/) never show here.
+  // Adding or renaming an interview persona? Add its id here too, or it is hidden from the directory.
   var INTERVIEW = ["jordan-banks", "grace-liu", "ben-castellano", "luis-ortega", "elena-kowalczyk", "priya-raman"];
   var $ = function (id) { return document.getElementById(id); };
   var SB = null, USER = null, DIR = null, CUR = null, BUSY = false, EMAIL = "";

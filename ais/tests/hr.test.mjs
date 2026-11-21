@@ -13,7 +13,7 @@ test("directory asks for the hr group; the page shows Nora's help desk", async (
   assert.equal(d.getElementById("alert").hidden, true);
   assert.equal(d.querySelector("h1").textContent, "Ask HR: Company Policies");
   assert.match(d.querySelector(".hr-who").textContent, /Nora Feldman, HR and Payroll Coordinator/);
-  assert.equal(d.getElementById("avatar").getAttribute("alt"), "Nora Feldman");
+  assert.equal(d.getElementById("avatar").getAttribute("alt"), "", "decorative: the name is printed beside it");
   assert.equal(d.getElementById("avatar").getAttribute("src"), "nora-feldman-240.png");
   assert.equal(d.body.classList.contains("ignore-color-scheme"), true);
   assert.equal(d.getElementById("download").disabled, true, "no transcript before a conversation exists");
@@ -106,6 +106,7 @@ test("not switched on: message shown, sending and starters disabled, nothing sta
     d.querySelector("#starters button").click();
     type(w, d.getElementById("msg"), "Hello"); enter(w, d.getElementById("msg")); await settle();
     assert.equal(starts(s).length + sends(s).length, 0);
+    assert.ok(!d.querySelector(".hr-help").closest("[hidden]") && /203-932-7333/.test(d.querySelector(".hr-help").textContent));
   }
 });
 
@@ -136,6 +137,7 @@ test("errors: server limit message shown and the question kept; card change star
   type(w, msg, "Third"); enter(w, msg); await settle();
   assert.equal(d.getElementById("signin").hidden, false);
   assert.match(d.getElementById("alert").textContent, /sign-in has expired/);
+  assert.ok(!d.querySelector(".hr-help").closest("[hidden]"), "crisis info visible on the sign-in screen too");
 });
 
 test("no course in the link: clear message, no calls", async () => {
@@ -181,5 +183,14 @@ test("accessibility: one H1, headings in order, every control labelled, live reg
   assert.match(sim, /saved to your class account, and Professor Goodwin can read them/);
   assert.match(sim, /Anthropic\) without your name or email/);
   assert.match(sim, /Don't share health or personal details here/);
+  assert.match(sim, /anything you type goes with them/);
+  // Crisis and support information is always on the page, in every state.
+  const help = d.querySelector(".hr-help");
+  assert.equal(help.getAttribute("role"), "note");
+  assert.match(help.textContent, /No one reads this chat as it happens\./);
+  assert.match(help.textContent, /Counseling & Psychological Services \(CAPS\) at 203-932-7333; CAPS offers 24\/7 crisis support\./);
+  assert.match(help.textContent, /University Police at 203-932-7070 or 911\./);
+  assert.ok(!help.closest("[hidden]"));
+  assert.doesNotMatch(d.querySelector(".sc-foot").textContent, /time limit/);
   assert.match(d.querySelector(".hr-intro").textContent, /syllabus is the final word.*can't grant exceptions, extensions or grade changes.*Professor Goodwin/s);
 });

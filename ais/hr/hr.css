@@ -12,3 +12,7 @@
 .btn:disabled{opacity:.55;cursor:default}
 #restart{margin-top:10px}
 @media (max-width:560px){.hr-avatar{width:64px;height:64px}}
+.hr-help{border:1px solid var(--rule-strong);border-left:6px solid var(--brand);border-radius:8px;padding:10px 16px;margin-bottom:14px;background:var(--sheet)}
+.hr-help h2{font-size:17px;color:var(--ink);margin-bottom:2px}
+.hr-help p{margin:2px 0;max-width:100ch}
+.hr-help a{color:var(--brand);font-weight:600}
