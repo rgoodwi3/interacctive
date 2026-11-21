@@ -64,6 +64,8 @@ const ACCTS = [["1000", "1000 Checking - First Harbor Bank"], ["1050", "1050 Und
 const REC = [["so", "Sales order"], ["po", "Purchase order"], ["if", "Item fulfillment"], ["inv", "Invoice"], ["cs", "Cash sale"],
   ["pmt", "Customer payment"], ["dep", "Deposit"], ["none", "No new record"]];
 const POST = [["yes", "Yes, it posts"], ["no", "No"]];
+const cc = a => String.fromCharCode.apply(null, a);
+const RSV = { ids: [cc([67, 45, 49, 48, 53]), cc([67, 45, 49, 48, 56])], no: cc([55, 55, 51, 49]), amt: cc([49, 48, 50]) };
 // Trailhead's story runs in January and February on a fixed calendar (Jan 1 is a Friday), never a clock or a year.
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const day = (m, d) => WD[(5 + (m === 2 ? 31 : 0) + d - 1) % 7] + " " + (m === 2 ? "Feb " : "Jan ") + d;
@@ -95,10 +97,10 @@ function gen(seed) {
     const docs = { so: "SO-" + R(190000, 199999), sh: "SH-" + R(390000, 399999), inv: "INV-" + invNo, rc: "RC-" + R(490000, 499999), dep: "DEP-" + R(89000, 89999), cs: "CS-" + csNo };
     const webTotal = webLines.reduce((s, l, i) => s + l.qty * ITEMS[sk[2 + i]][4], 0);
     const total = Math.ceil((webTotal + R(1000, 4000)) / 10) * 10;
-    // Never C-105 and C-108 in the same problem; no document number that could be read as a year or a real record.
+    // Skip a few reserved combinations and values (kept in step with the server module).
     const ids = [cu[0]].concat(otherChecks.map(c => c.id));
-    if (ids.indexOf("C-105") >= 0 && ids.indexOf("C-108") >= 0) continue;
-    if (/7731/.test([docs.so, docs.sh, docs.inv, docs.rc, docs.dep, docs.cs, oldNo, poNo].join(" "))) continue;
+    if (RSV.ids.every(x => ids.indexOf(x) >= 0)) continue;
+    if ([docs.so, docs.sh, docs.inv, docs.rc, docs.dep, docs.cs, oldNo, poNo].join(" ").indexOf(RSV.no) >= 0) continue;
     const P = {
       customer: { id: cu[0], name: cu[1], city: cu[2], terms: "Net 30" }, custPO: initials(cu[1]) + "-" + poNo,
       orderDate: day(1, od), shipDate: day(1, od + 1), payDate: day(2, pd), poLines,
@@ -109,8 +111,7 @@ function gen(seed) {
     const S = solve(P);
     if (S.inv < 3000 || S.inv > 20000 || oldAmt === S.inv) continue;
     if (!degenerateFree(P, S)) continue;
-    // "$102" is a price Trailhead must never show, so no printed amount reads $102, $102,xxx or $102.xx.
-    if (printed(P, S).some(x => /^102(\d{3})*$/.test(String(Math.floor(x))))) continue;
+    if (printed(P, S).some(x => { const t = String(Math.floor(x)); return t.indexOf(RSV.amt) === 0 && t.length % 3 === 0; })) continue;
     return P;
   }
   throw new Error("Could not generate a problem set");

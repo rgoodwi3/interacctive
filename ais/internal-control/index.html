@@ -341,7 +341,7 @@ function dtab(caption, cols, rows) {
     cols.map(c => '<th scope="col">' + esc(c) + '</th>').join("") + '</tr></thead><tbody>' +
     rows.map(row => '<tr>' + row.map((x, i) => i === 0 ? '<th scope="row">' + esc(x) + '</th>' : '<td>' + esc(x) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
 }
-// Trailhead's people and NetSuite roles (spec 3.1), without the sales manager and with Marcus's row limited to the close.
+// Trailhead's people and NetSuite roles for this lab's panel.
 const PEOPLE = [
   ["Dana Whitfield", "Owner and CEO", "Approves payments over $10,000, new vendors and the budget", "CEO (approve only)"],
   ["Marcus Oyelaran", "Controller", "Runs the close and prepares the statements", "Controller"],
