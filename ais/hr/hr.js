@@ -3,8 +3,10 @@
  *
  * Open from Canvas: ais/hr/?course=<class id>
  * Conversations use the staff-chat server function (actions directory, start, send, transcript) with
- * bot "nora-feldman" and assignment tag "HR". The policy text and Nora's instructions live only on the
- * server. This page holds no card, template or syllabus text. Messages are shown as plain text, never as HTML.
+ * bot "nora-feldman" and assignment tag "HR", plus the "faq" action: saved answers from HR, approved by the
+ * instructor, returned by id with no model call. If the server sends no saved-answer list, or the faq action
+ * isn't available, a question button sends the question to Nora instead. The policy text, Nora's
+ * instructions and the saved answers live only on the server. This page holds no card, template or syllabus text. Messages are shown as plain text, never as HTML.
  */
 (function () {
   "use strict";
@@ -15,6 +17,9 @@
   var COURSE = UUID.test(q.get("course") || "") ? q.get("course") : null;
   var $ = function (id) { return document.getElementById(id); };
   var SB = null, USER = null, DIR = null, CONVS = [], CUR = null, READY = false, BUSY = false, EMAIL = "";
+  var FAQ = [], FAQ_ON = false, MAX_MORE = 6;
+  // Errors that mean "no saved answer here": fall back to asking Nora. The first three mean the server has no faq action.
+  var NO_FAQ_ACTION = ["bad_action", "unknown_action", "bad_request"], FAQ_MISS = ["faq_not_found", "faq_stale", "faq_unavailable"];
   var NAME = "Nora Feldman", TITLE = "HR and Payroll Coordinator";
 
   // The avatar is optional: if the picture is missing, hide it rather than show a broken image.
@@ -52,6 +57,8 @@
   function fmtDate(iso) { return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
   function first() { return NAME.split(" ")[0]; }
+  // Exact match after normalizing case, spaces and end punctuation (the same rule as the server's typed-question match).
+  function norm(t) { return String(t || "").toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim().replace(/[\s?.!]+$/, ""); }
 
   // ---------- sign-in (email code, as the InterACCtive labs and the staff directory) ----------
   function showSignIn(msg) {
@@ -100,12 +107,32 @@
     // Only Nora's conversations, even if the server returns others.
     CONVS = (Array.isArray(DIR.conversations) ? DIR.conversations : []).filter(function (c) { return c && (c.bot === BOT || c.assignment === TAG); });
     READY = !!(DIR.ready && nora && nora.available);
+    FAQ = (Array.isArray(DIR.faq) ? DIR.faq : []).filter(function (f) { return f && typeof f.id === "string" && typeof f.question === "string" && f.question; });
+    FAQ_ON = FAQ.length > 0;
+    renderFaq();
     $("signin").hidden = true; $("app").hidden = false; alertMsg("");
     $("who").textContent = USER && USER.email ? USER.email : "";
     renderPast(); renderUsage(); setEnabled(); count();
     if (READY) status("HR help desk ready.");
     else { status(""); alertMsg("The HR help desk isn't switched on yet. Check back later. For a policy question now, read the syllabus in Canvas or ask Professor Goodwin."); }
     if (focusMsg && READY) $("msg").focus();
+  }
+  // Starter buttons whose question matches a saved answer use it; the other saved answers are listed after them.
+  function renderFaq() {
+    var used = {};
+    document.querySelectorAll("#starterList button").forEach(function (b) {
+      var hit = FAQ_ON ? FAQ.filter(function (f) { return norm(f.question) === norm(b.dataset.q) || (f.alternates || []).some(function (a) { return norm(a) === norm(b.dataset.q); }); })[0] : null;
+      if (hit) { b.dataset.faq = hit.id; used[hit.id] = 1; } else delete b.dataset.faq;
+    });
+    var ul = $("faqList"); ul.textContent = "";
+    var more = FAQ_ON ? FAQ.filter(function (f) { return !used[f.id]; }).slice(0, MAX_MORE) : [];
+    more.forEach(function (f) {
+      var li = el("li"), b = el("button", "btn", f.question);
+      b.type = "button"; b.dataset.q = f.question; b.dataset.faq = f.id;
+      li.appendChild(b); ul.appendChild(li);
+    });
+    ul.hidden = more.length === 0;
+    $("startHint").textContent = FAQ_ON ? "Choose one for a saved answer from HR, or type your own question below." : "Choose one to ask it now, or type your own below.";
   }
   function setEnabled() {
     var off = !READY;
@@ -141,9 +168,8 @@
     $("chatH").textContent = "Conversation with " + (conv.name || NAME);
     $("chatSub").textContent = "Started " + fmtDate(conv.started_at) + ", " + fmtTime(conv.started_at);
     var log = $("log"); log.textContent = "";
-    messages.forEach(function (m) { log.appendChild(bubble(m.role, m.content, m.at)); });
+    messages.forEach(function (m) { log.appendChild(bubble(m.source === "faq" ? "faq" : m.role, m.content, m.at, m.section)); });
     log.hidden = messages.length === 0;
-    $("starters").hidden = messages.length > 0;
     log.scrollTop = log.scrollHeight;
     $("announce").textContent = "";
     renderPast(); renderUsage(); setEnabled(); count();
@@ -151,14 +177,23 @@
   function clearChat() {
     CUR = null;
     $("chatH").textContent = "Ask " + first() + " a question"; $("chatSub").textContent = "";
-    $("log").textContent = ""; $("log").hidden = true; $("starters").hidden = false; $("announce").textContent = "";
+    $("log").textContent = ""; $("log").hidden = true; $("announce").textContent = "";
     renderPast(); renderUsage(); setEnabled();
   }
-  function bubble(role, text, at) {
-    var d = el("div", "sc-msg " + (role === "student" ? "me" : role === "staff" ? "staff" : "wait"));
-    if (role !== "wait") d.appendChild(el("h3", "", (role === "student" ? "You" : NAME) + (at ? ", " + fmtTime(at) : "")));
+  // role: student, staff (Nora's reply), faq (a saved answer from HR) or wait.
+  function bubble(role, text, at, section) {
+    var d = el("div", "sc-msg " + (role === "student" ? "me" : role === "staff" ? "staff" : role === "faq" ? "staff faq" : "wait"));
+    var who = role === "student" ? "You" : role === "faq" ? NAME + ", saved answer from HR" : NAME;
+    if (role !== "wait") d.appendChild(el("h3", "", who + (at ? ", " + fmtTime(at) : "")));
     d.appendChild(el("p", "", text));
+    if (role === "faq" && section) d.appendChild(el("p", "hr-src", "Section: " + section));
     return d;
+  }
+  function showReply(r) {
+    var isFaq = r.source === "faq";
+    $("log").appendChild(bubble(isFaq ? "faq" : "staff", r.reply, new Date().toISOString(), r.section));
+    $("announce").textContent = isFaq ? "Saved answer from HR" + (r.section ? ", section " + r.section : "") + ": " + r.reply : NAME + " says: " + r.reply;
+    $("log").scrollTop = $("log").scrollHeight;
   }
   // Starts a conversation with Nora, tagged HR. Returns true if it started.
   async function startConversation() {
@@ -191,8 +226,39 @@
   $("starters").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-q]");
     if (!b || b.disabled || BUSY) return;
-    $("msg").value = b.dataset.q; count(); send();
+    if (FAQ_ON && b.dataset.faq) askFaq(b.dataset.faq, b.dataset.q);
+    else { $("msg").value = b.dataset.q; count(); send(); }
   });
+  // A saved answer: no model call. Falls back to asking Nora if the server has no saved answer for it.
+  async function askFaq(id, question) {
+    if (BUSY || !READY) return;
+    BUSY = true; alertMsg("");
+    var log = $("log"), mine = null, fallback = false;
+    try {
+      if (!CUR && !(await startConversation())) return;
+      mine = bubble("student", question, new Date().toISOString());
+      log.hidden = false; log.appendChild(mine);
+      status("Finding the saved answer…");
+      var r = await api({ action: "faq", conversation_id: CUR.id, id: id });
+      var f = r.entry || {};
+      showReply({ source: "faq", reply: f.answer, section: f.section });
+      if (typeof r.today === "number") DIR.today = r.today;
+      renderPast(); renderUsage(); status("");
+    } catch (e) {
+      if (mine && mine.parentNode) log.removeChild(mine);
+      if (!log.children.length) log.hidden = true;
+      status("");
+      if (NO_FAQ_ACTION.indexOf(e.code) >= 0 || FAQ_MISS.indexOf(e.code) >= 0) {
+        if (NO_FAQ_ACTION.indexOf(e.code) >= 0) { FAQ_ON = false; renderFaq(); }
+        fallback = true;
+      } else if (e.code === "unauthorized") showSignIn(e.message);
+      else alertMsg(e.message);
+    } finally {
+      BUSY = false; setEnabled();
+    }
+    if (fallback) { $("msg").value = question; count(); await send(); }
+    else if (!$("app").hidden && READY) $("msg").focus();
+  }
   async function send() {
     if (BUSY || !READY) return;
     var text = $("msg").value.trim();
@@ -205,14 +271,12 @@
       // The first question of a new conversation starts it, so an empty conversation is never saved.
       if (!CUR && !(await startConversation())) return;
       mine = bubble("student", text, new Date().toISOString()); wait = bubble("wait", first() + " is replying…");
-      log.hidden = false; $("starters").hidden = true;
+      log.hidden = false;
       log.appendChild(mine); log.appendChild(wait); log.scrollTop = log.scrollHeight;
       status(first() + " is replying…");
       var r = await api({ action: "send", conversation_id: CUR.id, message: text });
       log.removeChild(wait);
-      log.appendChild(bubble("staff", r.reply, new Date().toISOString()));
-      $("announce").textContent = NAME + " says: " + r.reply;
-      log.scrollTop = log.scrollHeight;
+      showReply(r);   // r.source "faq": the server matched the typed question to a saved answer
       $("msg").value = ""; count();
       CUR.student_messages = r.student_messages; DIR.today = r.today;
       CONVS.forEach(function (c) { if (c.id === CUR.id) c.student_messages = r.student_messages; });
@@ -220,7 +284,7 @@
     } catch (e) {
       if (wait && wait.parentNode) log.removeChild(wait);
       if (mine && mine.parentNode) log.removeChild(mine);   // not saved; the text stays in the box to try again
-      if (!log.children.length) { log.hidden = true; $("starters").hidden = false; }
+      if (!log.children.length) log.hidden = true;
       status("");
       if (e.code === "unauthorized") showSignIn(e.message);
       else if (e.code === "card_changed") { alertMsg(e.message + " Press Send again to ask in a new conversation."); clearChat(); }
@@ -248,9 +312,12 @@
         "Student: " + (USER && USER.email ? USER.email : ""),
         "Started: " + new Date(c.started_at).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" }),
         "Conversation ID: " + c.id + " (card " + c.card_version + ")",
-        "Nora is an AI chatbot playing a fictional employee and can be wrong. The syllabus is the final word.",
+        "Nora is an AI chatbot playing a fictional employee and can be wrong. Saved answers from HR were written ahead of time. The syllabus is the final word.",
         ""];
-      t.messages.forEach(function (m) { lines.push("[" + fmtTime(m.at) + "] " + (m.role === "student" ? "You" : who) + ": " + m.content, ""); });
+      t.messages.forEach(function (m) {
+        var label = m.role === "student" ? "You" : m.source === "faq" ? who + " (saved answer from HR" + (m.section ? "; section: " + m.section : "") + ")" : who;
+        lines.push("[" + fmtTime(m.at) + "] " + label + ": " + m.content, "");
+      });
       var blob = new Blob([lines.join("\r\n")], { type: "text/plain;charset=utf-8" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);

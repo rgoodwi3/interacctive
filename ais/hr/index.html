@@ -83,13 +83,14 @@
       <div class="panel-b">
         <div id="starters" class="hr-starters">
           <h3 class="sc-h3" id="startH">Common questions</h3>
-          <p class="sc-hint">Choose one to ask it now, or type your own below.</p>
-          <ul class="hr-starter-list" aria-labelledby="startH">
+          <p class="sc-hint" id="startHint">Choose one to ask it now, or type your own below.</p>
+          <ul class="hr-starter-list" id="starterList" aria-labelledby="startH">
             <li><button class="btn" type="button" data-q="What happens if I submit a lab late?">What happens if I submit a lab late?</button></li>
             <li><button class="btn" type="button" data-q="Can I use generative AI on my assignments?">Can I use generative AI on my assignments?</button></li>
             <li><button class="btn" type="button" data-q="What is a lab defense, and how is it graded?">What is a lab defense, and how is it graded?</button></li>
             <li><button class="btn" type="button" data-q="How do I ask for an accommodation?">How do I ask for an accommodation?</button></li>
           </ul>
+          <ul class="hr-starter-list hr-more" id="faqList" aria-label="More saved answers" hidden></ul>
         </div>
         <div id="log" class="sc-log" role="log" aria-live="off" aria-labelledby="chatH" tabindex="0" hidden></div>
         <div id="announce" class="sr" aria-live="polite" aria-atomic="true"></div>

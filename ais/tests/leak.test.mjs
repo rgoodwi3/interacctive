@@ -37,7 +37,9 @@ test("no card, template or syllabus text in public files", { skip: !process.env.
   // ais/README.md: only the HR and tests sections (the lab table above them lists public lab titles the syllabus also uses).
   const pubText = (f) => { const t = readFileSync(f, "utf8"); return f.endsWith("README.md") ? t.slice(t.indexOf("## HR help desk")) : t; };
   const pub = PUBLIC.map((f) => [f, shingles(pubText(f))]);
+  // The page's starter questions are public by design (the saved-answer file repeats them word for word): drop them first.
+  const starters = [...readFileSync(join(AIS, "hr/index.html"), "utf8").matchAll(/data-q="([^"]+)"/g)].map((m) => m[1]);
   let checked = 0;
-  for (const [name, text] of sources) for (const s of shingles(text)) { checked++; for (const [f, set] of pub) assert.ok(!set.has(s), `${name} text in ${f}: "${s}"`); }
+  for (const [name, raw] of sources) { const text = starters.reduce((t, q) => t.split(q).join(" "), raw); for (const s of shingles(text)) { checked++; for (const [f, set] of pub) assert.ok(!set.has(s), `${name} text in ${f}: "${s}"`); } }
   console.log("leak scan: " + checked + " eight-word fragments from " + sources.length + " private files; none found");
 });

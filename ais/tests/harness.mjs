@@ -17,13 +17,21 @@ const SIX = [
 const NORA = ["nora-feldman", "Nora Feldman", "HR and Payroll Coordinator"];
 
 // A small fake of the staff-chat function. opts: ready, noraAvailable, includeAll (directory ignores group),
-// sendError ({status, error, message}) for the next send.
+// faq (directory lists saved answers and the faq action works), faqError ({status, error, message}) for every
+// faq call. s.sendError ({status, error, message}) applies to the next send.
 export function makeServer(opts = {}) {
   const s = {
     calls: [], today: 3, convs: [], msgs: {}, n: 0,
     ready: opts.ready !== false, sendError: null,
     limits: { per_day: 120, per_conversation: 30, max_chars: 600 },
   };
+  const FAQ = [
+    { id: "faq-a", question: "What happens if I submit a lab late?", alternates: ["Can I turn in a lab late?"], section: "Late and missed work", answer: "Saved: late labs follow the rule under Late and missed work." },
+    { id: "faq-b", question: "Can I use generative AI on my assignments?", alternates: [], section: "Generative Artificial Intelligence", answer: "Saved: the three levels of AI use are listed under Generative Artificial Intelligence." },
+    { id: "faq-c", question: "When are office hours?", alternates: [], section: "Faculty Contact Information", answer: "Saved: office hours are listed under Faculty Contact Information." },
+  ];
+  s.faqCalls = 0;
+  const norm = (t) => t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[\s?.!]+$/, "");
   const bot = ([id, name, title], group) => ({ id, name, title, group, available: !(id === NORA[0] && opts.noraAvailable === false) });
   s.handle = (body) => {
     s.calls.push(body);
@@ -33,7 +41,9 @@ export function makeServer(opts = {}) {
       const g = body.group || "interview";
       const bots = opts.includeAll ? all : all.filter((b) => b.group === g);
       const convs = opts.includeAll ? s.convs : s.convs.filter((c) => (c.bot === NORA[0]) === (g === "hr"));
-      return { status: 200, json: { ready: s.ready, bots, conversations: convs, today: s.today, limits: s.limits } };
+      const json = { ready: s.ready, bots, conversations: convs, today: s.today, limits: s.limits };
+      if (opts.faq && g === "hr") json.faq = FAQ.map(({ id, question, alternates, section }) => ({ id, question, alternates, section }));
+      return { status: 200, json };
     }
     if (!s.ready) return fail(503, "not_configured", "The chat isn't switched on yet.");
     if (body.action === "start") {
@@ -44,10 +54,24 @@ export function makeServer(opts = {}) {
       s.convs.unshift(c); s.msgs[id] = [];
       return { status: 200, json: { conversation: { ...c }, today: s.today } };
     }
+    if (body.action === "faq") {
+      if (!opts.faq) return fail(400, "bad_action", "Unknown action.");
+      if (opts.faqError) return fail(opts.faqError.status, opts.faqError.error, opts.faqError.message);
+      const c = s.convs.find((x) => x.id === body.conversation_id), f = FAQ.find((x) => x.id === body.id);
+      if (!f) return fail(404, "faq_not_found", "No saved answer.");
+      s.faqCalls++;
+      s.msgs[c.id].push({ role: "student", content: f.question, at: "2027-01-27T15:05:00.000Z" }, { role: "staff", source: "faq", section: f.section, content: f.answer, at: "2027-01-27T15:05:01.000Z" });
+      return { status: 200, json: { entry: { id: f.id, question: f.question, answer: f.answer, section: f.section }, student_messages: c.student_messages, today: s.today } };
+    }
     if (body.action === "send") {
       if (s.sendError) { const e = s.sendError; s.sendError = null; return fail(e.status, e.error, e.message); }
       const c = s.convs.find((x) => x.id === body.conversation_id);
       if (Array.from(body.message).length > 600) return fail(400, "too_long", "Too long.");
+      const hit = opts.faq && !opts.faqError && FAQ.find((f) => [f.question, ...f.alternates].some((q) => norm(q) === norm(body.message)));
+      if (hit) {
+        s.msgs[c.id].push({ role: "student", content: body.message, at: "2027-01-27T15:05:00.000Z" }, { role: "staff", source: "faq", section: hit.section, content: hit.answer, at: "2027-01-27T15:05:01.000Z" });
+        return { status: 200, json: { reply: hit.answer, source: "faq", section: hit.section, student_messages: c.student_messages, today: s.today } };
+      }
       const reply = "The syllabus section on late work explains this. Ask Professor Goodwin about any exception.";
       s.msgs[c.id].push({ role: "student", content: body.message, at: "2027-01-27T15:05:00.000Z" }, { role: "staff", content: reply, at: "2027-01-27T15:05:05.000Z" });
       c.student_messages++; s.today++;

@@ -40,7 +40,6 @@ test("Enter starts a conversation with nora-feldman tagged HR, sends, and announ
   assert.equal(d.getElementById("log").getAttribute("aria-live"), "off");
   assert.equal(d.getElementById("log").querySelectorAll(".sc-msg").length, 2);
   assert.equal(msg.value, "");
-  assert.equal(d.getElementById("starters").hidden, true);
   assert.match(d.getElementById("usage").textContent, /4 of 120\. This conversation: 1 of 30\./);
   assert.equal(d.getElementById("past").querySelectorAll("button").length, 1);
   // A second question reuses the conversation.
@@ -193,4 +192,78 @@ test("accessibility: one H1, headings in order, every control labelled, live reg
   assert.ok(!help.closest("[hidden]"));
   assert.doesNotMatch(d.querySelector(".sc-foot").textContent, /time limit/);
   assert.match(d.querySelector(".hr-intro").textContent, /syllabus is the final word.*can't grant exceptions, extensions or grade changes.*Professor Goodwin/s);
+});
+
+const faqs = (s) => s.calls.filter((c) => c.action === "faq");
+
+test("saved answers: a starter with a saved answer calls faq (no model), labels it and shows its section", async () => {
+  const s = makeServer({ faq: true });
+  const { w, d, downloads } = await loadPage("hr", s);
+  assert.match(d.getElementById("startHint").textContent, /saved answer from HR/);
+  const late = d.querySelector('#starterList button[data-q="What happens if I submit a lab late?"]');
+  assert.equal(late.dataset.faq, "faq-a");
+  assert.equal(d.querySelector('#starterList button[data-q="What is a lab defense, and how is it graded?"]').dataset.faq, undefined, "no saved answer: asks Nora");
+  // Saved answers not on a starter are listed after them.
+  const more = [...d.querySelectorAll("#faqList button")];
+  assert.equal(d.getElementById("faqList").hidden, false);
+  assert.deepEqual(more.map((b) => b.dataset.faq), ["faq-c"]);
+  late.click(); await settle();
+  assert.equal(starts(s).length, 1);
+  assert.deepEqual(faqs(s)[0], { action: "faq", conversation_id: s.convs[0].id, id: "faq-a" });
+  assert.equal(sends(s).length, 0, "no model call");
+  const reply = d.querySelector("#log .sc-msg.faq");
+  assert.match(reply.querySelector("h3").textContent, /^Nora Feldman, saved answer from HR, /);
+  assert.equal(reply.querySelector(".hr-src").textContent, "Section: Late and missed work");
+  assert.equal(d.getElementById("announce").textContent, "Saved answer from HR, section Late and missed work: Saved: late labs follow the rule under Late and missed work.");
+  assert.match(d.getElementById("usage").textContent, /3 of 120\. This conversation: 0 of 30\./, "saved answers don't count against model limits");
+  more[0].click(); await settle();
+  assert.equal(faqs(s).length, 2); assert.equal(starts(s).length, 1);
+  d.getElementById("download").click(); await settle();
+  const text = await new Promise((r) => { const fr = new w.FileReader(); fr.onload = () => r(fr.result); fr.readAsText(downloads[0]); });
+  assert.match(text, /\] Nora Feldman \(saved answer from HR; section: Late and missed work\): Saved: late labs/);
+  // Reopening shows saved answers with their label.
+  d.getElementById("restart").click(); d.querySelector("#past button").click(); await settle();
+  assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 2);
+});
+
+test("saved answers: a typed question the server matches comes back labelled as saved", async () => {
+  const s = makeServer({ faq: true });
+  const { w, d } = await loadPage("hr", s);
+  type(w, d.getElementById("msg"), "can I turn in a lab late"); enter(w, d.getElementById("msg")); await settle();
+  assert.equal(sends(s).length, 1);
+  assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 1);
+  assert.match(d.getElementById("announce").textContent, /^Saved answer from HR, section Late and missed work: /);
+});
+
+test("fallback: no saved-answer list means starters ask Nora", async () => {
+  const s = makeServer();
+  const { d } = await loadPage("hr", s);
+  assert.equal(d.getElementById("faqList").hidden, true);
+  assert.ok([...d.querySelectorAll("#starterList button")].every((b) => !b.dataset.faq));
+  d.querySelector("#starterList button").click(); await settle();
+  assert.equal(faqs(s).length, 0);
+  assert.equal(sends(s).length, 1);
+});
+
+test("fallback: faq action unavailable or stale sends the question to Nora instead", async () => {
+  for (const [err, turnsOff] of [[{ status: 400, error: "bad_action", message: "Unknown action." }, true], [{ status: 409, error: "faq_stale", message: "Out of date." }, false]]) {
+    const s = makeServer({ faq: true, faqError: err });
+    const { d } = await loadPage("hr", s);
+    d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle(12);
+    assert.equal(faqs(s).length, 1);
+    assert.equal(sends(s).length, 1);
+    assert.equal(sends(s)[0].message, "What happens if I submit a lab late?");
+    assert.equal(d.getElementById("alert").hidden, true, "no error shown");
+    assert.equal(d.querySelectorAll("#log .sc-msg").length, 2, "one question, one reply from Nora");
+    assert.equal(d.querySelector("#log .sc-msg.faq"), null);
+    assert.equal(d.getElementById("faqList").hidden, turnsOff);
+  }
+});
+
+test("saved answers: a limit error from faq is shown, not hidden behind a fallback", async () => {
+  const s = makeServer({ faq: true, faqError: { status: 429, error: "rate_limited", message: "Too many questions in a minute. Try again in a minute." } });
+  const { d } = await loadPage("hr", s);
+  d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle();
+  assert.equal(sends(s).length, 0);
+  assert.equal(d.getElementById("alert").textContent, "Too many questions in a minute. Try again in a minute.");
 });

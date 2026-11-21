@@ -16,3 +16,6 @@
 .hr-help h2{font-size:17px;color:var(--ink);margin-bottom:2px}
 .hr-help p{margin:2px 0;max-width:100ch}
 .hr-help a{color:var(--brand);font-weight:600}
+.hr-more{margin-top:8px}
+.sc-msg.faq{border-left:4px solid var(--gold)}
+.sc-msg .hr-src{font-size:13px;color:var(--muted);margin-top:4px}

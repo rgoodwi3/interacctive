@@ -20,7 +20,7 @@ Students interview the six order-to-cash staff chatbots for D1, D2 and M1 (chatb
 
 ## HR help desk (`ais/hr/`)
 
-Students ask Nora Feldman, Trailhead's HR and Payroll Coordinator, about the Company Policies (the course syllabus). Open it from Canvas as `ais/hr/?course=<class id>`. The page uses the same `staff-chat` function with bot `nora-feldman` and the tag `HR`, and asks the `directory` action for the `hr` group. Nora never appears in the staff directory: `ais/staff/` shows only the six interview staff. Nora's instructions and the policy text stay on the server. Her picture is `nora-feldman-240.png`; if the file is missing, the page hides it.
+Students ask Nora Feldman, Trailhead's HR and Payroll Coordinator, about the Company Policies (the course syllabus). Open it from Canvas as `ais/hr/?course=<class id>`. The page uses the same `staff-chat` function with bot `nora-feldman` and the tag `HR`, and asks the `directory` action for the `hr` group. When the server lists saved answers from HR (approved ahead of time), the question buttons use the `faq` action, which answers with no model call; without that list, or if the action isn't available, a button sends its question to Nora. Nora never appears in the staff directory: `ais/staff/` shows only the six interview staff. Nora's instructions and the policy text stay on the server. Her picture is `nora-feldman-240.png`; if the file is missing, the page hides it.
 
 ## Tests (`ais/tests/`)
 
