@@ -11,6 +11,9 @@
   var q = new URLSearchParams(location.search);
   var COURSE = UUID.test(q.get("course") || "") ? q.get("course") : null;
   var FOR = /^(D1|D2|M1)$/.test(q.get("for") || "") ? q.get("for") : null;
+  // The six order-to-cash interview bots. Other personas (such as the HR help desk, ais/hr/) never show here.
+  // Adding or renaming an interview persona? Add its id here too, or it is hidden from the directory.
+  var INTERVIEW = ["jordan-banks", "grace-liu", "ben-castellano", "luis-ortega", "elena-kowalczyk", "priya-raman"];
   var $ = function (id) { return document.getElementById(id); };
   var SB = null, USER = null, DIR = null, CUR = null, BUSY = false, EMAIL = "";
 
@@ -86,8 +89,11 @@
     status("Loading the staff directory…");
     try { DIR = await api({ action: "directory", course_id: COURSE }); }
     catch (e) { status(""); if (e.code === "unauthorized") return showSignIn(e.message); alertMsg(e.message); return; }
+    DIR.bots = (DIR.bots || []).filter(function (b) { return INTERVIEW.indexOf(b.id) >= 0; });
+    DIR.conversations = (DIR.conversations || []).filter(function (c) { return (!c.bot || INTERVIEW.indexOf(c.bot) >= 0) && c.assignment !== "HR"; });
     $("signin").hidden = true; $("app").hidden = false; alertMsg("");
     $("who").textContent = USER && USER.email ? USER.email : "";
+    var hl = $("hrLink"); if (hl) hl.href = "../hr/" + (COURSE ? "?course=" + encodeURIComponent(COURSE) : "");
     renderPeople(); renderPast(); renderUsage();
     status(DIR.ready ? "Staff directory loaded." : "");
     if (!DIR.ready) alertMsg("The staff chat isn't switched on yet. Check back later or ask your instructor.");
@@ -124,7 +130,28 @@
     if (CUR) t += " This conversation: " + CUR.student_messages + " of " + DIR.limits.per_conversation + ".";
     $("usage").textContent = t;
   }
-  $("people").addEventListener("click", function (e) { var b = e.target.closest("button[data-bot]"); if (b && !b.disabled) startConversation(b.dataset.bot); });
+  $("people").addEventListener("click", function (e) { var b = e.target.closest("button[data-bot]"); if (b && !b.disabled) confirmStart(b.dataset.bot, b); });
+
+  // ---------- confirm before a new chat opens (inline, not a browser dialog) ----------
+  var PENDING = null;
+  function confirmStart(bot, from) {
+    if (BUSY) return;
+    var b = (DIR.bots || []).filter(function (x) { return x.id === bot; })[0];
+    if (!b) return;
+    PENDING = { bot: bot, from: from };
+    $("confirmH").textContent = "Start a new chat with " + b.name + ", " + b.title + "?";
+    $("confirmP").textContent = "This starts a new saved conversation" + (FOR ? " for " + FOR : "") + ". You can download its transcript at any time.";
+    $("confirm").hidden = false; alertMsg("");
+    $("confirmH").focus();
+  }
+  function closeConfirm(back) {
+    var p = PENDING; PENDING = null; $("confirm").hidden = true;
+    if (back && p && p.from && document.body.contains(p.from)) p.from.focus();
+    return p;
+  }
+  $("confirmYes").addEventListener("click", function () { var p = closeConfirm(false); if (p) startConversation(p.bot); });
+  $("confirmNo").addEventListener("click", function () { closeConfirm(true); });
+  $("confirm").addEventListener("keydown", function (e) { if (e.key === "Escape") { e.preventDefault(); closeConfirm(true); } });
   $("past").addEventListener("click", function (e) { var b = e.target.closest("button[data-conv]"); if (b) openConversation(b.dataset.conv); });
 
   // ---------- chat ----------
@@ -160,6 +187,7 @@
   }
   async function openConversation(id) {
     if (BUSY) return;
+    closeConfirm(false);
     BUSY = true; alertMsg(""); status("Opening the conversation…");
     try { var t = await api({ action: "transcript", conversation_id: id }); showChat(t.conversation, t.messages); status("Conversation opened."); }
     catch (e) { status(""); if (e.code === "unauthorized") showSignIn(e.message); else alertMsg(e.message); }
@@ -204,7 +232,7 @@
       if (!$("app").hidden) $("msg").focus();
     }
   }
-  $("restart").addEventListener("click", function () { if (CUR) startConversation(CUR.bot); });
+  $("restart").addEventListener("click", function () { if (CUR) confirmStart(CUR.bot, $("restart")); });
 
   // ---------- transcript download (plain text, built from the server's saved copy) ----------
   $("download").addEventListener("click", async function () {

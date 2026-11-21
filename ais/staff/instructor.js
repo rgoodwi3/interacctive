@@ -60,7 +60,9 @@
       tb.appendChild(tr);
     });
     var tokens = ROWS.reduce(function (t, m) { return t + (m.input_tokens || 0) + (m.output_tokens || 0); }, 0);
-    $("summary").textContent = conv.size + " conversations, " + ROWS.filter(function (m) { return m.role === "student"; }).length + " student questions, " + tokens.toLocaleString("en-US") + " model tokens.";
+    var cached = ROWS.reduce(function (t, m) { return t + (m.cache_read_input_tokens || 0); }, 0);
+    var saved = ROWS.filter(function (m) { return m.role !== "student" && m.source === "faq"; }).length;
+    $("summary").textContent = conv.size + " conversations, " + ROWS.filter(function (m) { return m.role === "student"; }).length + " student questions, " + tokens.toLocaleString("en-US") + " model tokens" + (cached ? " (plus " + cached.toLocaleString("en-US") + " read from the prompt cache)" : "") + (saved ? ", " + saved + " saved answers" : "") + ".";
     $("out").hidden = false;
   }
   function download(name, text, type) {
@@ -71,7 +73,7 @@
     status("Downloaded " + name + ".");
   }
   var COLS = ["conversation_id", "student_name", "student_email", "persona_name", "assignment", "card_version", "shared_version", "prompt_sha256", "model",
-    "started_at", "seq", "role", "content", "created_at", "input_tokens", "output_tokens"];
+    "started_at", "seq", "role", "content", "created_at", "input_tokens", "output_tokens", "grounding_version", "source", "faq_id", "cache_creation_input_tokens", "cache_read_input_tokens"];
   function cell(v) {
     var s = v === null || v === undefined ? "" : String(v);
     if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;   // keep spreadsheet formulas from running
@@ -87,7 +89,8 @@
       var m0 = c.meta;
       out.push("==== " + (m0.student_name || "") + " <" + (m0.student_email || "") + "> with " + m0.persona_name + " · " + (m0.assignment || "untagged") +
         " · started " + m0.started_at + " · card " + m0.card_version + ", shared " + m0.shared_version + " · " + m0.conversation_id, "");
-      c.msgs.forEach(function (m) { out.push("[" + m.created_at + "] " + (m.role === "student" ? "Student" : m0.persona_name) + ": " + m.content, ""); });
+      // Saved answers from HR (source "faq") are marked so good model replies can be told apart and promoted.
+      c.msgs.forEach(function (m) { out.push("[" + m.created_at + "] " + (m.role === "student" ? "Student" : m0.persona_name + (m.source === "faq" ? " (saved answer " + (m.faq_id || "") + ")" : "")) + ": " + m.content, ""); });
     });
     download("staff-transcripts-" + LABEL + ".txt", out.join("\r\n"), "text/plain;charset=utf-8");
   });
