@@ -146,7 +146,7 @@ function gen(seed) {
       const S = lines.reduce((t, l, j) => t + rec[j] * l.it[3], 0) * 100;
       if (!small && S < 260000) continue; // a large set's 2% is always over $50
       const T = Math.min(S / 50, 5000), bq = rec.slice(), bc = lines.map(l => l.it[3] * 100), j = Math.floor(r() * lines.length);
-      if (type === "within") { if (r() < 0.5) bc[j] += R(5, 40); else { if (lines[j].it[3] * 100 > T - 300) continue; bq[j] += 1; } }
+      if (type === "within") bc[j] += R(5, 40); // a small unit-cost difference; every billed quantity was received
       else if (type === "qty") { if (small) bq[0] += trap ? R(1, 3) : qstep(lines[0].it[3]) * R(1, 6); else lines.forEach((l, m) => { bq[m] = l.q; }); }
       else if (type === "price") bc[j] += small && trap ? R(25, 95, 5) : R(100, Math.min(400, Math.floor(lines[j].it[3] * 20)), 5); // at most 20% of cost
       const B = bq.reduce((t, x, m) => t + x * bc[m], 0), D = B - S;
@@ -233,7 +233,7 @@ function buildParts(P) {
 
   // Part 1: the supported amount, difference and tolerance for each bill.
   parts.push({ id: "docs", phase: "match", tick: "1", title: "Read the documents", layout: "table",
-    desc: "From Marcus Oyelaran, Controller: NetSuite has put four vendor bills in the review queue, each with its purchase order and item receipt. Check NetSuite's work against our rule, P7: a bill is paid only when it agrees with the PO and the receipt within 2% or $50, whichever is less. Decide which bills can be approved for payment, and post the one that passes with a small difference. Aisha Rahman, our purchasing manager, also sent three vendor master requests that need a decision. " +
+    desc: "From Marcus Oyelaran, Controller: NetSuite has put four vendor bills in the review queue, each with its purchase order and item receipt. Check NetSuite's work against our rule, P7: a bill is paid only when it agrees with the PO and the receipt within 2% or $50, whichever is less. Decide which bills are cleared for the payment run, and post the one that passes with a small difference. Aisha Rahman, our purchasing manager, also sent three vendor master requests that need a decision. " +
       "Start with three amounts for each bill. The supported amount is each quantity received × its PO unit cost, added up. The difference is the bill total − the supported amount. The tolerance is the smaller of 2% of the supported amount and $50.00, to the cent.",
     itemLabel: "Bill", cols: [{ key: "s", label: "Supported amount" }, { key: "d", label: "Difference (bill − supported)" }, { key: "t", label: "Tolerance" }],
     items: sets.map((s, i) => ({ text: name(i) + " · " + vname(i) })),
@@ -263,7 +263,7 @@ function buildParts(P) {
 
   // Part 2: the match result (given forward: each row states Part 1's figures).
   const why2 = i => { const x = X[i], s = sets[i];
-    if (x.type === "within") return cents(x.D) + " is within the " + cents(x.T) + " tolerance, so the bill is approved as billed. The small difference goes to 5200.";
+    if (x.type === "within") return cents(x.D) + " is within the " + cents(x.T) + " tolerance, so the bill is approved as billed. Every billed quantity was received; only the unit cost differs a little. The small difference goes to 5200.";
     if (x.type === "clean") return x.partial ? "The bill agrees with what was received. A partial delivery isn't an exception if the bill is for the received quantity." : "The bill agrees with the PO and the receipt, so it is approved as billed.";
     if (x.type === "qty") return "The prices agree. The bill charges for " + s.bill.lines[x.qline].qty.toLocaleString("en-US") + " " + s.bill.lines[x.qline].sku + " but only " + s.receipt.lines[x.qline].qty.toLocaleString("en-US") + " arrived: a quantity exception.";
     return "Every billed quantity equals the quantity received. The bill's unit cost for " + s.bill.lines[x.pline].sku + " is " + cents(s.bill.lines[x.pline].cost) + " vs. " + cents(s.po.lines[x.pline].cost) + " on the PO: a price exception."; };
@@ -274,7 +274,7 @@ function buildParts(P) {
     if (x.res === "pay") return { qty: why2(i), price: why2(i) };
     return x.res === "qty" ? { pay: over(i), price: why2(i) } : { pay: over(i), qty: why2(i) }; };
   parts.push({ id: "match", phase: "match", tick: "2", title: "Match result for each bill", layout: "table",
-    desc: "Each row gives that bill's supported amount, difference and tolerance from Part 1. Choose the result: approve the bill as billed, or hold it and name the document that disagrees with the bill.",
+    desc: "Each row gives that bill's supported amount, difference and tolerance from Part 1. Choose the result: approve the bill as billed, or hold it and say whether quantity or price disagrees.",
     itemLabel: "Bill", cols: [{ key: "r", label: "Match result" }],
     items: sets.map((s, i) => ({ text: name(i) + " · " + vname(i) + ": supported " + cents(X[i].S) + ", difference " + cents(X[i].D) + ", tolerance " + cents(X[i].T) })),
     fields: sets.map((s, i) => sel("r" + i, name(i) + ": match result", MATCH, X[i].res, why2(i), traps2(i), X[i].res === "pay" ? why2(i) : over(i).replace(/^It's under \$50, but the/, "The") + " " + why2(i), { row: i, col: "r" })),
@@ -286,20 +286,20 @@ function buildParts(P) {
   // Part 3: approve and post (given forward: the results and the within bill's figures).
   const w = X.findIndex(x => x.type === "within"), held = sets.map((s, i) => i).filter(i => X[i].res !== "pay");
   const clean = sets.map((s, i) => i).filter(i => X[i].type === "clean"), xw = X[w];
-  const payWork = i => X[i].res === "pay" ? "Approved as billed: " + cents(X[i].B) + "." : "On hold: $0.00 approved.";
+  const payWork = i => X[i].res === "pay" ? "Approved as billed: " + cents(X[i].B) + "." : "On hold: $0.00 cleared.";
   parts.push({ id: "pay", phase: "match", tick: "3", title: "Approve and post", layout: "table",
     desc: name(w) + " (" + vname(w) + ") passed within tolerance: supported " + cents(xw.S) + ", difference " + cents(xw.D) + ". " +
       (held.length === 1 ? name(held[0]) + " is" : names(held.map(name)) + " are") + " on hold." +
       (clean.length ? " " + names(clean.map(name)) + (clean.length === 1 ? " matches" : " match") + " exactly." : "") +
-      " For each bill, enter the amount approved for payment. Enter 0 for a bill on hold. Then post " + name(w) + " as NetSuite does, in two steps: the vendor bill itself, and the variance journal that Post Vendor Bill Variances (Transactions > Payables) creates at month-end. Its item receipt already credited 2050 at PO cost.",
-    itemLabel: "Bill", cols: [{ key: "pay", label: "Amount approved for payment" }],
+      " For each bill, enter the amount cleared for the payment run. Enter 0 for a bill on hold. (Clearing the match isn't paying: under P8 the controller approves the payment run, and the CEO also approves any payment over $10,000.) Then post " + name(w) + " as NetSuite does, in two steps: the vendor bill itself, and the variance journal that Post Vendor Bill Variances (Transactions > Payables) creates at month-end. Its item receipt already credited 2050 at PO cost.",
+    itemLabel: "Bill", cols: [{ key: "pay", label: "Amount cleared for the payment run" }],
     items: sets.map((s, i) => ({ text: name(i) + " · " + vname(i) + ": " + optLabel(MATCH, X[i].res) })),
-    fields: sets.map((s, i) => { const x = X[i]; return amt("pay" + i, name(i) + ": amount approved for payment", x.res === "pay" ? x.B : 0, v =>
-      x.res !== "pay" ? "This bill is on hold, so nothing is approved for payment yet." :
-      near(v, 0) ? "This bill passed the match, so it is approved for payment as billed." :
+    fields: sets.map((s, i) => { const x = X[i]; return amt("pay" + i, name(i) + ": amount cleared for the payment run", x.res === "pay" ? x.B : 0, v =>
+      x.res !== "pay" ? "This bill is on hold, so nothing is cleared for the payment run yet." :
+      near(v, 0) ? "This bill passed the match, so it is cleared for the payment run as billed." :
       x.type === "within" && near(v, x.S) ? "A bill within tolerance is paid as billed: " + cents(x.B) + "." :
       x.partial && near(v, x.ord) ? "The bill is for the goods received. Approve it as billed: " + cents(x.B) + "." :
-      "An approved bill is paid as billed, at its bill total.", payWork(i), { row: i, col: "pay" }); }).concat([
+      "A bill that passes the match goes into the payment run as billed, at its bill total.", payWork(i), { row: i, col: "pay" }); }).concat([
       amt("dr2050", "Bill: debit to 2050 Inventory Received Not Billed", xw.B, v =>
         near(v, xw.S) ? "The bill posts in full; the excess is moved later. NetSuite debits 2050 for the bill total, " + cents(xw.B) + ", and the month-end variance journal moves the difference to 5200." :
         xw.partial && near(v, xw.ord) ? "The bill posts its own total, not the PO total. Debit 2050 for the bill total." :
@@ -326,7 +326,7 @@ function buildParts(P) {
   parts.push({ id: "vendor", phase: "vendor", tick: "4", title: "Vendor master requests", layout: "table", numbered: true,
     desc: "The vendor master is the set of vendor records that orders, bills and payments draw on. Decide each pending request: approve it, or escalate it to Marcus, and give the reason. " +
       "The rule for a new vendor: a W-9 on file, approval from Dana Whitfield, the CEO, and bank details confirmed by calling a number found independently (the vendor's website or a known contact). " +
-      "For an existing vendor: any bank change confirmed by calling the number already in the vendor record. Aisha Rahman in purchasing submits every request. " +
+      "For an existing vendor, the working rule for these practice requests (not in Trailhead's policy manual): any bank change is confirmed by calling the number already in the vendor record. Aisha Rahman in purchasing submits every request. " +
       "These are practice scenarios written for this lab. They are not part of Trailhead's 2026 records or the evidence for Labs C1 and C2 or Project M3, and they don't describe how Trailhead's NetSuite account or company is actually set up.",
     itemLabel: "Request", cols: [{ key: "dec", label: "Decision" }, { key: "why", label: "Reason" }],
     items: rq.map(q => ({ text: q.text })),
@@ -381,10 +381,11 @@ function billTable(s) {
     '<tr><th scope="col">Item</th><th scope="col" class="r">Quantity ordered</th><th scope="col" class="r">Unit cost</th><th scope="col" class="r">Quantity received</th><th scope="col" class="r">Quantity billed</th><th scope="col" class="r">Unit cost billed</th></tr></thead>' +
     '<tbody>' + rows + '</tbody><tfoot><tr><td colspan="5">Bill total</td><td class="r">' + cents(s.bill.total) + '</td></tr></tfoot></table></div>';
 }
-const P7 = '<div class="rule"><b>P7 · Three-way match.</b> A vendor bill is paid only when it agrees with the purchase order and the item receipt within 2% or $50, whichever is less.</div>';
+const P7 = '<div class="rule"><b>P7 · Three-way match.</b> A vendor bill is paid only when it agrees with the purchase order and the item receipt within 2% or $50, whichever is less.</div>' +
+  '<div class="rule"><b>P8 · Payments.</b> The AP specialist prepares the weekly payment run; the controller approves it; the CEO also approves any payment over $10,000.</div>';
 function vendorRule() {
   return '<div class="rule"><b>New vendor.</b> A W-9 on file, approval from Dana Whitfield (CEO), and bank details confirmed by calling a number found independently: the vendor\'s website or a known contact.</div>' +
-    '<div class="rule"><b>Existing vendor.</b> Any bank change confirmed by calling the number already in the vendor record.</div>' +
+    '<div class="rule"><b>Existing vendor.</b> Any bank change is confirmed by calling the number already in the vendor record. This is the working rule for these practice requests (not in Trailhead\'s policy manual).</div>' +
     '<div class="rule"><b>Who submits.</b> Aisha Rahman in purchasing submits every request. Escalated requests go to Marcus Oyelaran.</div>' +
     '<p class="note">These requests are practice scenarios written for this lab, not Trailhead\'s records.</p>';
 }
