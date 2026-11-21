@@ -57,9 +57,12 @@ export function makeServer(opts = {}) {
     if (body.action === "faq") {
       if (!opts.faq) return fail(400, "bad_action", "Unknown action.");
       if (opts.faqError) return fail(opts.faqError.status, opts.faqError.error, opts.faqError.message);
-      const c = s.convs.find((x) => x.id === body.conversation_id), f = FAQ.find((x) => x.id === body.id);
+      const f = FAQ.find((x) => x.id === body.id);
       if (!f) return fail(404, "faq_not_found", "No saved answer.");
       s.faqCalls++;
+      // Without a conversation, a saved answer is only logged (no conversation is created).
+      if (!body.conversation_id) { s.faqViews = (s.faqViews || []).concat(f.id); return { status: 200, json: { entry: { id: f.id, question: f.question, answer: f.answer, section: f.section }, today: s.today } }; }
+      const c = s.convs.find((x) => x.id === body.conversation_id);
       s.msgs[c.id].push({ role: "student", content: f.question, at: "2027-01-27T15:05:00.000Z" }, { role: "staff", source: "faq", section: f.section, content: f.answer, at: "2027-01-27T15:05:01.000Z" });
       return { status: 200, json: { entry: { id: f.id, question: f.question, answer: f.answer, section: f.section }, student_messages: c.student_messages, today: s.today } };
     }
@@ -131,3 +134,6 @@ export async function loadPage(page, server, { query = "?course=" + COURSE, sign
 
 export function type(w, el, text) { el.value = text; el.dispatchEvent(new w.Event("input", { bubbles: true })); }
 export function enter(w, el, shift = false) { el.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", shiftKey: shift, bubbles: true, cancelable: true })); }
+
+// Clicks "Start chat" if the inline confirmation is showing (no-op otherwise).
+export async function yes(d) { const c = d.getElementById("confirm"); if (c && !c.hidden) { d.getElementById("confirmYes").click(); await settle(); } }

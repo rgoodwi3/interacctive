@@ -189,11 +189,12 @@
     if (role === "faq" && section) d.appendChild(el("p", "hr-src", "Section: " + section));
     return d;
   }
-  function showReply(r) {
+  function showReply(r, box) {
     var isFaq = r.source === "faq";
-    $("log").appendChild(bubble(isFaq ? "faq" : "staff", r.reply, new Date().toISOString(), r.section));
+    box = box || $("log");
+    box.appendChild(bubble(isFaq ? "faq" : "staff", r.reply, new Date().toISOString(), r.section));
     $("announce").textContent = isFaq ? "Saved answer from HR" + (r.section ? ", section " + r.section : "") + ": " + r.reply : NAME + " says: " + r.reply;
-    $("log").scrollTop = $("log").scrollHeight;
+    box.scrollTop = box.scrollHeight;
   }
   // Starts a conversation with Nora, tagged HR. Returns true if it started.
   async function startConversation() {
@@ -207,6 +208,7 @@
   }
   async function openConversation(id) {
     if (BUSY) return;
+    closeConfirm(false);
     BUSY = true; alertMsg(""); status("Opening the conversation…");
     try { var t = await api({ action: "transcript", conversation_id: id }); showChat(t.conversation, t.messages); status("Conversation opened."); $("chatH").focus(); }
     catch (e) { status(""); if (e.code === "unauthorized") showSignIn(e.message); else alertMsg(e.message); }
@@ -227,26 +229,48 @@
     var b = e.target.closest("button[data-q]");
     if (!b || b.disabled || BUSY) return;
     if (FAQ_ON && b.dataset.faq) askFaq(b.dataset.faq, b.dataset.q);
-    else { $("msg").value = b.dataset.q; count(); send(); }
+    else { $("msg").value = b.dataset.q; count(); send(b); }
   });
-  // A saved answer: no model call. Falls back to asking Nora if the server has no saved answer for it.
+
+  // ---------- confirm before a new chat opens (inline, not a browser dialog) ----------
+  var PENDING = null;
+  function askConfirm(from, onYes) {
+    PENDING = { from: from, onYes: onYes };
+    $("confirmH").textContent = "Start a new chat with " + NAME + ", " + TITLE + "?";
+    $("confirmP").textContent = "This starts a new saved conversation with HR. You can download its transcript at any time.";
+    $("confirm").hidden = false; alertMsg("");
+    $("confirmH").focus();
+  }
+  function closeConfirm(back) {
+    var p = PENDING; PENDING = null; $("confirm").hidden = true;
+    if (back && p && p.from && document.body.contains(p.from) && !p.from.disabled) p.from.focus();
+    return p;
+  }
+  $("confirmYes").addEventListener("click", function () { var p = closeConfirm(false); if (p) p.onYes(); });
+  $("confirmNo").addEventListener("click", function () { closeConfirm(true); });
+  $("confirm").addEventListener("keydown", function (e) { if (e.key === "Escape") { e.preventDefault(); closeConfirm(true); } });
+
+  // A saved answer: no model call and no new conversation. With a conversation open, it is saved in it;
+  // otherwise it shows above the chat and is logged without a conversation. Falls back to asking Nora.
   async function askFaq(id, question) {
     if (BUSY || !READY) return;
+    closeConfirm(false);
     BUSY = true; alertMsg("");
-    var log = $("log"), mine = null, fallback = false;
+    var box = CUR ? $("log") : $("saved"), mine = null, fallback = false;
     try {
-      if (!CUR && !(await startConversation())) return;
       mine = bubble("student", question, new Date().toISOString());
-      log.hidden = false; log.appendChild(mine);
+      box.hidden = false; box.appendChild(mine);
       status("Finding the saved answer…");
-      var r = await api({ action: "faq", conversation_id: CUR.id, id: id });
+      var body = { action: "faq", course_id: COURSE, id: id };
+      if (CUR) body.conversation_id = CUR.id;
+      var r = await api(body);
       var f = r.entry || {};
-      showReply({ source: "faq", reply: f.answer, section: f.section });
+      showReply({ source: "faq", reply: f.answer, section: f.section }, box);
       if (typeof r.today === "number") DIR.today = r.today;
       renderPast(); renderUsage(); status("");
     } catch (e) {
-      if (mine && mine.parentNode) log.removeChild(mine);
-      if (!log.children.length) log.hidden = true;
+      if (mine && mine.parentNode) box.removeChild(mine);
+      if (!box.children.length) box.hidden = true;
       status("");
       if (NO_FAQ_ACTION.indexOf(e.code) >= 0 || FAQ_MISS.indexOf(e.code) >= 0) {
         if (NO_FAQ_ACTION.indexOf(e.code) >= 0) { FAQ_ON = false; renderFaq(); }
@@ -256,19 +280,24 @@
     } finally {
       BUSY = false; setEnabled();
     }
-    if (fallback) { $("msg").value = question; count(); await send(); }
+    if (fallback) { $("msg").value = question; count(); send(); }
     else if (!$("app").hidden && READY) $("msg").focus();
   }
-  async function send() {
+  // from: the control that asked, so Cancel can return focus to it (default: the question box).
+  function send(from) {
     if (BUSY || !READY) return;
     var text = $("msg").value.trim();
     if (!text) { alertMsg("Type a question first."); $("msg").focus(); return; }
     if (Array.from(text).length > maxChars()) { alertMsg("Keep each message to " + maxChars() + " characters or fewer."); $("msg").focus(); return; }
+    if (!CUR) { askConfirm(from && from.nodeType === 1 ? from : $("msg"), function () { deliver(text); }); return; }
+    return deliver(text);
+  }
+  async function deliver(text) {
+    if (BUSY) return;
     BUSY = true; alertMsg("");
     $("send").disabled = true; $("send").setAttribute("aria-busy", "true");
     var log = $("log"), mine = null, wait = null;
     try {
-      // The first question of a new conversation starts it, so an empty conversation is never saved.
       if (!CUR && !(await startConversation())) return;
       mine = bubble("student", text, new Date().toISOString()); wait = bubble("wait", first() + " is replying…");
       log.hidden = false;
@@ -287,7 +316,7 @@
       if (!log.children.length) log.hidden = true;
       status("");
       if (e.code === "unauthorized") showSignIn(e.message);
-      else if (e.code === "card_changed") { alertMsg(e.message + " Press Send again to ask in a new conversation."); clearChat(); }
+      else if (e.code === "card_changed") { alertMsg(e.message + " Press Send again to start a new conversation."); clearChat(); }
       else alertMsg(e.message);
     } finally {
       BUSY = false; $("send").removeAttribute("aria-busy"); setEnabled();
@@ -295,8 +324,12 @@
     }
   }
   $("restart").addEventListener("click", function () {
-    if (BUSY) return;
-    clearChat(); alertMsg(""); status("New conversation. Type your question."); $("msg").focus();
+    if (BUSY || !READY) return;
+    askConfirm($("restart"), async function () {
+      BUSY = true; clearChat(); alertMsg("");
+      try { if (await startConversation()) { status("New conversation started. Type your question."); } }
+      finally { BUSY = false; setEnabled(); if (READY && !$("app").hidden) $("msg").focus(); }
+    });
   });
 
   // ---------- transcript download (plain text, built from the server's saved copy) ----------

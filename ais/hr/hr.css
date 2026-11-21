@@ -19,3 +19,4 @@
 .hr-more{margin-top:8px}
 .sc-msg.faq{border-left:4px solid var(--gold)}
 .sc-msg .hr-src{font-size:13px;color:var(--muted);margin-top:4px}
+.hr-saved{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}

@@ -81,6 +81,14 @@
     <section class="panel sc-chat" aria-labelledby="chatH" id="chat">
       <div class="panel-h"><h2 id="chatH" tabindex="-1">Ask Nora a question</h2><span class="sub" id="chatSub"></span></div>
       <div class="panel-b">
+<div id="confirm" class="sc-confirm" role="group" aria-labelledby="confirmH" hidden>
+          <h3 id="confirmH" tabindex="-1"></h3>
+          <p id="confirmP"></p>
+          <div class="sc-actions">
+            <button class="btn primary" type="button" id="confirmYes">Start chat</button>
+            <button class="btn" type="button" id="confirmNo">Cancel</button>
+          </div>
+        </div>
         <div id="starters" class="hr-starters">
           <h3 class="sc-h3" id="startH">Common questions</h3>
           <p class="sc-hint" id="startHint">Choose one to ask it now, or type your own below.</p>
@@ -92,6 +100,7 @@
           </ul>
           <ul class="hr-starter-list hr-more" id="faqList" aria-label="More saved answers" hidden></ul>
         </div>
+        <div id="saved" class="hr-saved" hidden></div>
         <div id="log" class="sc-log" role="log" aria-live="off" aria-labelledby="chatH" tabindex="0" hidden></div>
         <div id="announce" class="sr" aria-live="polite" aria-atomic="true"></div>
         <form id="ask" class="sc-ask">

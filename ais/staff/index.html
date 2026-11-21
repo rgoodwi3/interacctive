@@ -59,6 +59,12 @@
       <div class="panel-b">
         <p class="sc-hint">Choose a person to start a new interview.</p>
         <ul class="sc-people" id="people"></ul>
+        <h3 class="sc-h3" id="hrH">Questions about Company Policies?</h3>
+        <a class="sc-hrcard" id="hrLink" href="../hr/" aria-label="Ask HR: Nora Feldman, HR and Payroll Coordinator, on the HR help desk page">
+          <img src="../hr/nora-feldman-240.png" alt="" width="48" height="48">
+          <span><b>Nora Feldman</b><span>HR and Payroll Coordinator</span><span class="sc-hrgo">Ask HR</span></span>
+        </a>
+        <p class="sc-hint">Nora answers questions about the syllabus on her own page. Those chats are not interviews.</p>
         <h3 class="sc-h3" id="pastH">Your conversations</h3>
         <p class="sc-hint" id="pastNone">None yet.</p>
         <ul class="sc-past" id="past" aria-labelledby="pastH"></ul>
@@ -70,6 +76,14 @@
     <section class="panel sc-chat" aria-labelledby="chatH" id="chat">
       <div class="panel-h"><h2 id="chatH" tabindex="-1">No interview open</h2><span class="sub" id="chatSub"></span></div>
       <div class="panel-b">
+<div id="confirm" class="sc-confirm" role="group" aria-labelledby="confirmH" hidden>
+          <h3 id="confirmH" tabindex="-1"></h3>
+          <p id="confirmP"></p>
+          <div class="sc-actions">
+            <button class="btn primary" type="button" id="confirmYes">Start chat</button>
+            <button class="btn" type="button" id="confirmNo">Cancel</button>
+          </div>
+        </div>
         <p class="sc-hint" id="chatEmpty">Pick someone from the staff list. Start with open questions, such as "Walk me through what you do when an order comes in," then ask who else touches it and what happens if something goes wrong.</p>
         <div id="log" class="sc-log" role="log" aria-live="off" aria-labelledby="chatH" tabindex="0" hidden></div>
         <div id="announce" class="sr" aria-live="polite" aria-atomic="true"></div>

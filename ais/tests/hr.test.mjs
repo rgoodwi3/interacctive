@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeServer, loadPage, settle, type, enter } from "./harness.mjs";
+import { makeServer, loadPage, settle, type, enter, yes } from "./harness.mjs";
 
 const sends = (s) => s.calls.filter((c) => c.action === "send");
 const starts = (s) => s.calls.filter((c) => c.action === "start");
@@ -27,10 +27,10 @@ test("Enter starts a conversation with nora-feldman tagged HR, sends, and announ
   const msg = d.getElementById("msg");
   type(w, msg, "What happens if I submit a lab late?");
   enter(w, msg, true);   // Shift+Enter: new line, no send
-  await settle();
+  await settle(); await yes(d);
   assert.equal(sends(s).length, 0);
   enter(w, msg);
-  await settle();
+  await settle(); await yes(d);
   assert.equal(starts(s).length, 1);
   assert.deepEqual(starts(s)[0], { action: "start", course_id: "f1ecc575-f4d9-4894-b1c1-103a85c8e479", bot: "nora-feldman", assignment: "HR" });
   assert.equal(sends(s).length, 1);
@@ -43,7 +43,7 @@ test("Enter starts a conversation with nora-feldman tagged HR, sends, and announ
   assert.match(d.getElementById("usage").textContent, /4 of 120\. This conversation: 1 of 30\./);
   assert.equal(d.getElementById("past").querySelectorAll("button").length, 1);
   // A second question reuses the conversation.
-  type(w, msg, "And a quiz?"); enter(w, msg); await settle();
+  type(w, msg, "And a quiz?"); enter(w, msg); await settle(); await yes(d);
   assert.equal(starts(s).length, 1);
   assert.equal(sends(s).length, 2);
   assert.equal(sends(s)[1].conversation_id, starts(s).length && s.convs[0].id);
@@ -57,11 +57,11 @@ test("600-character limit: the counter flags 601 and nothing is sent", async () 
   type(w, msg, "x".repeat(601));
   assert.equal(d.getElementById("msgCount").textContent, "601 of 600 characters");
   assert.equal(d.getElementById("msgCount").classList.contains("over"), true);
-  enter(w, msg); await settle();
+  enter(w, msg); await settle(); await yes(d);
   assert.equal(starts(s).length + sends(s).length, 0);
   assert.match(d.getElementById("alert").textContent, /600 characters or fewer/);
   type(w, msg, "é".repeat(600));   // counted in characters, not bytes
-  enter(w, msg); await settle();
+  enter(w, msg); await settle(); await yes(d);
   assert.equal(sends(s).length, 1);
 });
 
@@ -70,7 +70,7 @@ test("starter buttons fill the box and send", async () => {
   const { d } = await loadPage("hr", s);
   const btns = [...d.querySelectorAll("#starters button")];
   assert.ok(btns.length >= 3 && btns.length <= 4);
-  btns[0].click(); await settle();
+  btns[0].click(); await settle(); await yes(d);
   assert.equal(starts(s)[0].bot, "nora-feldman");
   assert.equal(sends(s)[0].message, btns[0].dataset.q);
   assert.equal(btns[0].textContent, btns[0].dataset.q);
@@ -79,9 +79,9 @@ test("starter buttons fill the box and send", async () => {
 test("transcript download is plain text from the server's copy", async () => {
   const s = makeServer();
   const { w, d, downloads } = await loadPage("hr", s);
-  type(w, d.getElementById("msg"), "Can I use generative AI on my assignments?"); enter(w, d.getElementById("msg")); await settle();
+  type(w, d.getElementById("msg"), "Can I use generative AI on my assignments?"); enter(w, d.getElementById("msg")); await settle(); await yes(d);
   assert.equal(d.getElementById("download").disabled, false);
-  d.getElementById("download").click(); await settle();
+  d.getElementById("download").click(); await settle(); await yes(d);
   assert.equal(downloads.length, 1);
   const text = await new Promise((r) => { const fr = new w.FileReader(); fr.onload = () => r(fr.result); fr.readAsText(downloads[0]); });
   assert.match(text, /^Trailhead HR help desk: Company Policies \(simulation\)\r\n/);
@@ -103,7 +103,7 @@ test("not switched on: message shown, sending and starters disabled, nothing sta
     assert.equal(d.getElementById("msg").disabled, true);
     assert.ok([...d.querySelectorAll("#starters button")].every((b) => b.disabled));
     d.querySelector("#starters button").click();
-    type(w, d.getElementById("msg"), "Hello"); enter(w, d.getElementById("msg")); await settle();
+    type(w, d.getElementById("msg"), "Hello"); enter(w, d.getElementById("msg")); await settle(); await yes(d);
     assert.equal(starts(s).length + sends(s).length, 0);
     assert.ok(!d.querySelector(".hr-help").closest("[hidden]") && /203-932-7333/.test(d.querySelector(".hr-help").textContent));
   }
@@ -121,19 +121,19 @@ test("errors: server limit message shown and the question kept; card change star
   const s = makeServer();
   const { w, d } = await loadPage("hr", s);
   const msg = d.getElementById("msg");
-  type(w, msg, "First"); enter(w, msg); await settle();
+  type(w, msg, "First"); enter(w, msg); await settle(); await yes(d);
   s.sendError = { status: 429, error: "day_limit", message: "You've reached today's limit of 120 messages. It resets at midnight." };
-  type(w, msg, "Second"); enter(w, msg); await settle();
+  type(w, msg, "Second"); enter(w, msg); await settle(); await yes(d);
   assert.equal(d.getElementById("alert").textContent, "You've reached today's limit of 120 messages. It resets at midnight.");
   assert.equal(msg.value, "Second");
   assert.equal(d.getElementById("log").querySelectorAll(".sc-msg").length, 2, "the failed question is removed from the log");
   s.sendError = { status: 409, error: "card_changed", message: "Nora's instructions were updated." };
-  enter(w, msg); await settle();
-  assert.match(d.getElementById("alert").textContent, /updated\. Press Send again to ask in a new conversation\./);
-  enter(w, msg); await settle();
+  enter(w, msg); await settle(); await yes(d);
+  assert.match(d.getElementById("alert").textContent, /updated\. Press Send again to start a new conversation\./);
+  enter(w, msg); await settle(); await yes(d);
   assert.equal(starts(s).length, 2);
   s.sendError = { status: 401, error: "x", message: "x" };
-  type(w, msg, "Third"); enter(w, msg); await settle();
+  type(w, msg, "Third"); enter(w, msg); await settle(); await yes(d);
   assert.equal(d.getElementById("signin").hidden, false);
   assert.match(d.getElementById("alert").textContent, /sign-in has expired/);
   assert.ok(!d.querySelector(".hr-help").closest("[hidden]"), "crisis info visible on the sign-in screen too");
@@ -152,9 +152,9 @@ test("signed out: sign-in form, then the code signs in and loads the help desk",
   assert.equal(d.getElementById("signin").hidden, false);
   assert.equal(d.activeElement.id, "email");
   d.getElementById("email").value = "student@example.edu";
-  d.getElementById("emailForm").requestSubmit(); await settle();
+  d.getElementById("emailForm").requestSubmit(); await settle(); await yes(d);
   d.getElementById("code").value = "123456";
-  d.getElementById("codeForm").requestSubmit(); await settle();
+  d.getElementById("codeForm").requestSubmit(); await settle(); await yes(d);
   assert.equal(d.getElementById("app").hidden, false);
   assert.equal(d.activeElement.id, "msg");
 });
@@ -162,7 +162,7 @@ test("signed out: sign-in form, then the code signs in and loads the help desk",
 test("accessibility: one H1, headings in order, every control labelled, live regions", async () => {
   const s = makeServer();
   const { w, d } = await loadPage("hr", s);
-  type(w, d.getElementById("msg"), "How do I ask for an accommodation?"); enter(w, d.getElementById("msg")); await settle();
+  type(w, d.getElementById("msg"), "How do I ask for an accommodation?"); enter(w, d.getElementById("msg")); await settle(); await yes(d);
   const hs = [...d.querySelectorAll("h1,h2,h3,h4,h5,h6")];
   assert.equal(hs.filter((h) => h.tagName === "H1").length, 1);
   assert.equal(hs[0].tagName, "H1");
@@ -208,28 +208,39 @@ test("saved answers: a starter with a saved answer calls faq (no model), labels 
   assert.equal(d.getElementById("faqList").hidden, false);
   assert.deepEqual(more.map((b) => b.dataset.faq), ["faq-c"]);
   late.click(); await settle();
-  assert.equal(starts(s).length, 1);
-  assert.deepEqual(faqs(s)[0], { action: "faq", conversation_id: s.convs[0].id, id: "faq-a" });
+  assert.equal(d.getElementById("confirm").hidden, true, "a saved answer needs no confirmation");
+  assert.equal(starts(s).length, 0, "no conversation is created for a saved answer");
+  assert.deepEqual(faqs(s)[0], { action: "faq", course_id: "f1ecc575-f4d9-4894-b1c1-103a85c8e479", id: "faq-a" });
   assert.equal(sends(s).length, 0, "no model call");
-  const reply = d.querySelector("#log .sc-msg.faq");
+  const reply = d.querySelector("#saved .sc-msg.faq");
+  assert.equal(d.getElementById("saved").hidden, false);
   assert.match(reply.querySelector("h3").textContent, /^Nora Feldman, saved answer from HR, /);
   assert.equal(reply.querySelector(".hr-src").textContent, "Section: Late and missed work");
   assert.equal(d.getElementById("announce").textContent, "Saved answer from HR, section Late and missed work: Saved: late labs follow the rule under Late and missed work.");
-  assert.match(d.getElementById("usage").textContent, /3 of 120\. This conversation: 0 of 30\./, "saved answers don't count against model limits");
+  assert.match(d.getElementById("usage").textContent, /3 of 120\.$/, "saved answers don't count against model limits");
+  assert.equal(d.getElementById("download").disabled, true);
   more[0].click(); await settle();
-  assert.equal(faqs(s).length, 2); assert.equal(starts(s).length, 1);
+  assert.equal(faqs(s).length, 2); assert.equal(starts(s).length, 0);
+  assert.deepEqual(s.faqViews, ["faq-a", "faq-c"]);
+  // Inside an open conversation, a saved answer is saved in it and appears in the transcript.
+  type(w, d.getElementById("msg"), "Is the final cumulative?"); enter(w, d.getElementById("msg")); await settle(); await yes(d);
+  assert.equal(starts(s).length, 1);
+  late.click(); await settle();
+  assert.deepEqual(faqs(s)[2], { action: "faq", course_id: "f1ecc575-f4d9-4894-b1c1-103a85c8e479", id: "faq-a", conversation_id: s.convs[0].id });
+  assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 1);
+  assert.match(d.getElementById("usage").textContent, /This conversation: 1 of 30\./);
   d.getElementById("download").click(); await settle();
   const text = await new Promise((r) => { const fr = new w.FileReader(); fr.onload = () => r(fr.result); fr.readAsText(downloads[0]); });
   assert.match(text, /\] Nora Feldman \(saved answer from HR; section: Late and missed work\): Saved: late labs/);
-  // Reopening shows saved answers with their label.
-  d.getElementById("restart").click(); d.querySelector("#past button").click(); await settle();
-  assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 2);
+  // Reopening shows the saved answer with its label.
+  d.querySelector("#past button").click(); await settle();
+  assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 1);
 });
 
 test("saved answers: a typed question the server matches comes back labelled as saved", async () => {
   const s = makeServer({ faq: true });
   const { w, d } = await loadPage("hr", s);
-  type(w, d.getElementById("msg"), "can I turn in a lab late"); enter(w, d.getElementById("msg")); await settle();
+  type(w, d.getElementById("msg"), "can I turn in a lab late"); enter(w, d.getElementById("msg")); await settle(); await yes(d);
   assert.equal(sends(s).length, 1);
   assert.equal(d.querySelectorAll("#log .sc-msg.faq").length, 1);
   assert.match(d.getElementById("announce").textContent, /^Saved answer from HR, section Late and missed work: /);
@@ -240,7 +251,7 @@ test("fallback: no saved-answer list means starters ask Nora", async () => {
   const { d } = await loadPage("hr", s);
   assert.equal(d.getElementById("faqList").hidden, true);
   assert.ok([...d.querySelectorAll("#starterList button")].every((b) => !b.dataset.faq));
-  d.querySelector("#starterList button").click(); await settle();
+  d.querySelector("#starterList button").click(); await settle(); await yes(d);
   assert.equal(faqs(s).length, 0);
   assert.equal(sends(s).length, 1);
 });
@@ -249,7 +260,7 @@ test("fallback: faq action unavailable or stale sends the question to Nora inste
   for (const [err, turnsOff] of [[{ status: 400, error: "bad_action", message: "Unknown action." }, true], [{ status: 409, error: "faq_stale", message: "Out of date." }, false]]) {
     const s = makeServer({ faq: true, faqError: err });
     const { d } = await loadPage("hr", s);
-    d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle(12);
+    d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle(12); await yes(d);
     assert.equal(faqs(s).length, 1);
     assert.equal(sends(s).length, 1);
     assert.equal(sends(s)[0].message, "What happens if I submit a lab late?");
@@ -263,7 +274,45 @@ test("fallback: faq action unavailable or stale sends the question to Nora inste
 test("saved answers: a limit error from faq is shown, not hidden behind a fallback", async () => {
   const s = makeServer({ faq: true, faqError: { status: 429, error: "rate_limited", message: "Too many questions in a minute. Try again in a minute." } });
   const { d } = await loadPage("hr", s);
-  d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle();
+  d.querySelector('#starterList button[data-faq="faq-a"]').click(); await settle(); await yes(d);
   assert.equal(sends(s).length, 0);
   assert.equal(d.getElementById("alert").textContent, "Too many questions in a minute. Try again in a minute.");
+});
+
+test("confirmation: Send with no conversation asks first; Cancel and Escape start nothing and return focus", async () => {
+  const s = makeServer();
+  const { w, d } = await loadPage("hr", s);
+  const msg = d.getElementById("msg"), conf = d.getElementById("confirm");
+  type(w, msg, "When is Exam 1?"); enter(w, msg); await settle();
+  assert.equal(conf.hidden, false);
+  assert.equal(d.getElementById("confirmH").textContent, "Start a new chat with Nora Feldman, HR and Payroll Coordinator?");
+  assert.match(d.getElementById("confirmP").textContent, /new saved conversation.*download its transcript/);
+  assert.equal(d.activeElement.id, "confirmH");
+  assert.equal(conf.getAttribute("role"), "group");
+  assert.equal(starts(s).length + sends(s).length, 0, "nothing starts before Start chat");
+  d.getElementById("confirmNo").click(); await settle();
+  assert.equal(conf.hidden, true); assert.equal(d.activeElement.id, "msg"); assert.equal(starts(s).length, 0);
+  assert.equal(msg.value, "When is Exam 1?", "the question is kept");
+  enter(w, msg); await settle();
+  conf.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await settle();
+  assert.equal(conf.hidden, true); assert.equal(d.activeElement.id, "msg"); assert.equal(starts(s).length, 0);
+  // A starter without a saved answer: Cancel returns focus to that button.
+  const b = d.querySelector("#starterList button"); b.click(); await settle();
+  assert.equal(conf.hidden, false); d.getElementById("confirmNo").click();
+  assert.equal(d.activeElement, b);
+  // Start chat starts and sends.
+  type(w, msg, "When is Exam 1?"); enter(w, msg); await settle();
+  d.getElementById("confirmYes").click(); await settle();
+  assert.equal(starts(s).length, 1); assert.equal(sends(s).length, 1);
+  // Further questions in the open conversation need no confirmation.
+  type(w, msg, "And Exam 2?"); enter(w, msg); await settle();
+  assert.equal(conf.hidden, true); assert.equal(sends(s).length, 2);
+  // New conversation asks too; Start chat creates an empty conversation and focuses the box.
+  d.getElementById("restart").click(); await settle();
+  assert.equal(conf.hidden, false); assert.equal(d.activeElement.id, "confirmH");
+  conf.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(d.activeElement.id, "restart"); assert.equal(starts(s).length, 1);
+  d.getElementById("restart").click(); d.getElementById("confirmYes").click(); await settle();
+  assert.equal(starts(s).length, 2); assert.equal(d.activeElement.id, "msg");
+  assert.equal(d.getElementById("chatH").textContent, "Conversation with Nora Feldman");
 });
