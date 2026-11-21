@@ -1,0 +1,12 @@
+{
+  "name": "interacctive-ais-tests",
+  "private": true,
+  "description": "jsdom tests for the ACCT 2250 ais/ pages (HR help desk, staff directory filter). Run: npm install && npm test",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}

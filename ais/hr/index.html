@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ask HR: Company Policies · ACCT 2250</title>
+<!-- Favicon: the Primer engine's ringed-mark links (SVG + PNG + apple-touch-icon) go here. See HR-CHAT-BUILD.md. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<link rel="stylesheet" href="../staff/staff.css">
+<link rel="stylesheet" href="hr.css">
+<!-- Sign-in and the staff-chat server function. Policy answers come only from the server. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+</head>
+<body class="ignore-color-scheme">
+<a class="skip" href="#main">Skip to the HR help desk</a>
+<header class="band1 sc-head">
+  <div class="wrap hr-headrow">
+    <img class="hr-avatar" id="avatar" src="nora-feldman-240.png" alt="Nora Feldman" width="88" height="88">
+    <div>
+      <div class="eyebrow">University of New Haven · ACCT 2250 / ACCT 6641 · Accounting Information Systems</div>
+      <h1>Ask HR: Company Policies</h1>
+      <p class="hr-who"><b>Nora Feldman</b>, HR and Payroll Coordinator, Trailhead Outfitters Co.</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap sc-main" id="main" tabindex="-1">
+  <p class="hr-intro">At Trailhead, the Company Policies are the course syllabus, and the syllabus is the final word. Nora can explain a policy and point you to the right person. She can't grant exceptions, extensions or grade changes. Those go to Professor Goodwin.</p>
+
+  <div class="sc-sim" role="note" aria-labelledby="simH">
+    <h2 id="simH">This is a simulation</h2>
+    <p>Nora is an AI chatbot playing a fictional Trailhead employee. She can be wrong. If her answer and the syllabus differ, the syllabus wins.</p>
+    <p>Your questions and Nora's replies are saved to your class account, and Professor Goodwin can read them. Questions go to an AI service (Anthropic) without your name or email.</p>
+    <p>Don't share health or personal details here. For those, contact Professor Goodwin or the University office named in the syllabus.</p>
+  </div>
+
+  <div id="status" class="sc-status" role="status" aria-live="polite"></div>
+  <div id="alert" class="sc-alert" role="alert" hidden></div>
+
+  <section id="signin" class="panel sc-signin" aria-labelledby="signinH" hidden>
+    <div class="panel-h"><h2 id="signinH">Sign in</h2></div>
+    <div class="panel-b">
+      <form id="emailForm" novalidate>
+        <p>Use the email address you use for your InterACCtive course page. We'll email you a sign-in code.</p>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <button class="btn primary" type="submit">Email me a sign-in code</button>
+      </form>
+      <form id="codeForm" novalidate hidden>
+        <p id="codeSent"></p>
+        <label for="code">Code from the email</label>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required>
+        <button class="btn primary" type="submit">Sign in</button>
+        <button class="btn" type="button" id="otherEmail">Use a different email</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="app" class="sc-grid" hidden>
+    <section class="panel sc-dir" aria-labelledby="pastH">
+      <div class="panel-h"><h2 id="pastH">Your conversations</h2><span class="sub" id="who"></span></div>
+      <div class="panel-b">
+        <p class="sc-hint" id="pastNone">None yet.</p>
+        <ul class="sc-past" id="past" aria-labelledby="pastH"></ul>
+        <button class="btn small" type="button" id="restart">New conversation</button>
+        <p class="sc-usage" id="usage"></p>
+        <button class="btn small" type="button" id="signout">Sign out</button>
+      </div>
+    </section>
+
+    <section class="panel sc-chat" aria-labelledby="chatH" id="chat">
+      <div class="panel-h"><h2 id="chatH" tabindex="-1">Ask Nora a question</h2><span class="sub" id="chatSub"></span></div>
+      <div class="panel-b">
+        <div id="starters" class="hr-starters">
+          <h3 class="sc-h3" id="startH">Common questions</h3>
+          <p class="sc-hint">Choose one to ask it now, or type your own below.</p>
+          <ul class="hr-starter-list" aria-labelledby="startH">
+            <li><button class="btn" type="button" data-q="What happens if I submit a lab late?">What happens if I submit a lab late?</button></li>
+            <li><button class="btn" type="button" data-q="Can I use generative AI on my assignments?">Can I use generative AI on my assignments?</button></li>
+            <li><button class="btn" type="button" data-q="What is a lab defense, and how is it graded?">What is a lab defense, and how is it graded?</button></li>
+            <li><button class="btn" type="button" data-q="How do I ask for an accommodation?">How do I ask for an accommodation?</button></li>
+          </ul>
+        </div>
+        <div id="log" class="sc-log" role="log" aria-live="off" aria-labelledby="chatH" tabindex="0" hidden></div>
+        <div id="announce" class="sr" aria-live="polite" aria-atomic="true"></div>
+        <form id="ask" class="sc-ask">
+          <label for="msg">Your question</label>
+          <textarea id="msg" rows="3" maxlength="600" aria-describedby="msgHelp msgCount"></textarea>
+          <div class="sc-askrow">
+            <span class="sc-hint" id="msgHelp">Enter sends. Shift+Enter starts a new line.</span>
+            <span class="sc-count" id="msgCount" aria-live="off"></span>
+          </div>
+          <div class="sc-actions">
+            <button class="btn primary" type="submit" id="send">Send</button>
+            <button class="btn" type="button" id="download" disabled>Download transcript</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <p class="sc-foot">Trailhead Outfitters Co. and its staff are fictional. The official syllabus in Canvas is the final word on every course policy. There is no time limit.</p>
+</main>
+<script src="hr.js"></script>
+</body>
+</html>

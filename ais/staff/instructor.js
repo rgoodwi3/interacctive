@@ -70,7 +70,7 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
     status("Downloaded " + name + ".");
   }
-  var COLS = ["conversation_id", "student_name", "student_email", "persona_name", "assignment", "card_version", "shared_version", "prompt_sha256", "model",
+  var COLS = ["conversation_id", "student_name", "student_email", "persona_name", "assignment", "card_version", "shared_version", "grounding_version", "prompt_sha256", "model",
     "started_at", "seq", "role", "content", "created_at", "input_tokens", "output_tokens"];
   function cell(v) {
     var s = v === null || v === undefined ? "" : String(v);

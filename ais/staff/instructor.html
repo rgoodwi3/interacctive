@@ -46,14 +46,14 @@
     <div class="panel-b">
       <form id="filters" class="sc-filters">
         <label for="fAsg">Assignment</label>
-        <select id="fAsg"><option value="">All (including untagged)</option><option>D1</option><option>D2</option><option>M1</option></select>
+        <select id="fAsg"><option value="">All (including untagged)</option><option>D1</option><option>D2</option><option>M1</option><option value="HR">HR (Nora Feldman, policy questions)</option></select>
         <label for="fFrom">Started on or after</label>
         <input id="fFrom" type="date">
         <label for="fTo">Started before</label>
         <input id="fTo" type="date">
         <button class="btn primary" type="submit">Load</button>
       </form>
-      <p class="sc-hint">Conversations are tagged D1, D2 or M1 when students open the directory from that assignment's Canvas link. Untagged ones show under All; use the dates to separate them.</p>
+      <p class="sc-hint">Conversations are tagged D1, D2 or M1 when students open the directory from that assignment's Canvas link. Untagged ones show under All; use the dates to separate them. HR help-desk conversations (<code>ais/hr/</code>) are tagged HR.</p>
       <div id="out" hidden>
         <p id="summary"></p>
         <div class="sc-actions">

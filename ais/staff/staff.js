@@ -11,6 +11,8 @@
   var q = new URLSearchParams(location.search);
   var COURSE = UUID.test(q.get("course") || "") ? q.get("course") : null;
   var FOR = /^(D1|D2|M1)$/.test(q.get("for") || "") ? q.get("for") : null;
+  // The six order-to-cash interview bots. Other personas (such as the HR help desk, ais/hr/) never show here.
+  var INTERVIEW = ["jordan-banks", "grace-liu", "ben-castellano", "luis-ortega", "elena-kowalczyk", "priya-raman"];
   var $ = function (id) { return document.getElementById(id); };
   var SB = null, USER = null, DIR = null, CUR = null, BUSY = false, EMAIL = "";
 
@@ -86,6 +88,8 @@
     status("Loading the staff directory…");
     try { DIR = await api({ action: "directory", course_id: COURSE }); }
     catch (e) { status(""); if (e.code === "unauthorized") return showSignIn(e.message); alertMsg(e.message); return; }
+    DIR.bots = (DIR.bots || []).filter(function (b) { return INTERVIEW.indexOf(b.id) >= 0; });
+    DIR.conversations = (DIR.conversations || []).filter(function (c) { return (!c.bot || INTERVIEW.indexOf(c.bot) >= 0) && c.assignment !== "HR"; });
     $("signin").hidden = true; $("app").hidden = false; alertMsg("");
     $("who").textContent = USER && USER.email ? USER.email : "";
     renderPeople(); renderPast(); renderUsage();
