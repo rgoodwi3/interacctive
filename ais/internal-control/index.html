@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Internal Control · ACCT 2250</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+<style>
+/* The policy list in the data panel. Frame variables only, so dark mode follows the frame. */
+.pol{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.pol li{background:var(--paper);border-left:3px solid var(--gold);border-radius:0 6px 6px 0;padding:7px 12px;font-size:14.5px;line-height:1.45}
+.pol b{font-family:var(--f-display);color:var(--brand)}
+/* Row headers in the panel tables read as body text, not as column headings. */
+.dtab tbody th{font-size:14.5px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:600;border-bottom:1px solid var(--rule);vertical-align:top}
+/* Room for the longer choices, so a chosen label isn't cut off at 1,024 px. */
+.ctab td.sel:has(select[data-f^="comp"]){min-width:210px}
+.ctab td.sel:has(select[data-f^="prin"]){min-width:290px}
+.ctab td.sel:has(select[data-f^="sod"]){min-width:230px}
+/* The memo, the practice-scenario line and the task are separate paragraphs. */
+.part-desc{white-space:pre-line}
+</style>
+</head>
+<body>
+<script src="/interacctive/topics.js"></script>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// ACCT 2250 IL3: Internal Control. Graded on the server by the lab-attempt edge function (fa-lab-platform, slug
+// ais-internal-control), which runs a copy of the code between the LAB markers below.
+// Trailhead Outfitters Co. is fictional. Every item is a practice scenario; the lab prints no business years.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ais-internal-control.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const SCENARIO = "These are practice scenarios written for this lab. They are not part of Trailhead's 2026 records or the evidence for Labs C1 and C2 or Project M3, and they don't describe how Trailhead's NetSuite account or company is actually set up.";
+
+// ---------- Part 1: COSO components and principles ----------
+const COMP = [["ce", "Control environment"], ["ra", "Risk assessment"], ["ca", "Control activities"], ["ic", "Information and communication"], ["mo", "Monitoring activities"]];
+const PRIN = [["p1", "1 Commitment to integrity and ethical values"], ["p2", "2 Board oversight"], ["p3", "3 Structure, authority and responsibility"],
+  ["p4", "4 Commitment to competence"], ["p5", "5 Accountability"], ["p6", "6 Suitable objectives"], ["p7", "7 Identifies and analyzes risk"],
+  ["p8", "8 Assesses fraud risk"], ["p9", "9 Identifies and analyzes significant change"], ["p10", "10 Selects and develops control activities"],
+  ["p11", "11 General controls over technology"], ["p12", "12 Deploys through policies and procedures"], ["p13", "13 Uses relevant, quality information"],
+  ["p14", "14 Communicates internally"], ["p15", "15 Communicates externally"], ["p16", "16 Ongoing and separate evaluations"],
+  ["p17", "17 Evaluates and communicates deficiencies"]];
+// The component each principle belongs to: 1-5, 6-9, 10-12, 13-15, 16-17.
+const pcomp = n => n <= 5 ? "ce" : n <= 9 ? "ra" : n <= 12 ? "ca" : n <= 15 ? "ic" : "mo";
+const RANGE = { ce: "1–5", ra: "6–9", ca: "10–12", ic: "13–15", mo: "16–17" };
+const compName = c => COMP.find(x => x[0] === c)[1].toLowerCase();
+const COMPWHY = {
+  ce: "Standards of conduct, oversight, structure, competence and accountability make up the control environment (principles 1–5).",
+  ra: "Setting objectives and judging what could go wrong, including fraud and major change, is risk assessment (principles 6–9).",
+  ca: "Choosing controls, controlling the technology and putting controls into procedures are control activities (principles 10–12).",
+  ic: "Using good information and sharing it inside and outside the company is information and communication (principles 13–15).",
+  mo: "Checking whether controls work and reporting what doesn't is monitoring (principles 16–17)." };
+// Principles that are easy to mix up, and the sentence that separates them.
+const PAIR = {
+  "7-8": "Principle 7 is identifying and rating risks in general; 8 is thinking through how fraud could happen.",
+  "10-12": "Principle 10 is choosing the control; 12 is putting it into written procedures.",
+  "13-14": "Principle 13 is using reliable information to do the work; 14 is telling people inside the company what they need to know.",
+  "14-15": "Principle 14 is communicating inside the company; 15 is communicating with outside parties.",
+  "16-17": "16 checks whether controls work; 17 reports and fixes what doesn't." };
+const COSO = [
+  { comp: "ce", prin: 1, text: "Dana issues a code of conduct, and every employee signs that they've read it each January.",
+    work: "Setting and enforcing standards of conduct shows the commitment to integrity at the top." },
+  { comp: "ce", prin: 2, text: "At a company like Trailhead, two outside directors meet with the controller each quarter to review the statements and the fraud hotline log.",
+    work: "Oversight by directors independent of management is board oversight." },
+  { comp: "ce", prin: 3, text: "Dana updates the organization chart so purchasing reports to her and accounts payable reports to Marcus.",
+    work: "Reporting lines and clear authority are part of structure and responsibility." },
+  { comp: "ce", prin: 4, text: "Trailhead pays for Priya's CPA review course and requires annual NetSuite training for every user.",
+    work: "Developing and keeping skilled people is a commitment to competence." },
+  { comp: "ce", prin: 5, text: "Warehouse staff's annual reviews include inventory accuracy, and bonuses fall when counts are off.",
+    work: "Holding people accountable for their control duties is accountability." },
+  { comp: "ra", prin: 6, text: "Marcus sets a goal to close each month by the 8th business day with no post-close changes over $5,000.",
+    work: "A clear, measurable reporting objective comes before risks can be judged against it." },
+  { comp: "ra", prin: 7, text: "Before peak season, Marcus lists what could go wrong in order-to-cash and rates each risk's likelihood and impact.",
+    work: "Listing and rating risks is identifying and analyzing risk." },
+  { comp: "ra", prin: 8, text: "Marcus and Dana brainstorm how someone could steal inventory or pad an expense report, and who would have the chance.",
+    work: "Thinking through how fraud could happen is the fraud risk assessment." },
+  { comp: "ra", prin: 9, text: "When Trailhead plans a second warehouse, Marcus reviews how it will change receiving and inventory controls.",
+    work: "A major change gets its own risk review before it happens." },
+  { comp: "ca", prin: 10, text: "NetSuite won't send a purchase order over $25,000 until Dana approves it.",
+    work: "A control built into the process to address a known risk is a control activity." },
+  { comp: "ca", prin: 11, text: "Sam Okafor tests NetSuite setting changes in a sandbox account before moving them to the live account.",
+    work: "Controls over how the technology itself is changed are general controls over technology." },
+  { comp: "ca", prin: 12, text: "Trailhead's written procedures say who approves POs and how bills are matched, and Aisha's team follows a checklist.",
+    work: "Putting controls into written policies and daily procedures is deploying them." },
+  { comp: "ic", prin: 13, text: "Elena uses NetSuite's AR aging report, drawn from posted invoices and payments, to choose which customers to call.",
+    work: "Using reliable, system-generated data to run a control is using relevant information." },
+  { comp: "ic", prin: 14, text: "Marcus emails all staff a one-page summary of the new expense policy and posts it on the shared drive.",
+    work: "Telling employees what they need to do their part is internal communication." },
+  { comp: "ic", prin: 15, text: "Trailhead sends each wholesale customer a monthly statement of its open invoices.",
+    work: "Reporting to outside parties is external communication." },
+  { comp: "mo", prin: 16, text: "Each quarter Priya recounts a sample of warehouse bins and compares them with NetSuite's on-hand quantities to see whether cycle counts are working.",
+    work: "Checking that controls are working is a separate evaluation." },
+  { comp: "mo", prin: 17, text: "Hartwell & Lowe report two control weaknesses; Marcus tells Dana and assigns an owner and a deadline for each fix.",
+    work: "Reporting weaknesses to those who can fix them, and tracking the fix, is evaluating and communicating deficiencies." }];
+
+// ---------- Part 2: the fraud triangle (statements about roles at a company like Trailhead) ----------
+const ELEM = [["pressure", "Pressure"], ["opportunity", "Opportunity"], ["rational", "Rationalization"], ["none", "Not a red flag"]];
+const FRAUD = [
+  { ans: "pressure", text: "Warehouse staff lose their year-end bonus if the annual count shows shrinkage over 1%.", work: "A bonus that depends on a number creates pressure to hide losses." },
+  { ans: "pressure", text: "A sales rep's commission doubles once quarterly sales pass $400,000.", work: "A big reward at a threshold gives a motive to book sales early or falsely." },
+  { ans: "pressure", money: true, text: "An employee in accounting says they're behind on car and credit-card payments.", work: "Personal money trouble is a common pressure." },
+  { ans: "pressure", money: true, text: "A receiving clerk mentions that a family member's medical bills have left them deep in debt.", work: "Heavy personal debt is a common pressure." },
+  { ans: "pressure", text: "The rep who opens the most new wholesale accounts this quarter wins a weekend trip.", work: "A prize tied to a count gives a motive to pad the count." },
+  { ans: "opportunity", text: "The clerk who ships orders can also delete item fulfillments in NetSuite.", work: "Shipping goods and erasing the record of it lets someone take goods unseen." },
+  { ans: "opportunity", text: "Cycle counts of each bin are done by the same clerk who ships those items.", work: "The person who could take goods is also the one checking that they're there." },
+  { ans: "opportunity", text: "The loading dock is left open and unattended during lunch.", work: "Unwatched access to goods is an opportunity for theft." },
+  { ans: "opportunity", text: "Returned goods are put back on the shelf without anyone recording a return authorization.", work: "Without a record, returns can be faked or goods taken." },
+  { ans: "opportunity", text: "Gift cards bought for customer promotions are kept in an unlocked drawer with no log.", work: "Unlogged, unsecured gift cards can be taken without a trace." },
+  { ans: "rational", text: "“Everyone pads their mileage a little; the company can afford it.”", work: "Telling yourself it's normal and harmless is rationalization." },
+  { ans: "rational", text: "“I'm only borrowing it until my bonus comes in.”", work: "Calling theft a loan is a classic rationalization." },
+  { ans: "rational", text: "“They passed me over for the promotion, so I'm owed this.”", work: "Feeling owed is how people justify taking." },
+  { ans: "rational", text: "“It's not stealing if the items were going to be written off anyway.”", work: "Recasting theft as harmless is rationalization." },
+  { ans: "rational", text: "“Management bends the rules all the time, so why shouldn't I?”", work: "Pointing to others' behavior excuses one's own." },
+  { ans: "none", text: "A customer pays every invoice by check about 25 days after the invoice date.", work: "Paying within net 30 terms is normal." },
+  { ans: "none", text: "Purchases rise in March and April as stock builds for peak season.", work: "A seasonal pattern that matches the business is expected." },
+  { ans: "none", text: "An employee takes a full two weeks of vacation each summer while someone else covers the work.", work: "Taking vacation while others cover the work helps reveal problems; it isn't a red flag." },
+  { ans: "none", text: "Two vendors use the same freight carrier.", work: "Sharing a common carrier is ordinary." },
+  { ans: "none", text: "Sales fall in January and February, as they do every year.", work: "A known seasonal dip isn't a warning sign." }];
+
+// ---------- Part 3: classify the controls (Romney and Steinbart's classifications) ----------
+const IPO = [["input", "Input"], ["processing", "Processing"], ["output", "Output"]];
+const PD = [["prev", "Preventive"], ["det", "Detective"]];
+const AM = [["auto", "Automated"], ["manual", "Manual"]];
+const CTRL = [
+  { ipo: "input", pd: "prev", am: "auto", text: "NetSuite won't save a sales order without a customer and at least one item.", work: "The system blocks incomplete data before it's entered." },
+  { ipo: "input", pd: "prev", am: "auto", text: "NetSuite won't save an item receipt unless it's linked to an approved, open purchase order.", work: "A validity check at entry stops receipts for goods no one ordered." },
+  { ipo: "input", pd: "prev", am: "auto", text: "A vendor record can't be saved unless its tax ID field has nine digits.", work: "A format check at entry stops a mistyped tax ID." },
+  { ipo: "input", pd: "prev", am: "manual", text: "Aisha reviews and approves each purchase order before NetSuite sends it to the vendor.", work: "A person authorizes the transaction before it goes forward." },
+  { ipo: "input", pd: "det", am: "manual", text: "Before entering a stack of vendor invoices, Tomás totals them on a tape, then compares the tape with NetSuite's total of bills entered.", work: "A batch total compared after entry finds keying errors." },
+  { ipo: "processing", pd: "prev", am: "auto", text: "When a journal entry is posted, NetSuite refuses it if debits don't equal credits.", work: "A zero-balance test during posting stops an unbalanced entry." },
+  { ipo: "processing", pd: "prev", am: "auto", text: "NetSuite computes each invoice line as quantity × price and totals the invoice; users can't type over the total.", work: "The system does the calculation, so a math error can't happen." },
+  { ipo: "processing", pd: "det", am: "auto", text: "After the overnight import of web orders, NetSuite recomputes the order count and dollar total and flags any difference from the totals the web store sent.", work: "Recalculating batch totals during processing catches lost or duplicated orders." },
+  { ipo: "processing", pd: "det", am: "manual", text: "Each month Priya recalculates depreciation for a sample of assets and compares it with what NetSuite posted.", work: "A person recomputes processed results to find errors." },
+  { ipo: "output", pd: "det", am: "manual", text: "Marcus compares the monthly income statement with budget and investigates large differences before sending it to Dana.", work: "A person reviews the report before it's used." },
+  { ipo: "output", pd: "prev", am: "auto", text: "Only the Controller and CEO roles can run the report that lists vendor bank account numbers.", work: "The system limits who can see sensitive output." },
+  { ipo: "output", pd: "det", am: "auto", text: "NetSuite emails Elena a list of invoices that bounced when they were emailed to customers.", work: "The system reports output that didn't reach its user." },
+  { ipo: "output", pd: "prev", am: "manual", text: "Printed payroll summaries go only to a locked tray in the controller's office.", work: "A physical step keeps sensitive output from the wrong people." }];
+const IPOWHY = {
+  "input-processing": "Input controls check data as it's entered; processing controls check what the system does with it.",
+  "input-output": "Input controls check data as it's entered; output controls check or protect the reports and results that come out.",
+  "output-processing": "Processing controls check what the system does with the data; output controls check or protect the reports and results that come out." };
+const PDWHY = { input: "Preventive stops the error before it's recorded; detective finds it afterward.", processing: "Preventive stops the error before it's recorded; detective finds it afterward.",
+  output: "Preventive stops a problem before it happens; detective finds it afterward." };
+const AMWHY = { manual: "A person performs it, so it's manual.", auto: "The system performs it with no one acting, so it's automated." };
+
+// ---------- Part 4: duty conflicts in a temporary coverage plan ----------
+const SODOPT = [["none", "No conflict"], ["auth_cust", "Authorization + custody"], ["auth_rec", "Authorization + recording"], ["cust_rec", "Custody + recording"]];
+const SOD = [
+  { who: "Mei Tanaka", role: "Warehouse Clerk", duty: "receives deliveries at the dock", add: "enter vendor bills while Tomás is out", ans: "cust_rec", work: "She could accept a short delivery and still record the full bill." },
+  { who: "Tomás Rivera", role: "A/P Clerk", duty: "enters vendor bills", add: "receive deliveries at the dock while Mei is out", ans: "cust_rec", work: "He could accept a short delivery and record a bill for the full amount." },
+  { who: "Aisha Rahman", role: "Purchasing Manager", duty: "approves purchase orders", add: "receive deliveries at the dock while Mei is out", ans: "auth_cust", work: "She could approve a purchase and confirm goods that never arrived." },
+  { who: "Ben Castellano", role: "Warehouse Manager", duty: "runs the warehouse", add: "approve purchase orders under $5,000 while Aisha is out", ans: "auth_cust", work: "He could order goods and control them when they arrive." },
+  { who: "Tomás Rivera", role: "A/P Clerk", duty: "enters vendor bills", add: "approve the weekly payment run while Marcus is out", ans: "auth_rec", work: "He could enter a bill and approve paying it." },
+  { who: "Aisha Rahman", role: "Purchasing Manager", duty: "approves purchase orders", add: "enter vendor bills while Tomás is out", ans: "auth_rec", work: "She could approve a purchase and record the bill for it with no one checking." },
+  { who: "Luis Ortega", role: "Warehouse Clerk", duty: "picks, packs and ships orders", add: "post inventory adjustments after cycle counts", ans: "cust_rec", work: "He could take goods and record the shortage as an adjustment." },
+  { who: "Elena Kowalczyk", role: "A/R Clerk", duty: "records customer payments", add: "approve customer write-offs while Marcus is out", ans: "auth_rec", work: "She could hide a missing payment by approving a write-off." },
+  { who: "Mei Tanaka", role: "Warehouse Clerk", duty: "receives deliveries at the dock", add: "approve purchase orders while Aisha is out", ans: "auth_cust", work: "She could order goods and receive them herself." },
+  { who: "Ben Castellano", role: "Warehouse Manager", duty: "runs the warehouse", add: "approve returns of damaged goods to vendors", ans: "auth_cust", work: "He could approve sending out goods from the warehouse he controls." },
+  { who: "Mei Tanaka", role: "Warehouse Clerk", duty: "receives deliveries at the dock", add: "pick, pack and ship orders while Luis is out", ans: "none", work: "Receiving and shipping are both custody of goods; neither approves transactions or keeps the accounting records." },
+  { who: "Luis Ortega", role: "Warehouse Clerk", duty: "picks, packs and ships orders", add: "receive deliveries at the dock while Mei is out", ans: "none", work: "Both duties are custody of goods, with no approval or accounting record." },
+  { who: "Aisha Rahman", role: "Purchasing Manager", duty: "approves purchase orders", add: "review vendor price lists for next season", ans: "none", work: "Reviewing price lists is planning work within her own function." },
+  { who: "Tomás Rivera", role: "A/P Clerk", duty: "enters vendor bills", add: "run the AP aging report for Marcus", ans: "none", work: "Running a read-only report adds no approval or custody." },
+  { who: "Elena Kowalczyk", role: "A/R Clerk", duty: "records customer payments", add: "prepare the AR aging summary for Marcus's month-end review", ans: "none", work: "Preparing a report from posted data adds no approval or custody." }];
+const SODWHY = "Approving is authorization; keeping the accounting records is recording; handling goods or cash, including receiving and shipping, is custody.";
+
+// ---------- Part 5: the control that answers each risk (Trailhead's policies) ----------
+const CTLOPT = [["approvedSO", "Ship only against an approved sales order (P3)"], ["sameDayInv", "Invoice each shipment the same day (P3)"],
+  ["poApproval", "Purchase orders approved by purchasing; CEO over $25,000 (P5)"], ["match", "Three-way match within 2% or $50 (P7)"],
+  ["ceoPay", "CEO approval of payments over $10,000 (P8)"], ["jeApproval", "Manual journal entries approved by someone other than the preparer (P9)"],
+  ["lock", "Lock each period after close (P11)"], ["bankRec", "Monthly bank reconciliation by someone who doesn't handle cash (P11)"]];
+const RISK = [
+  { ans: "approvedSO", text: "Goods leave the warehouse for an order no one approved.", work: "Picking only from approved sales orders means nothing ships without one." },
+  { ans: "sameDayInv", text: "A shipment goes out but the customer is never billed.", work: "Billing every fulfillment the same day leaves no shipped order unbilled." },
+  { ans: "poApproval", text: "A buyer orders far more sleeping bags than the season needs.", work: "An approver reviews the quantity before Trailhead commits." },
+  { ans: "match", text: "A vendor bills $64 a pair for boots ordered at $62.", work: "Comparing the bill with the PO price catches the overcharge." },
+  { ans: "ceoPay", text: "A $14,000 vendor payment goes out with only the controller's sign-off.", work: "Payments over $10,000 need the CEO's approval too." },
+  { ans: "jeApproval", text: "An accountant records an accrual for the wrong amount and no one checks it.", work: "A second person reviews the entry and its support before it posts." },
+  { ans: "lock", text: "A January bill is posted into December after December's statements were issued.", work: "A locked period can't take new entries." },
+  { ans: "bankRec", text: "A deposit recorded in NetSuite never reaches the bank.", work: "Comparing the books with the bank statement finds the missing deposit." },
+  { ans: "poApproval", text: "An employee orders goods for personal use on Trailhead's account.", work: "An approver reviews what is being bought and why." },
+  { ans: "bankRec", text: "Cash is taken after it's recorded in the books.", work: "A monthly reconciliation by someone who doesn't handle cash shows the shortfall." },
+  { ans: "lock", text: "Last quarter's revenue is changed after the statements are issued.", work: "Locking closed periods stops later changes to reported results." },
+  { ans: "ceoPay", text: "A large payment to a new supplier goes out without senior review.", work: "The CEO approves any payment over $10,000." },
+  { ans: "sameDayInv", text: "Revenue is understated because shipped orders sit unbilled at month-end.", work: "Same-day invoicing records the sale when the goods ship." }];
+
+// ---------- Problem generator ----------
+// Each part draws its catalog items with the spec's rules; the order drawn is the order shown. No numbers change.
+function gen(seed) {
+  const r = mulberry32(seed);
+  let tries = 0;
+  const draw = (n, k, ok) => {
+    for (;;) {
+      if (++tries > 50000) throw new Error("Could not generate a problem set");
+      const xs = []; while (xs.length < k) { const i = Math.floor(r() * n); if (xs.indexOf(i) < 0) xs.push(i); }
+      if (ok(xs)) return xs;
+    }
+  };
+  const count = (xs, cat, key, v) => xs.filter(i => cat[i][key] === v).length;
+  // Part 1: four situations, four principles, at least three components.
+  const coso = draw(COSO.length, 4, xs => new Set(xs.map(i => COSO[i].comp)).size >= 3);
+  // Part 2: six statements, one or two of each answer. The count-accuracy bonus (Part 1) and the shrinkage bonus
+  // (Part 2) never appear together: one is accountability, the other pressure.
+  const fraud = draw(FRAUD.length, 6, xs => ELEM.every(o => { const c = count(xs, FRAUD, "ans", o[0]); return c >= 1 && c <= 2; }) &&
+    !(coso.indexOf(4) >= 0 && xs.indexOf(0) >= 0));
+  // Part 3: three controls covering two or more of input, processing and output, both preventive and detective, both automated and manual.
+  const classify = draw(CTRL.length, 3, xs => new Set(xs.map(i => CTRL[i].ipo)).size >= 2 &&
+    new Set(xs.map(i => CTRL[i].pd)).size === 2 && new Set(xs.map(i => CTRL[i].am)).size === 2);
+  // Part 4: five proposed duties, five different people, at least one with no conflict and two different conflict types.
+  const sod = draw(SOD.length, 5, xs => new Set(xs.map(i => SOD[i].who)).size === 5 && count(xs, SOD, "ans", "none") >= 1 &&
+    new Set(xs.map(i => SOD[i].ans).filter(a => a !== "none")).size >= 2);
+  // Part 5: four risks with four different answers.
+  const risk = draw(RISK.length, 4, xs => new Set(xs.map(i => RISK[i].ans)).size === 4);
+  return { coso, fraud, classify, sod, risk };
+}
+
+// ---------- Parts ----------
+const optLabel = (opts, v) => { const o = opts.find(x => x[0] === v); return o ? o[1] : String(v); };
+const not = (opts, v) => "Not “" + optLabel(opts, v) + ".” ";
+function sel(id, label, opts, ans, work, wrong, row, col) { return { id, label, kind: "sel", opts, ans, work, wrong, row, col }; }
+function buildParts(P) {
+  const parts = [];
+
+  // Part 1: COSO component and principle.
+  const cs = P.coso.map(i => COSO[i]);
+  parts.push({ id: "coso", phase: "coso", tick: "1", title: "COSO component and principle", layout: "table", numbered: true,
+    desc: "From Marcus Oyelaran, Controller: Hartwell & Lowe, our outside CPAs, visit next month. Before they do, I want everyone on the accounting team fluent in how we think about control. " +
+      "Sort these situations by COSO component and principle, read some fraud-risk statements, classify a few controls, check a spring coverage plan for duty conflicts, and match each risk to the control that answers it.\n\n" +
+      SCENARIO + "\n\nCOSO's Internal Control framework has five components and 17 principles. For each situation, choose the component and the principle it shows.",
+    itemLabel: "Situation", cols: [{ key: "comp", label: "COSO component" }, { key: "prin", label: "Principle" }],
+    items: cs.map(c => ({ text: c.text })),
+    fields: cs.flatMap((c, i) => {
+      const p = "p" + c.prin, ofIt = "Principle " + c.prin + " belongs to " + compName(c.comp) + " (principles " + RANGE[c.comp] + ").";
+      return [
+        sel("comp" + i, "Situation " + (i + 1) + ": COSO component", COMP, c.comp, ofIt, (v, vals) =>
+          not(COMP, v) + (vals && vals["prin" + i] === p ? "You chose the right principle, and principle " + c.prin + " belongs to " + compName(c.comp) + "." : COMPWHY[c.comp]), i, "comp"),
+        sel("prin" + i, "Situation " + (i + 1) + ": principle", PRIN, p, c.work, v => {
+          const n = Number(v.slice(1)), pair = PAIR[Math.min(n, c.prin) + "-" + Math.max(n, c.prin)];
+          return not(PRIN, v) + (pair ? pair + " " : pcomp(n) !== c.comp ? "Principle " + n + " belongs to " + compName(pcomp(n)) + ". " : "") + c.work;
+        }, i, "prin")];
+    }),
+    hint: "Find the principle first; each principle belongs to one component (1–5, 6–9, 10–12, 13–15, 16–17).",
+    why: "Auditors evaluate internal control against COSO, so findings are written in its components and principles.",
+    walk: cs.map((c, i) => ({ keys: ["comp" + i, "prin" + i], text: "Situation " + (i + 1) + ": " + c.work,
+      formula: optLabel(COMP, c.comp) + " · principle " + optLabel(PRIN, "p" + c.prin) })) });
+
+  // Part 2: fraud triangle and red flags.
+  const fs = P.fraud.map(i => FRAUD[i]);
+  parts.push({ id: "fraud", phase: "coso", tick: "2", title: "Fraud triangle and red flags", layout: "table", numbered: true,
+    desc: "These statements came out of a fraud-risk brainstorming session. Each is written about a role at a company like Trailhead, not about anyone here. " +
+      "The fraud triangle says fraud needs three things: pressure, opportunity and rationalization. A red flag is a warning sign that one of them is present. " +
+      "For each statement, choose the side of the triangle it shows, or say it isn't a red flag.",
+    itemLabel: "Statement", cols: [{ key: "el", label: "Fraud triangle" }],
+    items: fs.map(f => ({ text: f.text })),
+    fields: fs.map((f, i) => sel("el" + i, "Statement " + (i + 1) + ": fraud triangle", ELEM, f.ans, f.work, v => {
+      const po = x => x === "pressure" || x === "opportunity";
+      if (po(f.ans) && po(v)) return not(ELEM, v) + "Pressure is a motive inside the person; opportunity is a gap in the controls. " + f.work;
+      if (f.ans === "pressure" && v === "rational") return not(ELEM, v) + (f.money ? "A money problem is pressure" : "A money motive is pressure") + "; rationalization is the story someone tells to make it seem acceptable. " + f.work;
+      if (f.ans === "rational" && v !== "none") return not(ELEM, v) + "These are the words someone uses to excuse it: rationalization is the story someone tells to make it seem acceptable. " + f.work;
+      if (f.ans === "opportunity" && v === "rational") return not(ELEM, v) + "Opportunity is a gap in the controls that lets someone act and hide it. " + f.work;
+      return not(ELEM, v) + f.work;
+    }, i, "el")),
+    hint: "Pressure = why they'd want to; opportunity = how they could; rationalization = how they'd excuse it.",
+    why: "Controls can remove opportunity, but pressure and rationalization are why managers watch for warning signs too.",
+    walk: fs.map((f, i) => ({ keys: ["el" + i], text: "Statement " + (i + 1) + ": " + f.work, formula: optLabel(ELEM, f.ans) })) });
+
+  // Part 3: classify the controls.
+  const ks = P.classify.map(i => CTRL[i]);
+  parts.push({ id: "classify", phase: "controls", tick: "3", title: "Classify the controls", layout: "table", numbered: true,
+    desc: "Classify each control three ways. Where does it act: on data going in (input), on what the system does with it (processing), or on the reports and results that come out (output)? " +
+      "Does it stop a problem before it's recorded (preventive) or find it afterward (detective)? Does the system perform it (automated) or a person (manual)?",
+    itemLabel: "Control", cols: [{ key: "ipo", label: "Input, processing or output" }, { key: "pd", label: "Preventive or detective" }, { key: "am", label: "Automated or manual" }],
+    items: ks.map(k => ({ text: k.text })),
+    fields: ks.flatMap((k, i) => [
+      sel("ipo" + i, "Control " + (i + 1) + ": input, processing or output", IPO, k.ipo, k.work, v =>
+        not(IPO, v) + IPOWHY[[v, k.ipo].sort().join("-")] + " " + k.work, i, "ipo"),
+      sel("pd" + i, "Control " + (i + 1) + ": preventive or detective", PD, k.pd,
+        k.pd === "prev" ? "Preventive: it stops the problem before it happens." : "Detective: it finds the problem after it happens.", v =>
+        not(PD, v) + PDWHY[k.ipo] + " " + k.work, i, "pd"),
+      sel("am" + i, "Control " + (i + 1) + ": automated or manual", AM, k.am, AMWHY[k.am], v => not(AM, v) + AMWHY[k.am], i, "am")]),
+    hint: "Ask three questions: where in the flow (in, through, out), before or after the error, and who performs it.",
+    why: "Auditors test automated and manual controls differently, and a mix of preventive and detective controls covers more risk.",
+    walk: ks.map((k, i) => ({ keys: ["ipo" + i, "pd" + i, "am" + i], text: "Control " + (i + 1) + ": " + k.work + " " + AMWHY[k.am],
+      formula: optLabel(IPO, k.ipo) + " · " + optLabel(PD, k.pd) + " · " + optLabel(AM, k.am) })) });
+
+  // Part 4: duty conflicts in the coverage plan.
+  const ss = P.sod.map(i => SOD[i]);
+  parts.push({ id: "sod", phase: "controls", tick: "4", title: "Duty conflicts in the coverage plan", layout: "table", numbered: true,
+    desc: "Several people are out at different times this spring. Marcus proposes these temporary added duties. For each, say which incompatible functions it would combine, if any.\n\n" +
+      "Authorization is approving transactions. Recording is keeping the accounting records: vendor bills, invoices, customer payments, journal entries and inventory adjustments. " +
+      "Custody is handling goods or cash, including receiving and shipping goods and the warehouse records of that movement (item receipts and fulfillments).",
+    itemLabel: "Proposed added duty", cols: [{ key: "sod", label: "Incompatible functions" }],
+    items: ss.map(s => ({ text: s.who + " (" + s.role + ") " + s.duty + ". Added duty: " + s.add + "." })),
+    fields: ss.map((s, i) => sel("sod" + i, "Duty " + (i + 1) + ": incompatible functions", SODOPT, s.ans, s.work, v =>
+      not(SODOPT, v) + (s.ans !== "none" && v !== "none" ? SODWHY + " " : "") + s.work, i, "sod")),
+    hint: "Name the function of each duty first: approve, keep the accounting records, or handle the goods or cash. Two different functions in one person is a conflict.",
+    why: "Splitting authorization, recording and custody means one person can't both commit and hide an error or theft.",
+    walk: ss.map((s, i) => ({ keys: ["sod" + i], text: "Duty " + (i + 1) + ": " + s.work, formula: optLabel(SODOPT, s.ans) })) });
+
+  // Part 5: the control that answers each risk.
+  const rs = P.risk.map(i => RISK[i]);
+  parts.push({ id: "riskcontrol", phase: "controls", tick: "5", title: "The control that answers each risk", layout: "table", numbered: true,
+    desc: "Each risk below could happen somewhere in Trailhead's cycles. Choose the control from Trailhead's policies that would best stop it or catch it. The policies are in the data panel.",
+    itemLabel: "Risk", cols: [{ key: "ctl", label: "Control that answers it" }],
+    items: rs.map(x => ({ text: x.text })),
+    fields: rs.map((x, i) => sel("ctl" + i, "Risk " + (i + 1) + ": control", CTLOPT, x.ans, x.work, v => not(CTLOPT, v) + x.work, i, "ctl")),
+    hint: "Ask what could go wrong at that point in the cycle, then which control would stop or catch it.",
+    why: "COSO principle 10: each control is chosen to answer a specific risk.",
+    walk: rs.map((x, i) => ({ keys: ["ctl" + i], text: "Risk " + (i + 1) + ": " + x.work, formula: optLabel(CTLOPT, x.ans) })) });
+  return parts;
+}
+
+// ---------- Grading ----------
+// Every field is a choice: right, or "Not “label.”" with the reason. A blank or unknown choice reads as unchosen.
+function grade(p, vals) {
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id], v = typeof raw === "string" ? raw : "";
+    if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+    else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, vals) };
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Trailhead Outfitters Co.</b> sells camping and hiking gear to outdoor shops and web shoppers and buys it from its vendors, all in NetSuite. You are a staff accountant reporting to Marcus Oyelaran, the controller."; }
+// The data panel is the same in both modes and reads nothing from the problem (IL3 has no public info).
+function dtab(caption, cols, rows) {
+  return '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">' + esc(caption) + '</div></caption><thead><tr>' +
+    cols.map(c => '<th scope="col">' + esc(c) + '</th>').join("") + '</tr></thead><tbody>' +
+    rows.map(row => '<tr>' + row.map((x, i) => i === 0 ? '<th scope="row">' + esc(x) + '</th>' : '<td>' + esc(x) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+// Trailhead's people and NetSuite roles (spec 3.1), without the sales manager and with Marcus's row limited to the close.
+const PEOPLE = [
+  ["Dana Whitfield", "Owner and CEO", "Approves payments over $10,000, new vendors and the budget", "CEO (approve only)"],
+  ["Marcus Oyelaran", "Controller", "Runs the close and prepares the statements", "Controller"],
+  ["Priya Raman", "Senior Accountant", "General ledger and month-end accruals; deposits checks daily", "Accountant"],
+  ["You", "Staff Accountant", "AR, AP and close tasks", "Accountant"],
+  ["Elena Kowalczyk", "AR Specialist", "Invoices customers, applies payments, follows up past-due accounts", "A/R Clerk"],
+  ["Tomás Rivera", "AP Specialist", "Enters and matches vendor bills, prepares payment runs", "A/P Clerk"],
+  ["Jordan Banks", "Sales Representative", "Enters wholesale sales orders", "Sales Rep"],
+  ["Aisha Rahman", "Purchasing Manager", "Creates and approves purchase orders, sets reorder points, sets up vendors", "Purchasing Manager"],
+  ["Ben Castellano", "Warehouse Manager", "Receiving, shipping and counts; prints pick tickets", "Warehouse Manager"],
+  ["Mei Tanaka", "Receiving Clerk", "Receives deliveries and records item receipts", "Warehouse Clerk"],
+  ["Luis Ortega", "Shipping Clerk", "Picks, packs, ships and records item fulfillments", "Warehouse Clerk"],
+  ["Sam Okafor", "IT Administrator (contractor)", "NetSuite administration, users, web store", "Administrator"],
+  ["Nora Feldman", "HR and Payroll Coordinator", "Hiring and terminations; sends payroll data", "No NetSuite access"]];
+// Policies P3-P9 and P11 as written (spec 3.7).
+const POLICIES = [
+  ["P3", "Shipping and billing", "Nothing ships without an approved sales order; each shipment is invoiced the same day."],
+  ["P4", "Cash receipts", "Checks are logged by the receptionist, applied by the AR specialist and deposited daily by the senior accountant."],
+  ["P5", "Purchasing", "Every inventory purchase needs a PO approved by the purchasing manager; orders over $25,000 also need the CEO."],
+  ["P6", "Vendor setup", "New vendors need a W-9, CEO approval and a call-back to confirm bank details; purchasing sets up vendors."],
+  ["P7", "Three-way match", "A vendor bill is paid only when it agrees with the PO and the item receipt within 2% or $50, whichever is less."],
+  ["P8", "Payments", "AP prepares the weekly payment run; the controller approves it; the CEO also approves any payment over $10,000."],
+  ["P9", "Journal entries", "Manual journal entries need support and approval by someone other than the preparer."],
+  ["P11", "Period close", "Periods are locked after close; bank accounts are reconciled monthly by someone who doesn't handle cash."]];
+const COSO_TABLE = [["Control environment", "1–5"], ["Risk assessment", "6–9"], ["Control activities", "10–12"], ["Information and communication", "13–15"], ["Monitoring activities", "16–17"]];
+const NOTE = '<p class="note">These situations are practice scenarios written for this lab. They are not Trailhead\'s records, and they don\'t describe how its NetSuite account is set up.</p>';
+const peopleBlock = () => dtab("People and NetSuite roles", ["Person", "Title", "Does", "NetSuite role"], PEOPLE);
+const policyBlock = () => '<ul class="pol" aria-label="Trailhead policies">' + POLICIES.map(p => '<li><b>' + esc(p[0]) + ' · ' + esc(p[1]) + '.</b> ' + esc(p[2]) + '</li>').join("") + '</ul>';
+const cosoBlock = () => dtab("COSO Internal Control: components and their principles", ["Component", "Principles"], COSO_TABLE);
+function dataHTML(c) {
+  const id = c.part ? c.part.id : "";
+  if (id === "fraud") return { sub: "Fraud-risk brainstorming", html: '<p style="margin:0">Each statement is written about a role at a company like Trailhead, not about a person at Trailhead.</p>' + NOTE };
+  if (id === "classify") return { sub: "People and NetSuite roles", html: peopleBlock() + NOTE };
+  if (id === "sod") return { sub: "Regular duties and NetSuite roles", html: peopleBlock() + NOTE };
+  if (id === "riskcontrol") return { sub: "Policies P3–P9 and P11", html: policyBlock() + NOTE };
+  return { sub: "The COSO framework", html: cosoBlock() + NOTE };
+}
+
+MAFrame.start({
+  slug: "ais-internal-control", key: "ais-internal-control1", module: "IL3", title: "Internal Control",
+  phases: [["coso", "COSO and fraud"], ["controls", "Controls and duties"]],
+  dataTitle: "Trailhead's people and policies",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: () => ({}), biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>

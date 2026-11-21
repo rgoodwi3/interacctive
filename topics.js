@@ -365,6 +365,35 @@ const TOPICS = {
     ],
     of: ids([["centers", ["centers"]], ["ctl", ["ctl"]], ["roi", ["roi"]], ["ri", ["ri"]], ["eva", ["eva"]], ["invest", ["invest"]], ["bsc", ["bsc"]]]),
   },
+  // ---------- accounting information systems (ACCT 2250): one concept per part ----------
+  "ais-o2c-trail": {
+    topics: [
+      { key: "records", label: "Order-to-cash events and NetSuite records" },
+      { key: "postings", label: "Standard postings for each record" },
+      { key: "balances", label: "Effect on account balances" },
+      { key: "web", label: "Web store cash sales and card settlement" },
+    ],
+    of: ids([["records", ["records"]], ["postings", ["postings"]], ["balances", ["balances"]], ["web", ["web"]]]),
+  },
+  "ais-p2p-match": {
+    topics: [
+      { key: "docs", label: "Reading the PO, receipt and bill" },
+      { key: "match", label: "The three-way match and its tolerance" },
+      { key: "pay", label: "Approving and posting a matched bill" },
+      { key: "vendor", label: "Vendor master change requests" },
+    ],
+    of: ids([["docs", ["docs"]], ["match", ["match"]], ["pay", ["pay"]], ["vendor", ["vendor"]]]),
+  },
+  "ais-internal-control": {
+    topics: [
+      { key: "coso", label: "COSO components and principles" },
+      { key: "fraud", label: "Fraud triangle and red flags" },
+      { key: "classify", label: "Classifying controls" },
+      { key: "sod", label: "Segregation of duties" },
+      { key: "riskcontrol", label: "Matching controls to risks" },
+    ],
+    of: ids([["coso", ["coso"]], ["fraud", ["fraud"]], ["classify", ["classify"]], ["sod", ["sod"]], ["riskcontrol", ["riskcontrol"]]]),
+  },
 };
 
 // The assigned concepts as a clean list for this lab: only known keys, in catalog order. null means the
