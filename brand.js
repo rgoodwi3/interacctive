@@ -10,6 +10,20 @@
 (function () {
   "use strict";
   if (window.IACBrand) return;
+
+  // Tab icon (favicon) for every InterACCtive page that loads this script, including the old lab repos.
+  // Added only if the page has none of its own; wrapped so it can never stop the branding below.
+  try {
+    if (document.head && !document.querySelector('link[rel~="icon"]')) {
+      [["icon", "image/png", "32x32", "favicon-32.png"], ["icon", "image/png", "16x16", "favicon-16.png"],
+       ["apple-touch-icon", "", "180x180", "apple-touch-icon.png"]].forEach(function (d) {
+        var l = document.createElement("link");
+        l.setAttribute("rel", d[0]); if (d[1]) l.setAttribute("type", d[1]);
+        l.setAttribute("sizes", d[2]); l.setAttribute("href", "/interacctive/" + d[3]);
+        document.head.appendChild(l);
+      });
+    }
+  } catch (e) { /* no icon is better than a broken page */ }
   var SB_URL = "https://yoijetxcolixkjqsxkpo.supabase.co";
   var SB_KEY = "sb_publishable_R7CQN_jmNSlHZiGvXa9Jqw_bQv3q3fE"; // public key, same as the pages use
   var DEFAULT_SCHOOL = "University of New Haven";
