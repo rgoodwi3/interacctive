@@ -404,6 +404,16 @@ const TOPICS = {
     ],
     of: ids([["keys", ["keys"]], ["card", ["card"]], ["fk", ["fk"]], ["link", ["link"]], ["integrity", ["integrity"]]]),
   },
+  "ais-itgc-cyber": {
+    topics: [
+      { key: "area", label: "IT general control areas" },
+      { key: "deficiency", label: "ITGC deficiencies" },
+      { key: "soc", label: "SOC reports and the controls Trailhead runs" },
+      { key: "threats", label: "Cyber threats and controls" },
+      { key: "nist", label: "NIST CSF 2.0 functions" },
+    ],
+    of: ids([["area", ["area"]], ["deficiency", ["deficiency"]], ["soc", ["soc"]], ["threats", ["threats"]], ["nist", ["nist"]]]),
+  },
 };
 
 // The assigned concepts as a clean list for this lab: only known keys, in catalog order. null means the
