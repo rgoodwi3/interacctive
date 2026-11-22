@@ -100,7 +100,7 @@ const BLANKFK = "A foreign key may be blank when the relationship is optional; r
 // ---------- Part 2: relationships and the business rules behind them (all true of Trailhead's data) ----------
 // ab = how many B rows one A row has (min, max); ba = how many A rows one B row has.
 const REL = [
-  { id: "R1", a: "Customer", b: "SalesOrder", rule: "Trailhead sets up a customer when its credit application is approved, often before the first order. Every sales order is for exactly one customer.", ab: ["0", "many"], ba: ["1", "1"] },
+  { id: "R1", a: "Customer", b: "SalesOrder", rule: "Trailhead sets up a new wholesale customer before the first order arrives. Every sales order is for exactly one customer.", ab: ["0", "many"], ba: ["1", "1"] },
   { id: "R2", a: "SalesOrder", b: "SalesOrderLine", rule: "NetSuite won't save an order without at least one line. Each line belongs to exactly one order.", ab: ["1", "many"], ba: ["1", "1"] },
   { id: "R3", a: "Item", b: "SalesOrderLine", rule: "New items are added before they're ever sold. Each order line is for exactly one item.", ab: ["0", "many"], ba: ["1", "1"] },
   { id: "R4", a: "SalesOrder", b: "Shipment", rule: "Each order ships complete in one shipment, and an order may not have shipped yet. Each shipment is for exactly one order.", ab: ["0", "1"], ba: ["1", "1"] },
@@ -119,21 +119,21 @@ const MAXOPT = [["1", "One"], ["many", "Many"]];
 // ---------- Part 4: does the relationship need a linking table? ----------
 const LINK = [
   { id: "L1", a: "CashReceipt", b: "Invoice", rule: "One check can pay several invoices, and an invoice can be paid in two payments.", need: "yes",
-    keys: [["rcpt_inv", "ReceiptID + InvoiceID (Trailhead's ReceiptApplication)"], ["rcpt", "ReceiptID"], ["inv", "InvoiceID"], ["none", "No linking table needed"]],
+    keys: [["rcpt_inv", "ReceiptID + InvoiceID"], ["rcpt", "ReceiptID"], ["inv", "InvoiceID"], ["none", "No linking table needed"]],
     work: "Trailhead's ReceiptApplication table is keyed on ReceiptID + InvoiceID and records how much of each check went to each invoice.",
     single: { rcpt: "A receipt can apply to several invoices, so ReceiptID alone repeats; the key needs both IDs.",
       inv: "An invoice can take two receipts, so InvoiceID alone repeats; the key needs both IDs." } },
   { id: "L2", a: "SalesOrder", b: "Item", rule: "An order lists many items, an item appears on many orders, and Trailhead numbers the lines within each order.", need: "yes",
-    keys: [["so_line", "SalesOrderID + LineNumber (SalesOrderLine)"], ["so_sku", "SalesOrderID + SKU"], ["sku", "SKU"], ["none", "No linking table needed"]],
+    keys: [["so_line", "SalesOrderID + LineNumber"], ["so_sku", "SalesOrderID + SKU"], ["sku", "SKU"], ["none", "No linking table needed"]],
     work: "Trailhead's SalesOrderLine table is keyed on SalesOrderID + LineNumber.", idsku: "so_sku", single: { sku: "An item appears on many orders, so SKU alone repeats. Trailhead's key is the document ID + LineNumber." } },
   { id: "L3", a: "PurchaseOrder", b: "Item", rule: "A PO lists many items, an item appears on many POs, and lines are numbered within each PO.", need: "yes",
-    keys: [["po_line", "PurchaseOrderID + LineNumber (PurchaseOrderLine)"], ["po_sku", "PurchaseOrderID + SKU"], ["po", "PurchaseOrderID"], ["none", "No linking table needed"]],
+    keys: [["po_line", "PurchaseOrderID + LineNumber"], ["po_sku", "PurchaseOrderID + SKU"], ["po", "PurchaseOrderID"], ["none", "No linking table needed"]],
     work: "Trailhead's PurchaseOrderLine table is keyed on PurchaseOrderID + LineNumber.", idsku: "po_sku", single: { po: "A PO has several lines, so PurchaseOrderID alone repeats. Trailhead's key is the document ID + LineNumber." } },
   { id: "L6", a: "ItemReceipt", b: "Item", rule: "A receipt can include several items, an item arrives on many receipts, and lines are numbered within each receipt.", need: "yes",
-    keys: [["ir_line", "ItemReceiptID + LineNumber (ItemReceiptLine)"], ["ir_sku", "ItemReceiptID + SKU"], ["ir", "ItemReceiptID"], ["none", "No linking table needed"]],
+    keys: [["ir_line", "ItemReceiptID + LineNumber"], ["ir_sku", "ItemReceiptID + SKU"], ["ir", "ItemReceiptID"], ["none", "No linking table needed"]],
     work: "Trailhead's ItemReceiptLine table is keyed on ItemReceiptID + LineNumber.", idsku: "ir_sku", single: { ir: "A receipt can have several lines, so ItemReceiptID alone repeats. Trailhead's key is the document ID + LineNumber." } },
   { id: "L7", a: "VendorBill", b: "Item", rule: "A bill can charge for several items, an item is billed on many bills, and lines are numbered within each bill.", need: "yes",
-    keys: [["bill_line", "BillID + LineNumber (VendorBillLine)"], ["bill_sku", "BillID + SKU"], ["bill", "BillID"], ["none", "No linking table needed"]],
+    keys: [["bill_line", "BillID + LineNumber"], ["bill_sku", "BillID + SKU"], ["bill", "BillID"], ["none", "No linking table needed"]],
     work: "Trailhead's VendorBillLine table is keyed on BillID + LineNumber.", idsku: "bill_sku", single: { bill: "A bill can have several lines, so BillID alone repeats. Trailhead's key is the document ID + LineNumber." } },
   { id: "L4", a: "Customer", b: "Invoice", rule: "Each invoice is for one customer; a customer has many invoices.", need: "no",
     keys: [["none", "No linking table needed"], ["cust_inv", "CustomerID + InvoiceID"], ["inv", "InvoiceID"], ["cust", "CustomerID"]] },
@@ -295,7 +295,7 @@ function buildParts(P) {
       "LineNumber doesn't point to another table. It numbers the lines within one " + K.doc + ", and with the " + K.doc + " ID it forms the key.";
     else if (ans === "fk") m = v === "none" ? c + " matches the key of the " + par + " table, so it's a foreign key." :
       line && c === "SKU" ? "Trailhead's line key is the order ID + LineNumber; the SKU points to the Item table." :
-      v === "pk" ? c + " can repeat from row to row, so it can't be the key. It matches the key of the " + par + " table, so it's a foreign key." :
+      v === "pk" ? c + " holds the key of the " + par + " table, so it's a foreign key. This table's own key is " + keyName + "." + (blankPO && c === "PurchaseOrderID" ? " It's blank on the rent bill, and a primary key can't be blank." : "") :
       "This table's key is " + keyName + " alone. " + c + " matches the key of the " + par + " table, so it's a foreign key.";
     else if (ans === "pk") m = v === "fk" ? c + " is this table's own key, different in every row; it doesn't point to another table." :
       v === "none" ? c + " is different in every row and identifies each row, so it's the primary key." :
@@ -376,7 +376,7 @@ function buildParts(P) {
           one1 ? "In a one-to-one-or-none relationship, the key goes in the table whose rows can't exist without the other: " + s.child + "." :
           cap(an(par.one)) + " can have many " + chi.many + ", but a column holds one value. Put the parent's key in each child row instead."), i, "fk");
     }),
-    hint: "The foreign key goes on the side that can have only one partner. If both sides can have many, use a linking table.",
+    hint: "The foreign key goes on the side that must have exactly one partner. If both sides can have many, use a linking table.",
     why: "Put the key on the wrong side and the table can't record more than one child, or repeats the parent's data.",
     walk: rs.map((s, i) => ({ keys: ["fk" + i], text: "Relationship " + (i + 1) + ": " + (s.R.mm ? "Many on both sides, so a linking table holds both keys." :
       "The " + s.child + " side has exactly one partner, so " + T[s.parent].key + " goes in " + s.child + "."),
