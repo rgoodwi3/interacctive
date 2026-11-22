@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IT General Controls and Cyber · ACCT 2250</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+<style>
+/* The IT setup list in the data panel. Frame variables only, so dark mode follows the frame. */
+.setup{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.setup li{background:var(--paper);border-left:3px solid var(--gold);border-radius:0 6px 6px 0;padding:7px 12px;font-size:14.5px;line-height:1.45}
+/* Row headers in the panel tables read as body text, not as column headings. */
+.dtab tbody th{font-size:14.5px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:600;border-bottom:1px solid var(--rule);vertical-align:top;white-space:nowrap}
+.dtab tbody td{vertical-align:top}
+/* The memo, the practice-scenario line and the task are separate paragraphs. */
+.part-desc{white-space:pre-line}
+/* Long situations wrap; the choice columns keep their full labels. */
+.ctab td.item{min-width:220px;overflow-wrap:anywhere}
+/* Part 4 has two long choice columns. A slightly smaller choice font and a narrower text column keep both full
+   labels visible at 1,024 px; where :has() isn't supported the table scrolls inside its box as usual. */
+.ctab:has(select[data-f^="threat"]) td{padding:6px 4px}
+.ctab:has(select[data-f^="threat"]) td.item{min-width:120px}
+.ctab:has(select[data-f^="threat"]) select{font-size:13px;padding-left:6px;padding-right:2px}
+.ctab:has(select[data-f^="threat"]) .cellv{gap:3px}
+</style>
+</head>
+<body>
+<script src="/interacctive/topics.js"></script>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// ACCT 2250 IL5: IT General Controls and Cyber. Graded on the server by the lab-attempt edge function (fa-lab-platform,
+// slug ais-itgc-cyber), which runs a copy of the code between the LAB markers below.
+// Trailhead Outfitters Co. is fictional. Every item is a practice scenario; the lab prints no business years.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ais-itgc-cyber.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const SCENARIO = "These are practice scenarios written for this lab. They are not part of Trailhead's 2026 records or the evidence for Labs C1 and C2 or Project M3, and they don't describe how Trailhead's NetSuite account or company is actually set up.";
+
+// ---------- Part 1: IT general control areas ----------
+const AREAOPT = [["access", "Access to programs and data"], ["change", "Program change management"], ["ops", "Computer operations"]];
+const AREAWHY = {
+  "access-change": "Access controls decide who can use the system; change controls govern how the system itself is changed.",
+  "change-ops": "Change management is about altering the system; operations is about running it day to day.",
+  "access-ops": "Access controls decide who can use the system; operations controls keep it running day to day." };
+const AREAS = [
+  { ans: "access", text: "Sam creates a NetSuite login only after Nora sends an HR request listing the role Marcus approved.", work: "Granting logins and roles controls who can reach programs and data." },
+  { ans: "access", text: "NetSuite locks a login after five wrong passwords in a row.", work: "Lockouts protect against someone guessing their way in." },
+  { ans: "access", text: "NetSuite signs a user out after 30 minutes without activity.", work: "Ending idle sessions keeps someone else from using an unattended login." },
+  { ans: "access", text: "Saved searches that show customer bank details can be opened only by the Controller role.", work: "Restricting sensitive data to certain roles is an access control." },
+  { ans: "access", text: "The web store's admin pages can be opened only from Trailhead's office network.", work: "Limiting where a system can be reached from restricts access to it." },
+  { ans: "change", text: "Sam builds a new approval workflow in the sandbox; Priya tests it and Marcus approves it before Sam moves it to production.", work: "Building, testing and approving before go-live is change management." },
+  { ans: "change", text: "Before NetSuite's twice-yearly upgrade, Priya reruns Trailhead's key saved searches in the release preview account.", work: "Testing how an upgrade affects Trailhead's setup is part of managing change." },
+  { ans: "change", text: "A change ticket records who asked for a new field on the vendor bill form, who approved it and when it went live.", work: "A documented request, approval and release date is a change record." },
+  { ans: "change", text: "Scripts that change NetSuite data can be deployed only from the sandbox through a change ticket.", work: "Routing every script through a controlled path is change management." },
+  { ans: "change", text: "The web store host changes Trailhead's checkout pages only after a ticket approved by Sam and Marcus.", work: "Approved tickets for changes to a system Trailhead relies on are change management." },
+  { ans: "ops", text: "Sam gets an alert when the hourly web store import fails, reruns it and logs the incident.", work: "Monitoring scheduled jobs and fixing failures is computer operations." },
+  { ans: "ops", text: "Each morning Priya confirms that last night's bank feed loaded into NetSuite.", work: "Checking that scheduled data transfers ran is an operations control." },
+  { ans: "ops", text: "The shared drive is backed up every night, and Sam restores a test folder each quarter.", work: "Backups and restore tests keep data recoverable, an operations task." },
+  { ans: "ops", text: "Sam keeps a log of outages and failed imports and closes each one with its fix.", work: "Tracking incidents to resolution is part of computer operations." },
+  { ans: "ops", text: "Sam schedules the monthly depreciation script to run after close and checks its output report.", work: "Running and checking scheduled jobs is computer operations." }];
+
+// ---------- Part 2: deficiency or not ----------
+const DEFOPT = [["yes", "Deficiency"], ["no", "No deficiency"]];
+const WHYOPT = [["ok", "Works as designed: approved, tested and documented"], ["noapproval", "Change went live without approval"],
+  ["notest", "Change went live without testing"], ["selftest", "Change tested only by the person who built it"],
+  ["nofollow", "Failure not detected or followed up promptly"], ["norestore", "Backups never tested by a restore"],
+  ["excess", "Access granted beyond what was approved"], ["noverify", "Identity not verified before a password reset"]];
+const WORKING = "That's the control working, not a deficiency.";
+const DEFS = [
+  { def: "yes", why: "noapproval", text: "Sam fixed a routing error in the live vendor-bill approval workflow. He tested the fix in the sandbox, but no one approved the change before it went live.", work: "Even a tested fix to a live control needs approval before it goes in." },
+  { def: "no", why: "ok", text: "A new saved search for Marcus was built in the sandbox, tested by Priya, approved by Marcus and moved to production by Sam; the ticket shows all three steps.", work: "Build, independent test and approval are all documented." },
+  { def: "yes", why: "noapproval", text: "The web store host changed the shipping-rate table after a phone call from the warehouse. The host tested it on its staging site, but there's no ticket or approval from Trailhead.", work: "Changes to a system Trailhead relies on still need Trailhead's approval." },
+  { def: "yes", why: "selftest", text: "Marcus approved Sam's request for a script that updates item reorder points. Sam wrote it, tested it himself and deployed it; no one else tested it.", work: "The person who writes a change shouldn't be the only one to test it." },
+  { def: "yes", why: "nofollow", text: "The hourly web store import failed for six hours on a Saturday; the alerts went to an inbox no one checks on weekends, so the orders were missing until Monday.", work: "An alert no one reads doesn't detect the failure." },
+  { def: "no", why: "ok", text: "A web store import failed at 2:00 PM; Sam got the alert, reran it by 2:20 PM and logged the incident with the order count checked.", work: "The failure was caught, fixed, checked and logged quickly." },
+  { def: "yes", why: "norestore", text: "Nightly shared-drive backups report “success,” but no one has ever restored a file from them.", work: "Until a restore works, no one knows the backups are usable." },
+  { def: "no", why: "ok", text: "Each quarter Sam restores a sample folder from backup and records that the files opened.", work: "Regular restore tests show the backups work." },
+  { def: "yes", why: "excess", text: "Marcus approved read-only access for the visiting auditors from Hartwell & Lowe, but Sam gave them a role that can also edit vendor records.", work: "Access should match what was approved; the auditors needed to look, not edit." },
+  { def: "no", why: "ok", text: "Aisha asked to see the AR aging report; Sam gave her a read-only role after Marcus approved the request.", work: "The access was approved and limited to what she needs." },
+  { def: "yes", why: "noverify", text: "Sam reset Ben's NetSuite password after a phone call from someone who said he was Ben, without calling Ben back at the number on file.", work: "Anyone could pretend to be Ben; the reset needed an identity check first." },
+  { def: "no", why: "ok", text: "Before NetSuite's spring upgrade, Priya tested Trailhead's invoice template and saved searches in the release preview and logged the results.", work: "Testing Trailhead's setup before the upgrade is the control working." },
+  { def: "yes", why: "notest", text: "NetSuite's spring upgrade went live without anyone testing Trailhead's custom invoice template; invoices went out with blank totals for a day.", work: "Trailhead must test its own customizations before an upgrade reaches them." },
+  { def: "no", why: "ok", text: "Priya's morning check found last night's bank feed hadn't loaded; she logged an incident and Sam reloaded it before noon.", work: "The check caught the failure and it was fixed promptly." }];
+
+// ---------- Part 3: the service provider's control or Trailhead's ----------
+const WHOOPT = [["svc", "Oracle NetSuite (its SOC reports cover it)"], ["own", "Trailhead must run it"]];
+const SOCS = [
+  { ans: "svc", text: "Physical security and power at the data centers that run NetSuite.", work: "Oracle runs the data centers; its SOC reports cover them." },
+  { ans: "svc", text: "Backing up NetSuite's databases and restoring service after a data-center failure.", work: "The provider runs the infrastructure and its recovery." },
+  { ans: "svc", text: "Patching the operating systems and databases under NetSuite.", work: "Trailhead has no access to the servers; Oracle patches them." },
+  { ans: "svc", text: "Testing NetSuite's own twice-yearly releases before they go live.", work: "Oracle changes and tests its own software." },
+  { ans: "svc", text: "Monitoring the provider's network for intrusions.", work: "Oracle's network is Oracle's to watch." },
+  { ans: "svc", text: "Encrypting the data stored in NetSuite's databases.", work: "Storage encryption is part of the service Oracle runs." },
+  { ans: "svc", text: "Keeping enough server capacity so NetSuite stays available.", work: "Capacity is managed by the provider and covered by its SOC 2 report." },
+  { ans: "own", text: "Approving which employees get a NetSuite login and which role.", work: "Only Trailhead knows who should have access; Oracle's SOC report lists this as a complementary user entity control." },
+  { ans: "own", text: "Setting the approval routing for purchase orders and vendor bills.", work: "Trailhead configures its own workflows inside the service, a complementary user entity control." },
+  { ans: "own", text: "Testing Trailhead's own scripts, saved searches and forms in each release preview.", work: "Oracle tests its software; testing Trailhead's customizations is a complementary user entity control.",
+    trap: "Oracle tests its own release; Trailhead's customizations are Trailhead's to test." },
+  { ans: "own", text: "Reading NetSuite's SOC reports each year and following up on any exceptions.", work: "Monitoring its service provider is Trailhead's own control." },
+  { ans: "own", text: "Setting the password rules in NetSuite's security preferences.", work: "Oracle provides the settings; choosing and turning them on is a complementary user entity control.",
+    trap: "Oracle supplies the setting, but Trailhead decides how to use it." },
+  { ans: "own", text: "Reconciling NetSuite's bank feed to the bank statement each month.", work: "Reconciling its own accounts is Trailhead's job, whatever system it uses." },
+  { ans: "own", text: "Securing the laptops staff use to sign in to NetSuite.", work: "Devices outside Oracle's service are Trailhead's to protect." },
+  { ans: "own", text: "Approving changes to Trailhead's NetSuite workflows before they go live.", work: "Changes Trailhead makes to its own setup are Trailhead's to control, a complementary user entity control." }];
+const RELIES = "Trailhead relies on Oracle's SOC reports for it.";
+
+// ---------- Part 4: cyber threats and the controls that answer them ----------
+const THREATOPT = [["phish", "Phishing"], ["ransom", "Ransomware"], ["imperson", "Impersonation (business email compromise or deepfake)"],
+  ["stuff", "Credential stuffing"], ["dos", "Denial of service"], ["insider", "Insider data theft"], ["device", "Lost or stolen device"], ["sqli", "SQL injection"]];
+const THREATWHY = {
+  phish: "Phishing tricks someone into giving up a password or clicking a harmful link.",
+  ransom: "Ransomware encrypts files and demands payment to unlock them.",
+  imperson: "Impersonation pretends to be a trusted person to get money or data.",
+  stuff: "Credential stuffing tries passwords leaked from other sites against a login, by machine and at scale.",
+  dos: "Denial of service floods a system with traffic so real users can't reach it.",
+  insider: "Insider data theft is someone with legitimate access taking data out.",
+  device: "A lost or stolen device puts the data saved on it at risk.",
+  sqli: "SQL injection slips database commands into an input field." };
+const PHISHVSIMP = "Phishing tricks someone into giving up a password or clicking; impersonation pretends to be a person to get money or data.";
+const CTLOPT = [["factor2", "Multi-factor authentication"], ["training", "Security awareness training with phishing tests"],
+  ["backup", "Offline backups tested by restore"], ["verify", "Verify requests through a second channel using contact details on file"],
+  ["lockout", "Account lockout and rate limiting"], ["ddos", "DDoS protection from the hosting provider"],
+  ["dlp", "Least-privilege access with download alerts"], ["encrypt", "Full-disk encryption and remote wipe"],
+  ["waf", "Input validation and a web application firewall"]];
+const THREATS = [
+  { threat: "phish", ctl: "factor2", text: "A web store customer typed her password into a fake “Trailhead order status” page. The next day someone signed in to her account from overseas and changed the shipping address.",
+    work: "With a second factor on customer accounts, a stolen password alone can't open the account.",
+    traps: { training: "Training helps before the click; once a password is stolen, a second factor is what stops the sign-in." } },
+  { threat: "phish", ctl: "training", text: "Three employees clicked a fake “shipment delayed” link last month, and Sam wants fewer people to fall for the next one.",
+    work: "Practice with simulated phishing teaches people to spot and report it." },
+  { threat: "ransom", ctl: "backup", text: "Overnight, files on the shared drive were encrypted and a note demanded payment in cryptocurrency.",
+    work: "Clean offline backups let Trailhead restore without paying." },
+  { threat: "imperson", ctl: "verify", text: "On a video call, someone who looks and sounds like Dana asks Priya to wire $40,000 to a new supplier today. It was an AI-generated likeness.",
+    work: "Calling Dana back on a known number would expose the fake." },
+  { threat: "imperson", ctl: "verify", text: "An email that seems to be from Dana asks Elena to buy $2,000 in gift cards for a client event and send the codes.",
+    work: "Confirming through a separate, known channel stops the impersonator." },
+  { threat: "stuff", ctl: "lockout", alt: ["factor2"], text: "Thousands of login attempts a minute come from a handful of addresses, each trying an email and password leaked from other sites against the web store's customer login.",
+    work: "Limiting repeated attempts stops automated guessing at scale; a second factor also blocks it.",
+    altMsg: "A second factor is accepted too: it blocks sign-ins with leaked passwords. Lockout and rate limiting stop the flood of attempts itself." },
+  { threat: "dos", ctl: "ddos", text: "The web store goes down on Black Friday under a flood of junk traffic.",
+    work: "The host's DDoS protection filters the flood before it reaches the store." },
+  { threat: "insider", ctl: "dlp", text: "A sales rep who has given notice downloads the full customer list with contact details.",
+    work: "Limiting access to what the job needs, and alerting on big downloads, catches this." },
+  { threat: "device", ctl: "encrypt", text: "A laptop with saved NetSuite reports is stolen from an employee's car.",
+    work: "Encryption keeps the files unreadable and remote wipe erases them.",
+    traps: { backup: "Backups restore lost data, but they don't stop a thief from reading it." } },
+  { threat: "sqli", ctl: "waf", text: "An attacker types database commands into the web store's search box and pulls customer records.",
+    work: "Validating input and filtering requests blocks injected commands." }];
+
+// ---------- Part 5: NIST Cybersecurity Framework 2.0 functions ----------
+const FNOPT = [["gv", "Govern"], ["id", "Identify"], ["pr", "Protect"], ["de", "Detect"], ["rs", "Respond"], ["rc", "Recover"]];
+const DEVSRS = "Detect notices the incident; Respond acts on it.";
+const NIST = [
+  { ans: "gv", text: "Dana approves Trailhead's cybersecurity policy and makes Sam responsible for keeping it current.", work: "Setting policy and responsibility is Govern." },
+  { ans: "gv", text: "Marcus and Dana decide how much cyber risk Trailhead will accept and review that choice each year.", work: "Setting risk tolerance is part of Govern." },
+  { ans: "gv", text: "Trailhead adds security requirements to its contracts with the web store host and the payroll service.", work: "CSF 2.0 puts supply-chain risk management under Govern.",
+    traps: { id: "CSF 2.0 moved supply-chain risk management into Govern." } },
+  { ans: "id", text: "Sam keeps a list of every laptop, scanner and cloud service Trailhead uses.", work: "Knowing your assets is Identify." },
+  { ans: "id", text: "Marcus ranks which data would hurt Trailhead most if exposed, such as customer lists and bank details.", work: "Judging what matters most is risk assessment, under Identify." },
+  { ans: "id", text: "Sam reviews the monthly vulnerability scan of the web store and rates each finding.", work: "Finding and rating weaknesses is risk assessment, under Identify." },
+  { ans: "pr", text: "Every employee completes security awareness training each spring.", work: "Training is a safeguard, under Protect." },
+  { ans: "pr", text: "Staff laptops use full-disk encryption.", work: "Encryption protects data before anything goes wrong." },
+  { ans: "pr", text: "The shared drive is backed up every night to storage kept offline.", work: "CSF 2.0 lists making and protecting backups under Protect.",
+    traps: { rc: "Making backups protects data ahead of time (Protect); restoring them after an incident is Recover." } },
+  { ans: "de", text: "Sam gets an alert when someone signs in to NetSuite from a new country.", work: "Spotting unusual activity is Detect." },
+  { ans: "de", text: "Antivirus software scans laptops and alerts Sam when it finds malware.", work: "Monitoring for attacks is Detect." },
+  { ans: "de", text: "Each morning Sam reviews the web store's logs for unusual traffic.", work: "Watching logs for signs of attack is Detect." },
+  { ans: "rs", text: "After an employee clicks a phishing link, Sam disconnects the laptop from the network.", work: "Containing an incident in progress is Respond." },
+  { ans: "rs", text: "Marcus notifies First Harbor Bank and Trailhead's insurer within a day of an incident, as the response plan requires.", work: "Communicating during an incident is Respond." },
+  { ans: "rs", text: "Sam reviews the logs to work out how an attacker got in.", work: "Analyzing an incident is Respond." },
+  { ans: "rc", text: "Sam restores the shared drive from last night's offline backup after a ransomware attack.", work: "Restoring operations is Recover.",
+    traps: { pr: "Restoring backups after an incident is Recover; making and protecting them ahead of time is Protect." } },
+  { ans: "rc", text: "After an outage, Marcus tells wholesale customers when ordering will be back.", work: "Communicating during restoration is Recover." },
+  { ans: "rc", text: "Sam checks that restored files are complete and clean before staff use them again.", work: "Confirming a clean restore is part of Recover." }];
+
+// ---------- Problem generator ----------
+// Each part draws its catalog items with the spec's rules; the order drawn is the order shown. No numbers change.
+function gen(seed) {
+  const r = mulberry32(seed);
+  let tries = 0;
+  const draw = (n, k, ok) => {
+    for (;;) {
+      if (++tries > 50000) throw new Error("Could not generate a problem set");
+      const xs = []; while (xs.length < k) { const i = Math.floor(r() * n); if (xs.indexOf(i) < 0) xs.push(i); }
+      if (ok(xs)) return xs;
+    }
+  };
+  const count = (xs, cat, key, v) => xs.filter(i => cat[i][key] === v).length;
+  // Part 1: five situations, at least one from each area.
+  const area = draw(AREAS.length, 5, xs => AREAOPT.every(o => count(xs, AREAS, "ans", o[0]) >= 1));
+  // Part 2: four situations, at least one with no deficiency, at least two deficiencies, each deficiency with its own reason.
+  const deficiency = draw(DEFS.length, 4, xs => {
+    const yes = xs.filter(i => DEFS[i].def === "yes");
+    return yes.length >= 2 && yes.length <= 3 && new Set(yes.map(i => DEFS[i].why)).size === yes.length;
+  });
+  // Part 3: five controls, at least two of each answer.
+  const soc = draw(SOCS.length, 5, xs => WHOOPT.every(o => count(xs, SOCS, "ans", o[0]) >= 2));
+  // Part 4: three incidents with three different threats.
+  const threats = draw(THREATS.length, 3, xs => new Set(xs.map(i => THREATS[i].threat)).size === 3);
+  // Part 5: six activities from at least four functions, no more than two of any.
+  const nist = draw(NIST.length, 6, xs => new Set(xs.map(i => NIST[i].ans)).size >= 4 && FNOPT.every(o => count(xs, NIST, "ans", o[0]) <= 2));
+  return { area, deficiency, soc, threats, nist };
+}
+
+// ---------- Parts ----------
+const optLabel = (opts, v) => { const o = opts.find(x => x[0] === v); return o ? o[1] : String(v); };
+const not = (opts, v) => "Not “" + optLabel(opts, v) + ".” ";
+function sel(id, label, opts, ans, work, wrong, row, col) { return { id, label, kind: "sel", opts, ans, work, wrong, row, col }; }
+const trapOf = (x, v) => x.traps && Object.prototype.hasOwnProperty.call(x.traps, v) ? x.traps[v] + " " : "";
+function buildParts(P) {
+  const parts = [];
+
+  // Part 1: which ITGC area.
+  const as = P.area.map(i => AREAS[i]);
+  parts.push({ id: "area", phase: "itgc", tick: "1", title: "Which ITGC area?", layout: "table", numbered: true,
+    desc: "From Marcus Oyelaran, Controller: An IT auditor from Hartwell & Lowe is coming to talk with us about our systems. Get ready by sorting these situations. " +
+      "Which IT general control area does each belong to, and is it a deficiency? Which controls do Oracle's SOC reports cover, and which must we run ourselves? " +
+      "After Monday's class on cyber, match some threats to the controls that answer them, and place our security activities in the NIST Cybersecurity Framework.\n\n" +
+      SCENARIO + "\n\nIT general controls (ITGCs) fall into three areas: access to programs and data, program change management, and computer operations. " +
+      "For each situation, choose the area it belongs to. Parts 4 and 5 use Monday's cyber class, so start a graded attempt only after that class.",
+    itemLabel: "Situation", cols: [{ key: "area", label: "ITGC area" }],
+    items: as.map(a => ({ text: a.text })),
+    fields: as.map((a, i) => sel("area" + i, "Situation " + (i + 1) + ": ITGC area", AREAOPT, a.ans, a.work, v =>
+      not(AREAOPT, v) + AREAWHY[[v, a.ans].sort().join("-")] + " " + a.work, i, "area")),
+    hint: "Who can get in (access), how the system is altered (change), or how it runs day to day (operations)?",
+    why: "Application controls such as the three-way match only work if ITGCs keep the system secure, unchanged without approval and running.",
+    walk: as.map((a, i) => ({ keys: ["area" + i], text: "Situation " + (i + 1) + ": " + a.work, formula: optLabel(AREAOPT, a.ans) })) });
+
+  // Part 2: deficiency or not, and why.
+  const ds = P.deficiency.map(i => DEFS[i]);
+  parts.push({ id: "deficiency", phase: "itgc", tick: "2", title: "Deficiency or not?", layout: "table", numbered: true,
+    desc: "Each situation shows an IT general control at work. Decide whether it shows a deficiency: a control that is missing, or that didn't work as it should. " +
+      "Then choose the reason: the control worked as designed, or what went wrong.",
+    itemLabel: "Situation", cols: [{ key: "def", label: "Deficiency?" }, { key: "why", label: "Reason" }],
+    items: ds.map(d => ({ text: d.text })),
+    fields: ds.flatMap((d, i) => [
+      sel("def" + i, "Situation " + (i + 1) + ": deficiency or not", DEFOPT, d.def,
+        d.def === "yes" ? "The evidence shows the control didn't do its job, so it's a deficiency." : "The evidence shows the control doing its job, so there's no deficiency.",
+        v => not(DEFOPT, v) + d.work + (d.def === "no" ? " " + WORKING : ""), i, "def"),
+      sel("why" + i, "Situation " + (i + 1) + ": reason", WHYOPT, d.why, d.work,
+        v => not(WHYOPT, v) + d.work + (d.def === "no" ? " " + WORKING : ""), i, "why")]),
+    hint: "Ask what the control is meant to do, then whether the evidence shows it happened: approved, tested, followed up, limited.",
+    why: "Auditors report ITGC deficiencies because they weaken every automated control that depends on the system.",
+    walk: ds.map((d, i) => ({ keys: ["def" + i, "why" + i], text: "Situation " + (i + 1) + ": " + d.work,
+      formula: optLabel(DEFOPT, d.def) + " · " + optLabel(WHYOPT, d.why) })) });
+
+  // Part 3: the provider's control or Trailhead's.
+  const os = P.soc.map(i => SOCS[i]);
+  parts.push({ id: "soc", phase: "itgc", tick: "3", title: "Oracle's control or ours?", layout: "table", numbered: true,
+    desc: "NetSuite is a cloud service that Oracle runs. Oracle's SOC reports cover the controls Oracle runs, and Trailhead's auditor relies on them. " +
+      "Other controls only Trailhead can run. For each control, say who runs it.",
+    itemLabel: "Control", cols: [{ key: "who", label: "Who runs it" }],
+    items: os.map(o => ({ text: o.text })),
+    fields: os.map((o, i) => sel("who" + i, "Control " + (i + 1) + ": who runs it", WHOOPT, o.ans, o.work, v =>
+      not(WHOOPT, v) + (o.trap ? o.trap + " " : "") + o.work + (o.ans === "svc" ? " " + RELIES : ""), i, "who")),
+    hint: "If it happens inside Oracle's data centers or software, the SOC reports cover it. If Trailhead decides, configures, reviews or reconciles it, Trailhead must run it.",
+    why: "A SOC report covers only the provider's side; Trailhead's auditor still tests the controls Trailhead runs.",
+    walk: os.map((o, i) => ({ keys: ["who" + i], text: "Control " + (i + 1) + ": " + o.work, formula: optLabel(WHOOPT, o.ans) })) });
+
+  // Part 4: threats and the controls that answer them.
+  const ts = P.threats.map(i => THREATS[i]);
+  parts.push({ id: "threats", phase: "cyber", tick: "4", title: "Threats and the controls that answer them", layout: "table", numbered: true,
+    desc: "This part uses Monday's class on cyber. For each incident, name the threat, then choose the control that would best stop it or limit the damage.",
+    itemLabel: "Incident", cols: [{ key: "threat", label: "Threat" }, { key: "ctl", label: "Control that answers it" }],
+    items: ts.map(t => ({ text: t.text })),
+    fields: ts.flatMap((t, i) => [
+      sel("threat" + i, "Incident " + (i + 1) + ": threat", THREATOPT, t.threat, THREATWHY[t.threat], v =>
+        not(THREATOPT, v) + ([v, t.threat].sort().join("-") === "imperson-phish" ? PHISHVSIMP : THREATWHY[t.threat]), i, "threat"),
+      Object.assign(sel("ctl" + i, "Incident " + (i + 1) + ": control", CTLOPT, t.ctl, t.work, v => not(CTLOPT, v) + trapOf(t, v) + t.work, i, "ctl"),
+        t.alt ? { alt: t.alt, altMsg: t.altMsg } : {})]),
+    hint: "Name the attack by how it works, then pick the control that breaks that step.",
+    why: "Cyber risks threaten the accuracy and confidentiality of accounting data, so they belong in internal control.",
+    walk: ts.map((t, i) => ({ keys: ["threat" + i, "ctl" + i], text: "Incident " + (i + 1) + ": " + THREATWHY[t.threat] + " " + t.work,
+      formula: optLabel(THREATOPT, t.threat) + " · " + optLabel(CTLOPT, t.ctl) })) });
+
+  // Part 5: NIST CSF 2.0 functions.
+  const ns = P.nist.map(i => NIST[i]);
+  parts.push({ id: "nist", phase: "cyber", tick: "5", title: "NIST CSF 2.0 functions", layout: "table", numbered: true,
+    desc: "The NIST Cybersecurity Framework (CSF) 2.0 sorts a cyber program into six functions. For each of Trailhead's security activities, choose the function it belongs to.",
+    itemLabel: "Activity", cols: [{ key: "fn", label: "CSF 2.0 function" }],
+    items: ns.map(n => ({ text: n.text })),
+    fields: ns.map((n, i) => sel("fn" + i, "Activity " + (i + 1) + ": CSF function", FNOPT, n.ans, n.work, v => {
+      const dr = [v, n.ans].sort().join("-") === "de-rs";
+      return not(FNOPT, v) + (trapOf(n, v) || (dr ? DEVSRS + " " : "")) + n.work;
+    }, i, "fn")),
+    hint: "Govern sets direction; Identify knows what you have; Protect prevents; Detect notices; Respond acts; Recover restores.",
+    why: "CSF 2.0 gives Trailhead and its auditors a shared map of what a cyber program should cover.",
+    walk: ns.map((n, i) => ({ keys: ["fn" + i], text: "Activity " + (i + 1) + ": " + n.work, formula: optLabel(FNOPT, n.ans) })) });
+  return parts;
+}
+
+// ---------- Grading ----------
+// Every field is a choice: right, or "Not “label.”" with the reason. A blank or unknown choice reads as unchosen.
+function grade(p, vals) {
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id], v = typeof raw === "string" ? raw : "";
+    if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+    else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : (f.alt || []).indexOf(v) >= 0 ? { ok: true, msg: "Correct. " + f.altMsg } : { ok: false, msg: f.wrong(v, vals) };
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Trailhead Outfitters Co.</b> sells camping and hiking gear to outdoor shops and web shoppers and buys it from its vendors, all in NetSuite. You are a staff accountant reporting to Marcus Oyelaran, the controller."; }
+// The data panel is the same in both modes and reads nothing from the problem (IL5 has no public info).
+function dtab(caption, cols, rows) {
+  return '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">' + esc(caption) + '</div></caption><thead><tr>' +
+    cols.map(c => '<th scope="col">' + esc(c) + '</th>').join("") + '</tr></thead><tbody>' +
+    rows.map(row => '<tr>' + row.map((x, i) => i === 0 ? '<th scope="row">' + esc(x) + '</th>' : '<td>' + esc(x) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+// Trailhead's IT setup for this lab's panel.
+const SETUP = [
+  "NetSuite is a cloud ERP run by Oracle. Oracle gives its customers SOC 1 and SOC 2 reports each year.",
+  "The web store is hosted by an outside company.",
+  "Payroll is outsourced to a payroll service.",
+  "Sam Okafor is Trailhead's IT contractor.",
+  "Trailhead has a NetSuite sandbox account for building and testing changes. Before each of NetSuite's twice-yearly upgrades, it gets a release preview account to test its own setup."];
+const ITGC_TERMS = [
+  ["Access to programs and data", "Who can sign in to a system, from where, and what each person can see or change."],
+  ["Program change management", "How changes to programs, settings and scripts are requested, built, tested, approved and moved into the live system."],
+  ["Computer operations", "Running the system day to day: scheduled jobs and data transfers, keeping data recoverable, and handling failures."]];
+const SOC_TERMS = [
+  ["SOC report", "A service auditor's report on the controls a service provider runs. A SOC 1 report covers controls that matter to customers' financial reporting; a SOC 2 report covers security, availability, processing integrity, confidentiality and privacy."],
+  ["Complementary user entity control (CUEC)", "A control that the provider's SOC report says each customer must run itself, so that the provider's controls work as described."]];
+const NIST_TERMS = [
+  ["Govern", "Sets the organization's cybersecurity strategy, policy, roles and risk tolerance."],
+  ["Identify", "Understands the organization's assets, data and cyber risks."],
+  ["Protect", "Uses safeguards that prevent an incident or limit its harm."],
+  ["Detect", "Finds attacks and unusual activity."],
+  ["Respond", "Takes action on an incident that has been detected."],
+  ["Recover", "Restores assets and operations after an incident."]];
+const NOTE = '<p class="note">These situations are practice scenarios written for this lab. They are not Trailhead\'s records, and they don\'t describe how its NetSuite account is set up.</p>';
+const CYBER_NOTE = '<p class="note">Parts 4 and 5 use Monday\'s class on cyber (Session 24). In graded mode you can\'t skip ahead, so start your graded attempt after that class.</p>';
+const setupBlock = () => '<ul class="setup" aria-label="Trailhead\'s IT setup">' + SETUP.map(s => '<li>' + esc(s) + '</li>').join("") + '</ul>';
+function dataHTML(c) {
+  const id = c.part ? c.part.id : "";
+  if (id === "soc") return { sub: "The cloud provider and its SOC reports", html: setupBlock() + dtab("SOC reports", ["Term", "Meaning"], SOC_TERMS) + NOTE };
+  if (id === "threats") return { sub: "Systems an attacker could target", html: setupBlock() + NOTE + CYBER_NOTE };
+  if (id === "nist") return { sub: "NIST CSF 2.0 functions", html: dtab("The six functions of NIST CSF 2.0", ["Function", "What it covers"], NIST_TERMS) + NOTE + CYBER_NOTE };
+  return { sub: "Systems and IT general control areas", html: setupBlock() + dtab("The three IT general control areas", ["Area", "What it covers"], ITGC_TERMS) + NOTE + CYBER_NOTE };
+}
+
+MAFrame.start({
+  slug: "ais-itgc-cyber", key: "ais-itgc-cyber1", module: "IL5", title: "IT General Controls and Cyber",
+  phases: [["itgc", "IT general controls"], ["cyber", "Cyber (after S24)"]],
+  dataTitle: "Trailhead's IT setup",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: () => ({}), biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
