@@ -56,7 +56,7 @@ const AREAS = [
   { ans: "access", text: "Sam creates a NetSuite login only after Nora sends an HR request listing the role Marcus approved.", work: "Granting logins and roles controls who can reach programs and data." },
   { ans: "access", text: "NetSuite locks a login after five wrong passwords in a row.", work: "Lockouts protect against someone guessing their way in." },
   { ans: "access", text: "NetSuite signs a user out after 30 minutes without activity.", work: "Ending idle sessions keeps someone else from using an unattended login." },
-  { ans: "access", text: "Saved searches that show customer bank details can be opened only by the Controller role.", work: "Restricting sensitive data to certain roles is an access control." },
+  { ans: "access", text: "At a company like Trailhead, saved searches that show customer bank details can be opened only by the controller's role.", work: "Restricting sensitive data to certain roles is an access control." },
   { ans: "access", text: "The web store's admin pages can be opened only from Trailhead's office network.", work: "Limiting where a system can be reached from restricts access to it." },
   { ans: "change", text: "Sam builds a new approval workflow in the sandbox; Priya tests it and Marcus approves it before Sam moves it to production.", work: "Building, testing and approving before go-live is change management." },
   { ans: "change", text: "Before NetSuite's twice-yearly upgrade, Priya reruns Trailhead's key saved searches in the release preview account.", work: "Testing how an upgrade affects Trailhead's setup is part of managing change." },
@@ -64,14 +64,14 @@ const AREAS = [
   { ans: "change", text: "Scripts that change NetSuite data can be deployed only from the sandbox through a change ticket.", work: "Routing every script through a controlled path is change management." },
   { ans: "change", text: "The web store host changes Trailhead's checkout pages only after a ticket approved by Sam and Marcus.", work: "Approved tickets for changes to a system Trailhead relies on are change management." },
   { ans: "ops", text: "Sam gets an alert when the hourly web store import fails, reruns it and logs the incident.", work: "Monitoring scheduled jobs and fixing failures is computer operations." },
-  { ans: "ops", text: "Each morning Priya confirms that last night's bank feed loaded into NetSuite.", work: "Checking that scheduled data transfers ran is an operations control." },
+  { ans: "ops", text: "Each morning Sam confirms that last night's bank feed loaded into NetSuite.", work: "Checking that scheduled data transfers ran is an operations control." },
   { ans: "ops", text: "The shared drive is backed up every night, and Sam restores a test folder each quarter.", work: "Backups and restore tests keep data recoverable, an operations task." },
   { ans: "ops", text: "Sam keeps a log of outages and failed imports and closes each one with its fix.", work: "Tracking incidents to resolution is part of computer operations." },
-  { ans: "ops", text: "Sam schedules the monthly depreciation script to run after close and checks its output report.", work: "Running and checking scheduled jobs is computer operations." }];
+  { ans: "ops", text: "Sam schedules the monthly depreciation script to run at month-end, before the period is locked, and checks its output report.", work: "Running and checking scheduled jobs is computer operations." }];
 
 // ---------- Part 2: deficiency or not ----------
 const DEFOPT = [["yes", "Deficiency"], ["no", "No deficiency"]];
-const WHYOPT = [["ok", "Works as designed: approved, tested and documented"], ["noapproval", "Change went live without approval"],
+const WHYOPT = [["ok", "Works as designed: no deficiency"], ["noapproval", "Change went live without approval"],
   ["notest", "Change went live without testing"], ["selftest", "Change tested only by the person who built it"],
   ["nofollow", "Failure not detected or followed up promptly"], ["norestore", "Backups never tested by a restore"],
   ["excess", "Access granted beyond what was approved"], ["noverify", "Identity not verified before a password reset"]];
@@ -90,7 +90,7 @@ const DEFS = [
   { def: "yes", why: "noverify", text: "Sam reset Ben's NetSuite password after a phone call from someone who said he was Ben, without calling Ben back at the number on file.", work: "Anyone could pretend to be Ben; the reset needed an identity check first." },
   { def: "no", why: "ok", text: "Before NetSuite's spring upgrade, Priya tested Trailhead's invoice template and saved searches in the release preview and logged the results.", work: "Testing Trailhead's setup before the upgrade is the control working." },
   { def: "yes", why: "notest", text: "NetSuite's spring upgrade went live without anyone testing Trailhead's custom invoice template; invoices went out with blank totals for a day.", work: "Trailhead must test its own customizations before an upgrade reaches them." },
-  { def: "no", why: "ok", text: "Priya's morning check found last night's bank feed hadn't loaded; she logged an incident and Sam reloaded it before noon.", work: "The check caught the failure and it was fixed promptly." }];
+  { def: "no", why: "ok", text: "Sam's morning check found last night's bank feed hadn't loaded; he logged an incident and reloaded it before noon.", work: "The check caught the failure and it was fixed promptly." }];
 
 // ---------- Part 3: the service provider's control or Trailhead's ----------
 const WHOOPT = [["svc", "Oracle NetSuite (its SOC reports cover it)"], ["own", "Trailhead must run it"]];
@@ -140,7 +140,7 @@ const THREATS = [
     work: "Practice with simulated phishing teaches people to spot and report it." },
   { threat: "ransom", ctl: "backup", text: "Overnight, files on the shared drive were encrypted and a note demanded payment in cryptocurrency.",
     work: "Clean offline backups let Trailhead restore without paying." },
-  { threat: "imperson", ctl: "verify", text: "On a video call, someone who looks and sounds like Dana asks Priya to wire $40,000 to a new supplier today. It was an AI-generated likeness.",
+  { threat: "imperson", ctl: "verify", text: "On a video call, someone who looks and sounds like Dana tells Marcus she approves a $40,000 payment to a new supplier and asks him to send it today. It was an AI-generated likeness.",
     work: "Calling Dana back on a known number would expose the fake." },
   { threat: "imperson", ctl: "verify", text: "An email that seems to be from Dana asks Elena to buy $2,000 in gift cards for a client event and send the codes.",
     work: "Confirming through a separate, known channel stops the impersonator." },
@@ -149,7 +149,7 @@ const THREATS = [
     altMsg: "A second factor is accepted too: it blocks sign-ins with leaked passwords. Lockout and rate limiting stop the flood of attempts itself." },
   { threat: "dos", ctl: "ddos", text: "The web store goes down on Black Friday under a flood of junk traffic.",
     work: "The host's DDoS protection filters the flood before it reaches the store." },
-  { threat: "insider", ctl: "dlp", text: "A sales rep who has given notice downloads the full customer list with contact details.",
+  { threat: "insider", ctl: "dlp", text: "A warehouse clerk whose job needs no customer data exports the full customer list with contact details.",
     work: "Limiting access to what the job needs, and alerting on big downloads, catches this." },
   { threat: "device", ctl: "encrypt", text: "A laptop with saved NetSuite reports is stolen from an employee's car.",
     work: "Encryption keeps the files unreadable and remote wipe erases them.",
@@ -183,6 +183,10 @@ const NIST = [
   { ans: "rc", text: "After an outage, Marcus tells wholesale customers when ordering will be back.", work: "Communicating during restoration is Recover." },
   { ans: "rc", text: "Sam checks that restored files are complete and clean before staff use them again.", work: "Confirming a clean restore is part of Recover." }];
 
+// Pairs that state opposite facts about the same control: [catalog of the first item ("A" Part 1, "D" Part 2), its index,
+// the Part 2 index]. Three pairs sit within Part 2 and four pair a Part 1 situation with a Part 2 situation.
+const CLASH = [["D", 4, 5], ["D", 6, 7], ["D", 11, 12], ["A", 6, 12], ["A", 9, 2], ["A", 10, 4], ["A", 12, 6]];
+
 // ---------- Problem generator ----------
 // Each part draws its catalog items with the spec's rules; the order drawn is the order shown. No numbers change.
 function gen(seed) {
@@ -199,9 +203,11 @@ function gen(seed) {
   // Part 1: five situations, at least one from each area.
   const area = draw(AREAS.length, 5, xs => AREAOPT.every(o => count(xs, AREAS, "ans", o[0]) >= 1));
   // Part 2: four situations, at least one with no deficiency, at least two deficiencies, each deficiency with its own reason.
+  // Situations that describe the same control two opposite ways never appear in one attempt (CLASH).
   const deficiency = draw(DEFS.length, 4, xs => {
     const yes = xs.filter(i => DEFS[i].def === "yes");
-    return yes.length >= 2 && yes.length <= 3 && new Set(yes.map(i => DEFS[i].why)).size === yes.length;
+    return yes.length >= 2 && yes.length <= 3 && new Set(yes.map(i => DEFS[i].why)).size === yes.length &&
+      !CLASH.some(c => (c[0] === "D" ? xs.indexOf(c[1]) >= 0 : area.indexOf(c[1]) >= 0) && xs.indexOf(c[2]) >= 0);
   });
   // Part 3: five controls, at least two of each answer.
   const soc = draw(SOCS.length, 5, xs => WHOOPT.every(o => count(xs, SOCS, "ans", o[0]) >= 2));
@@ -227,7 +233,7 @@ function buildParts(P) {
       "Which IT general control area does each belong to, and is it a deficiency? Which controls do Oracle's SOC reports cover, and which must we run ourselves? " +
       "After Monday's class on cyber, match some threats to the controls that answer them, and place our security activities in the NIST Cybersecurity Framework.\n\n" +
       SCENARIO + "\n\nIT general controls (ITGCs) fall into three areas: access to programs and data, program change management, and computer operations. " +
-      "For each situation, choose the area it belongs to. Parts 4 and 5 use Monday's cyber class, so start a graded attempt only after that class.",
+      "For each situation, choose the area it belongs to. Parts 4 and 5 use Monday's cyber class, so graded mode opens after that class.",
     itemLabel: "Situation", cols: [{ key: "area", label: "ITGC area" }],
     items: as.map(a => ({ text: a.text })),
     fields: as.map((a, i) => sel("area" + i, "Situation " + (i + 1) + ": ITGC area", AREAOPT, a.ans, a.work, v =>
@@ -241,7 +247,7 @@ function buildParts(P) {
   parts.push({ id: "deficiency", phase: "itgc", tick: "2", title: "Deficiency or not?", layout: "table", numbered: true,
     desc: "Each situation shows an IT general control at work. Decide whether it shows a deficiency: a control that is missing, or that didn't work as it should. " +
       "Then choose the reason: the control worked as designed, or what went wrong.",
-    itemLabel: "Situation", cols: [{ key: "def", label: "Deficiency?" }, { key: "why", label: "Reason" }],
+    itemLabel: "Situation", cols: [{ key: "def", label: "Deficiency" }, { key: "why", label: "Reason" }],
     items: ds.map(d => ({ text: d.text })),
     fields: ds.flatMap((d, i) => [
       sel("def" + i, "Situation " + (i + 1) + ": deficiency or not", DEFOPT, d.def,
@@ -314,7 +320,7 @@ function grade(p, vals) {
 /* ==== LAB END ==== */
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-function bizHTML() { return "<b>Trailhead Outfitters Co.</b> sells camping and hiking gear to outdoor shops and web shoppers and buys it from its vendors, all in NetSuite. You are a staff accountant reporting to Marcus Oyelaran, the controller."; }
+function bizHTML() { return "<b>Trailhead Outfitters Co.</b> sells camping and hiking gear to outdoor shops and web shoppers and buys it from its vendors, all in NetSuite. You are a staff accountant reporting to Marcus Oyelaran, the controller. Parts 4 and 5 use the Session 24 class on cyber, so graded mode opens after that class; practice is open now."; }
 // The data panel is the same in both modes and reads nothing from the problem (IL5 has no public info).
 function dtab(caption, cols, rows) {
   return '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">' + esc(caption) + '</div></caption><thead><tr>' +
@@ -343,7 +349,7 @@ const NIST_TERMS = [
   ["Respond", "Takes action on an incident that has been detected."],
   ["Recover", "Restores assets and operations after an incident."]];
 const NOTE = '<p class="note">These situations are practice scenarios written for this lab. They are not Trailhead\'s records, and they don\'t describe how its NetSuite account is set up.</p>';
-const CYBER_NOTE = '<p class="note">Parts 4 and 5 use Monday\'s class on cyber (Session 24). In graded mode you can\'t skip ahead, so start your graded attempt after that class.</p>';
+const CYBER_NOTE = '<p class="note">Parts 4 and 5 use Monday\'s class on cyber (Session 24). Graded mode opens after that class; practice is open now.</p>';
 const setupBlock = () => '<ul class="setup" aria-label="Trailhead\'s IT setup">' + SETUP.map(s => '<li>' + esc(s) + '</li>').join("") + '</ul>';
 function dataHTML(c) {
   const id = c.part ? c.part.id : "";
