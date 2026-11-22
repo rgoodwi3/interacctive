@@ -394,6 +394,16 @@ const TOPICS = {
     ],
     of: ids([["coso", ["coso"]], ["fraud", ["fraud"]], ["classify", ["classify"]], ["sod", ["sod"]], ["riskcontrol", ["riskcontrol"]]]),
   },
+  "ais-keys-cardinality": {
+    topics: [
+      { key: "keys", label: "Primary and foreign keys" },
+      { key: "card", label: "Cardinality from business rules" },
+      { key: "fk", label: "Placing foreign keys" },
+      { key: "link", label: "Linking tables and composite keys" },
+      { key: "integrity", label: "Referential integrity and duplicate keys" },
+    ],
+    of: ids([["keys", ["keys"]], ["card", ["card"]], ["fk", ["fk"]], ["link", ["link"]], ["integrity", ["integrity"]]]),
+  },
 };
 
 // The assigned concepts as a clean list for this lab: only known keys, in catalog order. null means the
