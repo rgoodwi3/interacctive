@@ -64,11 +64,11 @@ const PAIR = {
   "14-15": "Principle 14 is communicating inside the company; 15 is communicating with outside parties.",
   "16-17": "16 checks whether controls work; 17 reports and fixes what doesn't." };
 const COSO = [
-  { comp: "ce", prin: 1, text: "Dana issues a code of conduct, and every employee signs that they've read it each January.",
+  { comp: "ce", prin: 1, text: "Rob issues a code of conduct, and every employee signs that they've read it each January.",
     work: "Setting and enforcing standards of conduct shows the commitment to integrity at the top." },
   { comp: "ce", prin: 2, text: "At a company like Trailhead, two outside directors meet with the controller each quarter to review the statements and the fraud hotline log.",
     work: "Oversight by directors independent of management is board oversight." },
-  { comp: "ce", prin: 3, text: "Dana updates the organization chart so purchasing reports to her and accounts payable reports to Marcus.",
+  { comp: "ce", prin: 3, text: "Rob updates the organization chart so purchasing reports to him and accounts payable reports to Marcus.",
     work: "Reporting lines and clear authority are part of structure and responsibility." },
   { comp: "ce", prin: 4, text: "Trailhead pays for Priya's CPA review course and requires annual NetSuite training for every user.",
     work: "Developing and keeping skilled people is a commitment to competence." },
@@ -78,11 +78,11 @@ const COSO = [
     work: "A clear, measurable reporting objective comes before risks can be judged against it." },
   { comp: "ra", prin: 7, text: "Before peak season, Marcus lists what could go wrong in order-to-cash and rates each risk's likelihood and impact.",
     work: "Listing and rating risks is identifying and analyzing risk." },
-  { comp: "ra", prin: 8, text: "Marcus and Dana brainstorm how someone could steal inventory or pad an expense report, and who would have the chance.",
+  { comp: "ra", prin: 8, text: "Marcus and Rob brainstorm how someone could steal inventory or pad an expense report, and who would have the chance.",
     work: "Thinking through how fraud could happen is the fraud risk assessment." },
   { comp: "ra", prin: 9, text: "When Trailhead plans a second warehouse, Marcus reviews how it will change receiving and inventory controls.",
     work: "A major change gets its own risk review before it happens." },
-  { comp: "ca", prin: 10, text: "NetSuite won't send a purchase order over $25,000 until Dana approves it.",
+  { comp: "ca", prin: 10, text: "NetSuite won't send a purchase order over $25,000 until Rob approves it.",
     work: "A control built into the process to address a known risk is a control activity." },
   { comp: "ca", prin: 11, text: "Sam Okafor tests NetSuite setting changes in a sandbox account before moving them to the live account.",
     work: "Controls over how the technology itself is changed are general controls over technology." },
@@ -96,7 +96,7 @@ const COSO = [
     work: "Reporting to outside parties is external communication." },
   { comp: "mo", prin: 16, text: "Each quarter Priya recounts a sample of warehouse bins and compares them with NetSuite's on-hand quantities to see whether cycle counts are working.",
     work: "Checking that controls are working is a separate evaluation." },
-  { comp: "mo", prin: 17, text: "Hartwell & Lowe report two control weaknesses; Marcus tells Dana and assigns an owner and a deadline for each fix.",
+  { comp: "mo", prin: 17, text: "Hartwell & Lowe report two control weaknesses; Marcus tells Rob and assigns an owner and a deadline for each fix.",
     work: "Reporting weaknesses to those who can fix them, and tracking the fix, is evaluating and communicating deficiencies." }];
 
 // ---------- Part 2: the fraud triangle (statements about roles at a company like Trailhead) ----------
@@ -138,7 +138,7 @@ const CTRL = [
   { ipo: "processing", pd: "prev", am: "auto", text: "NetSuite computes each line and the invoice total from quantity × rate.", work: "The system does the calculation, so a math error can't happen." },
   { ipo: "processing", pd: "det", am: "auto", text: "After the overnight import of web orders, NetSuite recomputes the order count and dollar total and flags any difference from the totals the web store sent.", work: "Recalculating batch totals during processing catches lost or duplicated orders." },
   { ipo: "processing", pd: "det", am: "manual", text: "Each month Marcus recalculates depreciation for a sample of assets and compares it with what was posted.", work: "A person recomputes processed results to find errors." },
-  { ipo: "output", pd: "det", am: "manual", text: "Marcus compares the monthly income statement with budget and investigates large differences before sending it to Dana.", work: "A person reviews the report before it's used." },
+  { ipo: "output", pd: "det", am: "manual", text: "Marcus compares the monthly income statement with budget and investigates large differences before sending it to Rob.", work: "A person reviews the report before it's used." },
   { ipo: "output", pd: "prev", am: "auto", text: "At a company like Trailhead, only the controller and CEO roles can run the report that lists vendor bank account numbers.", work: "The system limits who can see sensitive output." },
   { ipo: "output", pd: "det", am: "auto", text: "NetSuite emails Elena a list of invoices that bounced when they were emailed to customers.", work: "The system reports output that didn't reach its user." },
   { ipo: "output", pd: "prev", am: "manual", text: "Printed payroll summaries go only to a locked tray in the controller's office.", work: "A physical step keeps sensitive output from the wrong people." }];
@@ -340,7 +340,7 @@ function dtab(caption, cols, rows) {
 }
 // Trailhead's people and NetSuite roles for this lab's panel.
 const PEOPLE = [
-  ["Dana Whitfield", "Owner and CEO", "Approves payments over $10,000, new vendors and the budget", "CEO (approve only)"],
+  ["Rob Goodwin", "Owner and CEO", "Approves payments over $10,000, new vendors and the budget", "CEO (approve only)"],
   ["Marcus Oyelaran", "Controller", "Runs the close and prepares the statements", "Controller"],
   ["Priya Raman", "Senior Accountant", "General ledger and month-end accruals; deposits checks daily", "Accountant"],
   ["You", "Staff Accountant", "AR, AP and close tasks", "Accountant"],

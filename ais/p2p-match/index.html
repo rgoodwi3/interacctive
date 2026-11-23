@@ -71,11 +71,11 @@ const REQS = [
     work: "A bank change must be confirmed at the number already in the vendor record, not one the requester supplies." },
   { who: "V-206", dec: "approve", why: "ok", text: "Brightline Gear mailed a letter with new bank details. Aisha's change request says she called Brightline's AP contact at the number already in the vendor record, who confirmed it; her call notes are attached.",
     work: "The change was confirmed through the number on file and documented." },
-  { who: "Fernhill", dec: "escalate", why: "w9", text: "Aisha asks to set up Fernhill Lantern Co., a new headlamp supplier. Dana has approved it and the bank details were confirmed by calling the number on Fernhill's website, but the W-9 hasn't arrived.",
+  { who: "Fernhill", dec: "escalate", why: "w9", text: "Aisha asks to set up Fernhill Lantern Co., a new headlamp supplier. Rob has approved it and the bank details were confirmed by calling the number on Fernhill's website, but the W-9 hasn't arrived.",
     work: "A new vendor needs a W-9 on file before it is set up." },
-  { who: "Ashcroft", dec: "escalate", why: "ceo", text: "Aisha asks to set up Ashcroft Textile Mills, a new sleeping-bag liner supplier. The W-9 is on file and the bank details were confirmed by calling the number on its website. Dana is traveling and hasn't approved it.",
+  { who: "Ashcroft", dec: "escalate", why: "ceo", text: "Aisha asks to set up Ashcroft Textile Mills, a new sleeping-bag liner supplier. The W-9 is on file and the bank details were confirmed by calling the number on its website. Rob is traveling and hasn't approved it.",
     work: "New vendors need the CEO's approval before they are set up." },
-  { who: "Riverbend", dec: "approve", why: "ok", text: "Aisha asks to set up Riverbend Socks LLC. The request has a W-9, Dana's approval and bank details confirmed by calling the number on Riverbend's website.",
+  { who: "Riverbend", dec: "approve", why: "ok", text: "Aisha asks to set up Riverbend Socks LLC. The request has a W-9, Rob's approval and bank details confirmed by calling the number on Riverbend's website.",
     work: "All three steps for a new vendor are done and documented." },
   { who: "V-202", dec: "escalate", why: "dup", text: "Aisha's request to set up “Cascade Loft Textile Inc.” shows the same address and tax ID as Cascade Loft Textiles (V-202).",
     work: "A second record for the same vendor makes duplicate or misdirected payments easier." },
@@ -85,7 +85,7 @@ const REQS = [
     work: "The change was verified through the number on file." },
   { who: "V-207", dec: "escalate", why: "dup", text: "A request to set up “Nor'easter Freight” lists the same bank account and phone number as Nor'easter Freight Lines (V-207).",
     work: "It matches an existing vendor's bank account and phone, so it is likely a duplicate." },
-  { who: "Quarry Hill", dec: "escalate", why: "w9", text: "Aisha asks to set up Quarry Hill Outfitting Supply for a rush order. Dana approved it and the bank details were confirmed by calling the number on its website; the vendor says the W-9 is “in the mail.”",
+  { who: "Quarry Hill", dec: "escalate", why: "w9", text: "Aisha asks to set up Quarry Hill Outfitting Supply for a rush order. Rob approved it and the bank details were confirmed by calling the number on its website; the vendor says the W-9 is “in the mail.”",
     work: "Without a W-9, Trailhead can't confirm the vendor's legal name and tax ID." },
   { who: "V-207", dec: "approve", why: "ok", text: "Nor'easter Freight Lines sent a new remit-to mailing address, with no bank change. Aisha's change request says she confirmed it with Nor'easter's billing contact at the number on file.",
     work: "A confirmed address change with no bank change meets the rule." }];
@@ -325,7 +325,7 @@ function buildParts(P) {
   const rq = P.reqs.map(k => REQS[k]);
   parts.push({ id: "vendor", phase: "vendor", tick: "4", title: "Vendor master requests", layout: "table", numbered: true,
     desc: "The vendor master is the set of vendor records that orders, bills and payments draw on. Decide each pending request: approve it, or escalate it to Marcus, and give the reason. " +
-      "The rule for a new vendor: a W-9 on file, approval from Dana Whitfield, the CEO, and bank details confirmed by calling a number found independently (the vendor's website or a known contact). " +
+      "The rule for a new vendor: a W-9 on file, approval from Rob Goodwin, the CEO, and bank details confirmed by calling a number found independently (the vendor's website or a known contact). " +
       "For an existing vendor, the working rule for these practice requests (not in Trailhead's policy manual): any bank change is confirmed by calling the number already in the vendor record. Aisha Rahman in purchasing submits every request. " +
       "These are practice scenarios written for this lab. They are not part of Trailhead's 2026 records or the evidence for Labs C1 and C2 or Project M3, and they don't describe how Trailhead's NetSuite account or company is actually set up.",
     itemLabel: "Request", cols: [{ key: "dec", label: "Decision" }, { key: "why", label: "Reason" }],
@@ -384,7 +384,7 @@ function billTable(s) {
 const P7 = '<div class="rule"><b>P7 · Three-way match.</b> A vendor bill is paid only when it agrees with the purchase order and the item receipt within 2% or $50, whichever is less.</div>' +
   '<div class="rule"><b>P8 · Payments.</b> The AP specialist prepares the weekly payment run; the controller approves it; the CEO also approves any payment over $10,000.</div>';
 function vendorRule() {
-  return '<div class="rule"><b>New vendor.</b> A W-9 on file, approval from Dana Whitfield (CEO), and bank details confirmed by calling a number found independently: the vendor\'s website or a known contact.</div>' +
+  return '<div class="rule"><b>New vendor.</b> A W-9 on file, approval from Rob Goodwin (CEO), and bank details confirmed by calling a number found independently: the vendor\'s website or a known contact.</div>' +
     '<div class="rule"><b>Existing vendor.</b> Any bank change is confirmed by calling the number already in the vendor record. This is the working rule for these practice requests (not in Trailhead\'s policy manual).</div>' +
     '<div class="rule"><b>Who submits.</b> Aisha Rahman in purchasing submits every request. Escalated requests go to Marcus Oyelaran.</div>' +
     '<p class="note">These requests are practice scenarios written for this lab, not Trailhead\'s records.</p>';
