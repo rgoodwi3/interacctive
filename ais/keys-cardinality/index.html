@@ -99,20 +99,21 @@ const BLANKFK = "A foreign key may be blank when the relationship is optional; r
 
 // ---------- Part 2: relationships and the business rules behind them (all true of Trailhead's data) ----------
 // ab = how many B rows one A row has (min, max); ba = how many A rows one B row has.
+// short = the rule in a few words, shown with its Part 2 fields; it restates the rule and adds nothing.
 const REL = [
-  { id: "R1", a: "Customer", b: "SalesOrder", rule: "Trailhead sets up a new wholesale customer before the first order arrives. Every sales order is for exactly one customer.", ab: ["0", "many"], ba: ["1", "1"] },
-  { id: "R2", a: "SalesOrder", b: "SalesOrderLine", rule: "NetSuite won't save an order without at least one line. Each line belongs to exactly one order.", ab: ["1", "many"], ba: ["1", "1"] },
-  { id: "R3", a: "Item", b: "SalesOrderLine", rule: "New items are added before they're ever sold. Each order line is for exactly one item.", ab: ["0", "many"], ba: ["1", "1"] },
-  { id: "R4", a: "SalesOrder", b: "Shipment", rule: "Each order ships complete in one shipment, and an order may not have shipped yet. Each shipment is for exactly one order.", ab: ["0", "1"], ba: ["1", "1"] },
-  { id: "R5", a: "Customer", b: "CashReceipt", rule: "A new customer may not have paid anything yet. Each receipt comes from exactly one customer.", ab: ["0", "many"], ba: ["1", "1"] },
-  { id: "R6", a: "Vendor", b: "Item", rule: "Expense vendors such as the landlord supply no items. Each item comes from exactly one vendor.", ab: ["0", "many"], ba: ["1", "1"] },
-  { id: "R7", a: "Vendor", b: "PurchaseOrder", rule: "A vendor may have no purchase orders yet. Each purchase order goes to exactly one vendor.", ab: ["0", "many"], ba: ["1", "1"] },
-  { id: "R8", a: "PurchaseOrder", b: "ItemReceipt", rule: "Each PO arrives in one delivery, and a PO may not have arrived yet. Each receipt is against exactly one PO.", ab: ["0", "1"], ba: ["1", "1"] },
-  { id: "R9", a: "JournalEntry", b: "JournalLine", rule: "Every journal entry has at least two lines. Each line belongs to exactly one entry.", ab: ["1", "many"], ba: ["1", "1"], two: true },
-  { id: "R10", a: "SalesOrder", b: "Invoice", rule: "Each order ships once and is invoiced the day it ships; an order not yet shipped has no invoice. Each invoice is for exactly one sales order.", ab: ["0", "1"], ba: ["1", "1"] },
-  { id: "M1", a: "CashReceipt", b: "Invoice", rule: "One check can pay several invoices, and an invoice can be paid in two payments. Every receipt pays at least one invoice; an invoice may not be paid yet.", ab: ["1", "many"], ba: ["0", "many"], mm: true },
-  { id: "M2", a: "SalesOrder", b: "Item", rule: "Every order lists at least one item and can list many. An item appears on many orders, and a new item may not have been ordered yet.", ab: ["1", "many"], ba: ["0", "many"], mm: true },
-  { id: "M3", a: "PurchaseOrder", b: "Item", rule: "Every PO lists at least one item and can list many. An item appears on many POs, and a new item may not have been ordered yet.", ab: ["1", "many"], ba: ["0", "many"], mm: true }];
+  { id: "R1", a: "Customer", b: "SalesOrder", rule: "Trailhead sets up a new wholesale customer before the first order arrives. Every sales order is for exactly one customer.", short: "a new customer is set up before its first order; every order is for exactly one customer", ab: ["0", "many"], ba: ["1", "1"] },
+  { id: "R2", a: "SalesOrder", b: "SalesOrderLine", rule: "NetSuite won't save an order without at least one line. Each line belongs to exactly one order.", short: "an order has at least one line; each line belongs to exactly one order", ab: ["1", "many"], ba: ["1", "1"] },
+  { id: "R3", a: "Item", b: "SalesOrderLine", rule: "New items are added before they're ever sold. Each order line is for exactly one item.", short: "a new item is added before it is sold; each order line is for exactly one item", ab: ["0", "many"], ba: ["1", "1"] },
+  { id: "R4", a: "SalesOrder", b: "Shipment", rule: "Each order ships complete in one shipment, and an order may not have shipped yet. Each shipment is for exactly one order.", short: "an order ships in one shipment or hasn't shipped yet; each shipment is for exactly one order", ab: ["0", "1"], ba: ["1", "1"] },
+  { id: "R5", a: "Customer", b: "CashReceipt", rule: "A new customer may not have paid anything yet. Each receipt comes from exactly one customer.", short: "a new customer may not have paid yet; each receipt comes from exactly one customer", ab: ["0", "many"], ba: ["1", "1"] },
+  { id: "R6", a: "Vendor", b: "Item", rule: "Expense vendors such as the landlord supply no items. Each item comes from exactly one vendor.", short: "some vendors supply no items; each item comes from exactly one vendor", ab: ["0", "many"], ba: ["1", "1"] },
+  { id: "R7", a: "Vendor", b: "PurchaseOrder", rule: "A vendor may have no purchase orders yet. Each purchase order goes to exactly one vendor.", short: "a vendor may have no POs yet; each PO goes to exactly one vendor", ab: ["0", "many"], ba: ["1", "1"] },
+  { id: "R8", a: "PurchaseOrder", b: "ItemReceipt", rule: "Each PO arrives in one delivery, and a PO may not have arrived yet. Each receipt is against exactly one PO.", short: "a PO arrives in one delivery or hasn't arrived yet; each receipt is against exactly one PO", ab: ["0", "1"], ba: ["1", "1"] },
+  { id: "R9", a: "JournalEntry", b: "JournalLine", rule: "Every journal entry has at least two lines. Each line belongs to exactly one entry.", short: "an entry has at least two lines; each line belongs to exactly one entry", ab: ["1", "many"], ba: ["1", "1"], two: true },
+  { id: "R10", a: "SalesOrder", b: "Invoice", rule: "Each order ships once and is invoiced the day it ships; an order not yet shipped has no invoice. Each invoice is for exactly one sales order.", short: "an order is invoiced once, when it ships, and not before; each invoice is for exactly one order", ab: ["0", "1"], ba: ["1", "1"] },
+  { id: "M1", a: "CashReceipt", b: "Invoice", rule: "One check can pay several invoices, and an invoice can be paid in two payments. Every receipt pays at least one invoice; an invoice may not be paid yet.", short: "every receipt pays at least one invoice and can pay several; an invoice may be unpaid or paid in two payments", ab: ["1", "many"], ba: ["0", "many"], mm: true },
+  { id: "M2", a: "SalesOrder", b: "Item", rule: "Every order lists at least one item and can list many. An item appears on many orders, and a new item may not have been ordered yet.", short: "every order lists at least one item and can list many; an item is on many orders, or none yet", ab: ["1", "many"], ba: ["0", "many"], mm: true },
+  { id: "M3", a: "PurchaseOrder", b: "Item", rule: "Every PO lists at least one item and can list many. An item appears on many POs, and a new item may not have been ordered yet.", short: "every PO lists at least one item and can list many; an item is on many POs, or none yet", ab: ["1", "many"], ba: ["0", "many"], mm: true }];
 const MINOPT = [["0", "0 (optional)"], ["1", "1 (mandatory)"]];
 const MAXOPT = [["1", "One"], ["many", "Many"]];
 
@@ -328,6 +329,8 @@ function buildParts(P) {
   const card = [];
   rs.forEach((s, i) => {
     const pair = cap(s.tx.one) + "–" + s.ty.one;
+    // The first field of each group of four carries the rule in short, so students needn't scroll back to it.
+    const ruleSub = "Rule " + (i + 1) + " · " + cap(s.tx.one) + " and " + s.ty.one + ": " + s.R.short + ".";
     // One field counts C rows for one O row: c = [min, max] from the rule.
     const side = (O, C, c, back, tag) => {
       const two = s.R.two && O === T.JournalEntry;
@@ -338,10 +341,10 @@ function buildParts(P) {
       card.push(sel(tag + "min" + i, pair + " · Fewest " + C.many + " for one " + O.one, MINOPT, c[0], minW, v =>
         not(MINOPT, v) + (c[0] === "0" ? "The rule allows " + an(O.one) + " with no " + C.many + " yet, so the minimum is 0." :
           two ? "'At least two' is drawn as a mandatory many: minimum 1, maximum many." :
-          back ? "The rule says every " + O.one + " belongs to exactly one " + C.one + ", so it has at least one." : "The rule says every " + O.one + " has at least one " + C.one + "."), null, null, { sub: "Relationship " + (i + 1) }));
+          back ? "The rule says every " + O.one + " belongs to exactly one " + C.one + ", so it has at least one." : "The rule says every " + O.one + " has at least one " + C.one + "."), null, null, { sub: tag === "x" ? ruleSub : "Rule " + (i + 1) }));
       card.push(sel(tag + "max" + i, pair + " · Most " + C.many + " for one " + O.one, MAXOPT, c[1], maxW, v =>
         not(MAXOPT, v) + (c[1] === "many" ? (two ? "'At least two' is drawn as a mandatory many: minimum 1, maximum many." : "The rule allows several " + C.many + " for one " + O.one + ".") :
-          back ? "Each " + O.one + " belongs to exactly one " + C.one + ", so the maximum is one." : "The rule allows at most one " + C.one + " for each " + O.one + ", so the maximum is one."), null, null, { sub: "Relationship " + (i + 1) }));
+          back ? "Each " + O.one + " belongs to exactly one " + C.one + ", so the maximum is one." : "The rule allows at most one " + C.one + " for each " + O.one + ", so the maximum is one."), null, null, { sub: "Rule " + (i + 1) }));
     };
     // "back" marks the side where each row belongs to exactly one partner (the parent of a one-to-many).
     side(s.tx, s.ty, s.fwd, !s.R.mm && s.fwd[1] === "1" && s.X === s.child, "x");
