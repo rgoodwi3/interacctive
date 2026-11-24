@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Queries, Joins and Reconciliation · ACCT 2250</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../frame.css">
+<!-- Graded mode only: sign-in and server grading. Practice mode works without it. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous" defer></script>
+<!-- Activity signals for graded attempts (typing, pasting, time away, automation); see interacctive/integrity.js -->
+<script src="/interacctive/integrity.js"></script>
+<!-- School name and colors from the class instructor's InterACCtive branding; default is University of New Haven -->
+<script src="/interacctive/brand.js"></script>
+<style>
+/* The memo and the task are separate paragraphs. */
+.part-desc{white-space:pre-line}
+/* SQL in the data panel: a named, focusable region per query, in the frame's monospace font, with no colouring. */
+.sql{margin:12px 0 0}
+.sql figcaption{font-weight:700;font-size:14px;color:var(--ink)}
+.sql pre{font-family:var(--f-num);font-size:12.5px;white-space:pre;overflow-x:auto;background:var(--paper);border-left:3px solid var(--gold);padding:8px 12px;margin:8px 0}
+.sql pre:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+/* Column names keep their Access spelling (CustomerID), not the frame's uppercase header style. */
+.dtab thead th{text-transform:none;letter-spacing:0}
+.dtab td.mono, .dtab th.mono{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dtab tbody th{font-size:14.5px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:600;border-bottom:1px solid var(--rule);vertical-align:top;font-family:var(--f-num)}
+.facts6 p{margin:8px 0}
+/* Part 2: each request's clause choices sit under the request, in the code font. */
+[data-wrap^="w"] .frow.sel{grid-template-columns:minmax(0,1fr)}
+[data-wrap^="w"] select{font-family:var(--f-num);font-size:13px;max-width:100%}
+</style>
+</head>
+<body>
+<script src="/interacctive/topics.js"></script>
+<script src="../frame.js"></script>
+<script>
+"use strict";
+// ACCT 2250 IL6: Queries, Joins and Reconciliation. Graded on the server by the lab-attempt edge function
+// (fa-lab-platform, slug ais-sql-recon), which runs a copy of the code between the LAB markers below.
+// Trailhead Outfitters Co. is fictional; every row here is made up for practice. The lab prints no years in its
+// text: dates follow a fixed Jan-Feb calendar. Access date literals carry the year, so it appears inside SQL code only.
+let YEAR = new Date().getFullYear();
+/* ==== LAB BEGIN: copied verbatim into fa-lab-platform/supabase/functions/_shared/labs/ais-sql-recon.ts ==== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const cc = a => String.fromCharCode.apply(null, a);
+const RSV = { ids: [cc([67, 45, 49, 48, 53]), cc([67, 45, 49, 48, 56])], no: cc([55, 55, 51, 49]) };
+const comma = n => Math.abs(n).toLocaleString("en-US");
+const money = n => (n < 0 ? "−" : "") + "$" + comma(n);
+function parse(v) {
+  const s = String(v == null ? "" : v).replace(/[$,%\s]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/^−/, "-");
+  if (s === "") return null;
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+// Amounts and numbers the lab never shows.
+const bad = x => { const a = Math.abs(x); return (a >= 480 && a <= 498) || money(a).indexOf("$102") >= 0 || String(a).indexOf(RSV.no) >= 0; };
+const hasRsv = o => JSON.stringify(o).replace(/(\d),(?=\d)/g, "$1").indexOf(RSV.no) >= 0;
+
+// Trailhead's wholesale customers (CustomerID, CustomerName, City, State).
+const CUSTOMERS = [
+  ["C-101", "Granite Peak Mercantile", "Burlington", "VT"], ["C-102", "Northfork Adventure Co.", "Lake Placid", "NY"],
+  ["C-103", "Summit & Stream Co.", "North Conway", "NH"], ["C-104", "Harborview Outdoor Supply", "Portland", "ME"],
+  [RSV.ids[0], "Laurel Ridge Outdoors", "State College", "PA"], ["C-106", "Tidewater Trail Shop", "Annapolis", "MD"],
+  ["C-107", "Blue Heron Sports", "Ithaca", "NY"], [RSV.ids[1], "Stonewall Scout Supply", "Worcester", "MA"],
+  ["C-109", "Pine Barrens Outfitters", "Toms River", "NJ"], ["C-110", "Catamount Gear Exchange", "Montpelier", "VT"],
+  ["C-111", "Elm City Bike & Hike", "New Haven", "CT"], ["C-112", "Kettle Pond Camping", "Providence", "RI"]];
+const STATES = { NY: "New York", NH: "New Hampshire", NJ: "New Jersey", MA: "Massachusetts", MD: "Maryland", ME: "Maine" };
+// The Item table: SKU, Description, WholesalePrice.
+const ITEMS = [
+  ["TNT-2P", "Two-person tent", 120], ["TNT-4P", "Four-person tent", 199], ["TRP-UL", "Ultralight tarp", 39],
+  ["SLB-20", "Sleeping bag, 20°F", 99], ["SLB-40", "Sleeping bag, 40°F", 62], ["PAD-IN", "Insulated sleeping pad", 54],
+  ["PCK-65", "Backpack, 65 L", 145], ["PCK-28", "Daypack, 28 L", 58], ["DRY-20", "Dry sack, 20 L", 13],
+  ["BT-MID", "Mid hiking boot", 108], ["BT-TRL", "Trail shoe", 84], ["SCK-3P", "Merino socks, 3-pack", 17],
+  ["STV-1B", "Single-burner stove", 42], ["CKS-2", "Two-person cook set", 34], ["FLT-SQ", "Squeeze water filter", 29],
+  ["BTL-1L", "Insulated bottle, 1 L", 15], ["JKT-RN", "Rain jacket", 78], ["HDL-30", "Headlamp", 20],
+  ["PLE-TK", "Trekking poles, pair", 48], ["FAK-1", "First-aid kit", 16]];
+const VENDORS = [["V-202", "Cascade Loft Textiles"], ["V-203", "Ironwood Pack Works"], ["V-204", "Tamarack Footwear Ltd."], ["V-205", "Ember Camp Equipment"], ["V-206", "Brightline Gear"]];
+const vname = id => VENDORS.find(v => v[0] === id)[1];
+// Business days Jan 5-Feb 5 on Trailhead's fixed calendar (Jan 1 is a Friday), without the Jan 18 holiday.
+// A day is a number: 5 = Jan 5, 32 = Feb 1.
+const DAYS = [];
+for (let n = 5; n <= 36; n++) { const w = (4 + n) % 7; if (w > 0 && w < 6 && n !== 18) DAYS.push(n); }
+const dayName = n => n > 31 ? "Feb " + (n - 31) : "Jan " + n;
+const lit = n => "#" + (n > 31 ? "2/" + (n - 31) : "1/" + n) + "/2027#";
+// Quantities by price: $90 or more by 2 (2-40); $40-$89 by 6 (6-96); under $40 by 12 (12-144).
+const qsteps = p => { const out = [], st = p >= 90 ? 2 : p >= 40 ? 6 : 12, hi = p >= 90 ? 40 : p >= 40 ? 96 : 144; for (let q = st; q <= hi; q += st) out.push(q); return out; };
+const CAUSES = [["timing", "Timing: entered after the refresh"], ["criteria", "Query error: date criteria"], ["joinout", "Query error: join leaves rows out"],
+  ["joinrep", "Query error: join repeats rows"], ["none", "Not a reconciling item"]];
+const CLAUSES = [["where", "In WHERE"], ["having", "In HAVING"], ["group", "In GROUP BY"], ["order", "In ORDER BY"]];
+const PAIRS = {
+  J1: { P: "Invoice", C: "ReceiptApplication", pk: "InvoiceID", ck: "ReceiptID", one: "invoice", many: "invoices", row: "payment row", rows: "payment rows", unm: "invoices with no payment",
+    pcols: ["InvoiceID", "CustomerID", "InvoiceDate", "Amount"], ccols: ["ReceiptID", "InvoiceID", "AmountApplied"] },
+  J2: { P: "Customer", C: "SalesOrder", pk: "CustomerID", ck: "SalesOrderID", one: "customer", many: "customers", row: "sales order", rows: "sales orders", unm: "customers with no sales orders",
+    pcols: ["CustomerID", "CustomerName", "City", "State"], ccols: ["SalesOrderID", "CustomerID", "OrderDate"] },
+  J3: { P: "Item", C: "SalesOrderLine", pk: "SKU", ck: "SalesOrderID", one: "item", many: "items", row: "order line", rows: "order lines", unm: "items with no order lines",
+    pcols: ["SKU", "Description", "WholesalePrice"], ccols: ["SalesOrderID", "LineNumber", "SKU", "Quantity"] }};
+const joinSQL = (J, how) => "SELECT " + J.P + "." + J.pk + ", " + J.C + "." + J.ck + "\nFROM " + J.P + " " + how + " JOIN " + J.C + "\n  ON " + J.P + "." + J.pk + " = " + J.C + "." + J.pk + ";";
+const WINDOWS = [[11, 22], [11, 29], [19, 36], [25, 36]];
+
+// ---------- Problem generator ----------
+function gen(seed) {
+  const r = mulberry32(seed);
+  const R = (a, b) => a + Math.floor(r() * (b - a + 1));
+  const one = xs => xs[Math.floor(r() * xs.length)];
+  const shuffle = xs => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+  const sample = (xs, k) => shuffle(xs).slice(0, k);
+  // Document numbers are distinct within a problem: each part draws from what earlier parts left.
+  const taken = new Set();
+  const nums = (k, lo, hi) => { const out = []; while (out.length < k) { const x = R(lo, hi); if (!taken.has(x) && out.indexOf(x) < 0) out.push(x); } return out.sort((a, b) => a - b); };
+  const keep = xs => xs.forEach(x => taken.add(x));
+  const fail = () => { throw new Error("Could not generate a problem set"); };
+  // One of the two reserved customers is left out of the problem; Parts 3 (J1) and 5 leave out both.
+  const excl = r() < 0.5 ? 0 : 1;
+  const custs = CUSTOMERS.filter(c => c[0] !== RSV.ids[excl]);
+  const pool = CUSTOMERS.filter(c => RSV.ids.indexOf(c[0]) < 0);
+
+  // ---- Part 1: what does this query return? ----
+  const tpl = one(["T1", "T2", "T3"]), desc = r() < 0.7;
+  let p1, k1;
+  for (let t = 0; t < 50000 && !p1; t++) {
+    const so = nums(3, 190000, 199999), rows = [];
+    [3, 3, 2].forEach((n, o) => sample(ITEMS, n).forEach((it, j) => { const q = one(qsteps(it[2])); rows.push({ i: rows.length + 1, so: "SO-" + so[o], ln: j + 1, sku: it[0], q, p: it[2], t: q * it[2] }); }));
+    if (new Set(rows.map(x => x.t)).size < 8 || rows.some(x => bad(x.t))) continue;
+    let f, where, x = {}, traps;
+    if (tpl === "T1") {
+      const P = one(["S", "P", "B", "T"]), m = rows.filter(y => y.sku.startsWith(P));
+      if (m.length < 3) continue;
+      const q = one(m).q;
+      f = y => y.sku.startsWith(P) && y.q >= q;
+      if (!m.some(y => y.q < q) || !rows.some(y => !y.sku.startsWith(P) && y.q >= q)) continue;
+      where = 'WHERE SKU LIKE "' + P + '*" AND Quantity >= ' + q;
+      const n = rows.filter(f).length;
+      x = { P, q, miss: m.find(y => y.q < q).i, edge: m.find(y => y.q === q).i };
+      traps = [m.length, n - 1, 8];
+    } else if (tpl === "T2") {
+      const p = one(rows).p, q = one(rows).q;
+      f = y => y.p >= p || y.q > q;
+      const pOnly = rows.filter(y => y.p >= p && y.q <= q), qOnly = rows.filter(y => y.p < p && y.q > q), eqQ = rows.filter(y => y.q === q && y.p < p);
+      const pEdge = rows.filter(y => y.p === p && y.q <= q);
+      if (!pOnly.length || !qOnly.length || !eqQ.length || !pEdge.length) continue;
+      where = "WHERE UnitPrice >= " + p + " OR Quantity > " + q;
+      const n = rows.filter(f).length;
+      x = { p, q, eqQ: eqQ[0].i, pOnly: pOnly[0].i, pEdge: pEdge[0].i };
+      traps = [n + eqQ.length, rows.filter(y => y.p >= p && y.q > q).length, n - pEdge.length, 8];
+    } else {
+      const skus = rows.map(y => y.sku).filter((s, i, a) => a.indexOf(s) === i), ins = sample(skus, 3);
+      const th = one([500, 1000, 1500, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000]);
+      f = y => ins.indexOf(y.sku) >= 0 && y.t > th;
+      if (rows.some(y => y.t === th)) continue;
+      const inLow = rows.filter(y => ins.indexOf(y.sku) >= 0 && y.t < th), outHigh = rows.filter(y => ins.indexOf(y.sku) < 0 && y.t > th);
+      if (!inLow.length || !outHigh.length) continue;
+      where = 'WHERE SKU IN ("' + ins.join('", "') + '")\n  AND Quantity * UnitPrice > ' + th;
+      x = { ins, th, inLow: inLow[0].i, outHigh: outHigh[0].i };
+      traps = [rows.filter(y => ins.indexOf(y.sku) >= 0).length, rows.filter(y => y.t > th).length, 8];
+    }
+    const ret = rows.filter(f), n = ret.length, lo = tpl === "T2" ? 3 : 2, hi = tpl === "T1" ? 4 : tpl === "T2" ? 5 : 3;
+    if (n < lo || n > hi) continue;
+    if (traps.indexOf(n) >= 0 || new Set(traps).size < traps.length) continue;
+    const top = rows.reduce((a, b) => b.t > a.t ? b : a);
+    if (f(top)) continue;
+    const order = ret.slice().sort((a, b) => desc ? b.t - a.t : a.t - b.t);
+    if (order[0] === ret[0]) continue;
+    const qx = ret.reduce((a, b) => (desc ? b.q > a.q : b.q < a.q) ? b : a);
+    if (qx === order[0] || ret.filter(y => y.q === qx.q).length > 1) continue;
+    // The first and last rows' Quantity and UnitPrice never equal a line total, so each wrong number has one reading.
+    const ends = [order[0], order[order.length - 1]];
+    if (ends.some(e => rows.some(y => y.t === e.q || y.t === e.p))) continue;
+    const sql = "SELECT SalesOrderID, LineNumber, SKU,\n  Quantity * UnitPrice AS LineTotal\nFROM SalesOrderLine\n" + where + "\nORDER BY Quantity * UnitPrice" + (desc ? " DESC" : "") + ";";
+    const pub = { rows: rows.map(y => [y.so, String(y.ln), y.sku, String(y.q), money(y.p)]), sql };
+    if (hasRsv(pub)) continue;
+    keep(so); p1 = pub;
+    k1 = Object.assign({ tpl, desc, rows, ret: ret.map(y => y.i), order: order.map(y => y.i), top: top.i, qx: qx.i, traps }, x);
+  }
+  if (!p1) fail();
+
+  // ---- Part 2: turn requests into criteria ----
+  const picks = shuffle(["W1", "W2"].concat(sample(["W3", "W4", "W5", "W6"], 3)));
+  const kinds = { W1: ["ok", "or", "name", "due"], W2: ["ok", "prec", "both", "inor"], W3: ["ok", "eq", "desc", "in"], W4: ["ok", "name", "city", "like"], W5: ["ok", "or", "in", "due"], W6: ["ok", "or", "strict", "in"] };
+  const k2 = picks.map(w => {
+    let v;
+    if (w === "W1") { const c = one(custs); v = { c: c[0], name: c[1], d: one(DAYS.filter(n => n >= 11 && n <= 32)) }; }
+    else if (w === "W2") { const vs = sample(VENDORS.map(x => x[0]), 2).sort(); v = { v1: vs[0], v2: vs[1], X: one([1500, 2500, 5000, 7500, 10000]) }; }
+    else if (w === "W3") { const x = one([["TNT", "tents"], ["SLB", "sleeping bags"], ["PCK", "packs"], ["BT-", "boots and trail shoes"]]); v = { P: x[0], words: x[1] }; }
+    else if (w === "W4") v = { st: one(["NY", "NH", "NJ", "MA", "MD", "ME"]) };
+    else if (w === "W5") { const ab = one([[11, 15], [25, 29], [32, 36]]); v = { v: one(VENDORS)[0], a: ab[0], b: ab[1] }; }
+    else { const X = one([1500, 2500, 5000]); v = { X, Y: X + one([3000, 5000, 7500]) }; }
+    return { w, v, order: shuffle(kinds[w]) };
+  });
+  // The data panel shows each table the requests use: its columns and two sample rows (made-up document numbers).
+  const used = ["Invoice", "VendorBill", "Item", "Customer"].filter(tb => picks.some(w => ({ W1: "Invoice", W2: "VendorBill", W3: "Item", W4: "Customer", W5: "VendorBill", W6: "Invoice" })[w] === tb));
+  let p2;
+  for (let t = 0; t < 50000 && !p2; t++) {
+    const docs = [], tables = used.map(tb => {
+      if (tb === "Invoice") {
+        const inv = nums(2, 290000, 299999), so = nums(2, 190000, 199999), ds = sample(DAYS.filter(n => n <= 29), 2).sort((a, b) => a - b), cs = sample(custs, 2);
+        docs.push(...inv, ...so);
+        return { name: tb, columns: ["InvoiceID", "SalesOrderID", "CustomerID", "InvoiceDate", "DueDate", "Amount"], sample: [0, 1].map(i => ["INV-" + inv[i], "SO-" + so[i], cs[i][0], dayName(ds[i]), dayName(ds[i] + 30), money(R(1000, 9800))]) };
+      }
+      if (tb === "VendorBill") {
+        const bl = nums(2, 69000, 69999), ds = sample(DAYS.filter(n => n <= 29), 2).sort((a, b) => a - b), vs = sample(VENDORS, 2);
+        docs.push(...bl);
+        return { name: tb, columns: ["BillID", "VendorID", "BillDate", "DueDate", "Amount"], sample: [0, 1].map(i => ["BL-" + bl[i], vs[i][0], dayName(ds[i]), dayName(ds[i] + 30), money(R(1000, 9800))]) };
+      }
+      if (tb === "Item") return { name: tb, columns: ["SKU", "Description", "WholesalePrice"], sample: sample(ITEMS, 2).map(x => [x[0], x[1], money(x[2])]) };
+      return { name: tb, columns: ["CustomerID", "CustomerName", "City", "State"], sample: sample(custs, 2).sort().map(c => c.slice()) };
+    });
+    const pub = { tables };
+    if (hasRsv(pub) || tables.some(tb => tb.sample.some(row => row.some(c => /^\$/.test(c) && bad(parse(c)))))) { continue; }
+    keep(docs); p2 = pub;
+  }
+  if (!p2) fail();
+
+  // ---- Part 3: INNER and LEFT joins ----
+  const pair = one(["J1", "J2", "J3"]), J = PAIRS[pair];
+  let p3, k3;
+  for (let t = 0; t < 50000 && !p3; t++) {
+    let parent, child, counts, docs = [];
+    if (pair === "J1") {
+      // One check pays two invoices of the same customer; 3 - u invoices are paid in two payments.
+      const n = R(5, 6), u = R(1, 2), m = n - u, idx = shuffle([0, 1, 2, 3, 4, 5].slice(0, n)), matched = idx.slice(0, m), two = matched.slice(0, 3 - u);
+      const sh = sample(matched, 2), cs = sample(pool, n - 1), cust = [];
+      let k = 0;
+      for (let i = 0; i < n; i++) if (i !== sh[1]) cust[i] = cs[k++];
+      cust[sh[1]] = cust[sh[0]];
+      const inv = nums(n, 290000, 299999);
+      parent = inv.map((x, i) => ({ id: "INV-" + x, c: cust[i][0], d: one(DAYS.filter(y => y <= 29)), a: R(1200, 9800) }));
+      if (parent.some(x => bad(x.a))) continue;
+      const lines = [];
+      matched.forEach(i => { const a = parent[i].a; if (two.indexOf(i) >= 0) { const s = R(300, a - 300); lines.push([i, s], [i, a - s]); } else lines.push([i, a]); });
+      if (lines.some(l => bad(l[1]))) continue;
+      const rc = nums(lines.length, 490000, 499999);
+      child = lines.map((l, j) => ({ rc: "RC-" + rc[j], i: l[0], a: l[1] }));
+      child.find(y => y.i === sh[1]).rc = child.find(y => y.i === sh[0]).rc;
+      child.sort((a, b) => a.rc < b.rc ? -1 : a.rc > b.rc ? 1 : parent[a.i].id < parent[b.i].id ? -1 : 1);
+      counts = parent.map((_, i) => child.filter(y => y.i === i).length);
+      docs = inv.concat(rc);
+      parent = parent.map(x => [x.id, x.c, dayName(x.d), money(x.a)]);
+      child = child.map(y => [y.rc, parent[y.i][0], money(y.a)]);
+    } else {
+      const u = R(1, 2), m = 5 - u, c = R(6, 8), cnt = [];
+      for (let i = 0; i < m; i++) cnt.push(1);
+      for (let i = m; i < c; i++) cnt[R(0, m - 1)]++;
+      const mx = Math.max.apply(null, cnt);
+      if (mx > 3 || cnt.filter(y => y === mx).length !== 1) continue;
+      const idx = shuffle([0, 1, 2, 3, 4]);
+      counts = [0, 0, 0, 0, 0];
+      idx.slice(0, m).forEach((i, k) => { counts[i] = cnt[k]; });
+      const list = shuffle([].concat.apply([], counts.map((k, i) => Array(k).fill(i))));
+      if (pair === "J2") {
+        const cs = sample(custs, 5).sort((a, b) => a[0] < b[0] ? -1 : 1), so = nums(c, 190000, 199999), ds = sample(DAYS, c).sort((a, b) => a - b);
+        parent = cs.map(x => x.slice());
+        child = list.map((i, k) => ["SO-" + so[k], parent[i][0], dayName(ds[k])]);
+        docs = so;
+      } else {
+        const its = sample(ITEMS, 5), so = nums(3, 190000, 199999);
+        parent = its.map(x => [x[0], x[1], money(x[2])]);
+        const asg = list.map(() => one(so));
+        if (new Set(asg).size < 3 || new Set(asg.map((s, k) => s + "|" + list[k])).size < list.length) continue;
+        const lines = list.map((i, k) => ({ so: asg[k], i })).sort((a, b) => a.so - b.so);
+        const ln = {};
+        child = lines.map(l => { ln[l.so] = (ln[l.so] || 0) + 1; return ["SO-" + l.so, String(ln[l.so]), its[l.i][0], String(one(qsteps(its[l.i][2])))]; });
+        docs = so;
+      }
+    }
+    const pub = { pair, parent: { table: J.P, columns: J.pcols, rows: parent }, child: { table: J.C, columns: J.ccols, rows: child }, q1: joinSQL(J, "INNER"), q2: joinSQL(J, "LEFT") };
+    if (hasRsv(pub)) continue;
+    const n = parent.length, mx = Math.max.apply(null, counts), ones = counts.map((k, i) => k === 1 ? i : -1).filter(i => i >= 0);
+    const X = r() < 0.6 || !ones.length ? one(counts.map((k, i) => k === mx ? i : -1).filter(i => i >= 0)) : one(ones);
+    keep(docs); p3 = pub;
+    k3 = { counts, X, xmax: counts.indexOf(mx), n, c: child.length, u: counts.filter(k => k === 0).length, find: shuffle(["ok", "inner", "eq", "pk"]) };
+  }
+  if (!p3) fail();
+
+  // ---- Part 4: totals with GROUP BY and HAVING ----
+  const variant = r() < 0.5 ? "A" : "B", cm = one([2500, 3000, 3500]), ck = one([2, 3]);
+  let p4, k4;
+  for (let t = 0; t < 50000 && !p4; t++) {
+    const vs = sample(VENDORS.map(x => x[0]), 4), win = one(WINDOWS), d1 = win[0], d2 = win[1], H = one([10000, 12000, 15000]);
+    const per = [1, 1, 1, 1];
+    for (let i = 0; i < 5; i++) per[R(0, 3)]++;
+    if (Math.max.apply(null, per) > 4) continue;
+    let bills = [];
+    vs.forEach((v, k) => { for (let j = 0; j < per[k]; j++) bills.push({ v, d: one(DAYS), a: R(1000, 9800) }); });
+    const inw = b => b.d >= d1 && b.d <= d2;
+    const out = bills.filter(b => !inw(b)).length;
+    if (out < 2 || out > 3 || !bills.some(b => b.d === d1 || b.d === d2)) continue;
+    const S = {}, A = {}, Cn = {}, Ca = {};
+    vs.forEach(v => { const mine = bills.filter(b => b.v === v); S[v] = mine.filter(inw).reduce((s, b) => s + b.a, 0); A[v] = mine.reduce((s, b) => s + b.a, 0); Cn[v] = mine.filter(inw).length; Ca[v] = mine.length; });
+    const inv = vs.filter(v => Cn[v] > 0);
+    if (new Set(inv.map(v => S[v])).size < inv.length || vs.some(v => Math.abs(S[v] - H) < 200)) continue;
+    const pass = vs.filter(v => S[v] >= H), failing = inv.filter(v => S[v] < H), wtrap = vs.filter(v => A[v] >= H && S[v] < H);
+    if (pass.length < 1 || pass.length > 2 || failing.length < 2 || wtrap.length !== 1) continue;
+    const top = pass.reduce((a, b) => S[b] > S[a] ? b : a);
+    if (Cn[top] < 2) continue;
+    const nbin = bills.filter(inw).length, groups = pass.length, pre = inv.length;
+    const gt = [groups + 1, pre, nbin], pt = [9, groups, nbin].concat(pre < 4 ? [4] : []);
+    const bnd = bills.filter(b => b.v === top && (b.d === d1 || b.d === d2));
+    const st = (A[top] !== S[top] ? [A[top]] : []).concat(bnd.length ? [S[top] - bnd[0].a] : []).concat([H]);
+    const ct = (Ca[top] !== Cn[top] ? [Ca[top]] : []).concat([9]).concat(bnd.length ? [Cn[top] - 1] : []);
+    const dist = (a, xs) => xs.indexOf(a) < 0 && new Set(xs).size === xs.length;
+    if (!dist(groups, gt) || !dist(pre, pt) || !dist(S[top], st) || !dist(Cn[top], ct)) continue;
+    if (bills.some(b => bad(b.a)) || vs.some(v => bad(S[v]) || bad(A[v]))) continue;
+    bills = bills.map((b, k) => Object.assign(b, { k })).sort((a, b) => a.d - b.d || a.k - b.k);
+    const bl = nums(9, 69000, 69999);
+    bills.forEach((b, k) => { b.id = "BL-" + bl[k]; });
+    const sql = "SELECT VendorID, Count(*) AS Bills,\n  Sum(Amount) AS TotalBilled\nFROM VendorBill\nWHERE BillDate BETWEEN " + lit(d1) + " AND " + lit(d2) + "\nGROUP BY VendorID\nHAVING Sum(Amount) >= " + H + "\nORDER BY Sum(Amount) DESC;";
+    const pub = { vendors: vs.slice().sort().map(v => [v, vname(v)]), rows: bills.map(b => [b.id, b.v, dayName(b.d), money(b.a)]), sql };
+    if (hasRsv(pub)) continue;
+    keep(bl); p4 = pub;
+    k4 = { vs: pub.vendors.map(x => x[0]), d1, d2, H, S, A, Cn, Ca, wtrap: wtrap[0], top, pass, nbin, groups, pre, bills: bills.map(b => ({ v: b.v, d: b.d, a: b.a })), variant, m: cm, k: ck };
+  }
+  if (!p4) fail();
+
+  // ---- Part 5: tie a query total to the trial balance ----
+  const var5 = r() < 0.5 ? "a" : "b", d = one([5, 6, 7, 8]);
+  const p3amts = new Set([].concat.apply([], p3.parent.rows.concat(p3.child.rows).map(row => row.filter(c => /^\$/.test(c)).map(parse))));
+  let p5, k5;
+  for (let t = 0; t < 50000 && !p5; t++) {
+    const Rr = R(20000, 60000), A = R(1200, 9800), T = R(1500, 12000), D = R(150000, 300000), B = R(2000, 14000), k = R(18, 30);
+    const Q = Rr + 2 * B, G = Rr + A + T + D + B, fixed = G - T;
+    if (Math.abs(A - T) < 100 || Math.abs(A - B) < 100 || Math.abs(T - B) < 100) continue;
+    const pa = Math.round(B * (0.3 + 0.4 * r())), pb = B - pa;
+    if (pa === pb) continue;
+    const ftr = [G, Q + A + D, Q + D - B, Q + A - B, Q];
+    if (ftr.indexOf(fixed) >= 0 || new Set(ftr).size < ftr.length) continue;
+    if ([Rr, A, T, D, B, Q, G, fixed, pa, pb].concat(ftr).some(bad)) continue;
+    if ([A, T, B, pa, pb].some(x => p3amts.has(x))) continue;
+    const cs = sample(pool, 3), inv = nums(3, 290000, 299999);
+    const dd = one(DAYS.filter(n => n >= 11 && n <= 15)), x1 = one(DAYS.filter(n => n > dd && n <= 26)), x2 = one(DAYS.filter(n => n > x1 && n <= 28));
+    const dp = one(DAYS.filter(n => n >= d + 10 && n <= 28)), tm = one(["1:15 PM", "2:40 PM", "3:55 PM", "4:30 PM"]);
+    const where = var5 === "a" ? "WHERE Invoice.InvoiceDate\n  BETWEEN " + lit(d + 1) + " AND " + lit(31) : "WHERE Invoice.InvoiceDate > " + lit(d) + "\n  AND Invoice.InvoiceDate <= " + lit(31);
+    const sql = "SELECT Sum(Invoice.Amount) AS JanuaryInvoices\nFROM Invoice INNER JOIN ReceiptApplication\n  ON Invoice.InvoiceID = ReceiptApplication.InvoiceID\n" + where + ";";
+    const items = shuffle([
+      { kind: "timing", text: "INV-" + inv[0] + " to " + cs[0][1] + ", " + money(T) + ", dated Jan 29, was entered in NetSuite at " + tm + ", after the noon refresh.", adj: T },
+      { kind: "criteria", text: "INV-" + inv[1] + " to " + cs[1][1] + ", " + money(A) + ", is dated Jan " + d + ". It was paid in one payment on " + dayName(dp) + ".", adj: A },
+      { kind: "joinout", text: k + " invoices in the Access copy, dated Jan 11 to Jan 28 and totaling " + money(D) + ", have no payment yet.", adj: D },
+      { kind: "joinrep", text: "INV-" + inv[2] + " to " + cs[2][1] + ", " + money(B) + ", dated " + dayName(dd) + ", was paid in two payments: " + money(pa) + " on " + dayName(x1) + " and " + money(pb) + " on " + dayName(x2) + ".", adj: -B }]);
+    const pub = { sql, result: money(Q), tb: money(G), refreshed: "Fri Jan 29, 12:00 PM", tbRun: "Tue Feb 2" };
+    if (hasRsv(pub) || hasRsv(items)) continue;
+    keep(inv); p5 = pub;
+    k5 = { items, Q, G, A, T, D, B, pa, pb, d, var5, fixed, cust: cs.map(c => c[0]) };
+  }
+  if (!p5) fail();
+  return { p1, p2, p3, p4, p5, k: { excl, k1, k2, k3, k4, k5 } };
+}
+
+// ---------- Parts ----------
+const optLabel = (opts, v) => { const o = opts.find(x => x[0] === v); return o ? o[1] : String(v); };
+const not = (opts, v) => "Not “" + optLabel(opts, v) + ".” ";
+// A select: wrong(v) gives the reason after "Not “label.”".
+function sel(id, label, opts, ans, work, why, extra) { return Object.assign({ id, label, kind: "sel", opts, ans, work, wrong: v => not(opts, v) + why(v) }, extra || {}); }
+// A whole-number field. traps: [{v, m}] checked in order (first match wins); ft: follow-through checks on the student's
+// other answers; last: the fallback reason. f.traps lists the trap values (server only, for the tests).
+function num(id, label, kind, ans, work, traps, last, extra) {
+  const list = traps.filter(x => x);
+  return Object.assign({ id, label, kind, dec: 0, ans, work, traps: list.filter(x => x.v != null).map(x => x.v),
+    wrong: (v, nums, vals) => { for (const x of list) if (x.v != null ? v === x.v : x.ft(v, vals || {})) return x.m; return last; } }, extra || {});
+}
+const rowsList = xs => xs.length === 1 ? "row " + xs[0] : "rows " + xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+const SR = "Screen reader users: set punctuation to All for this lab; the code uses symbols that matter.";
+
+function buildParts(P) {
+  const parts = [], K = P.k;
+
+  // Part 1: what does this query return?
+  const k1 = K.k1, rows = k1.rows, R1 = i => rows[i - 1], first = R1(k1.order[0]), last = R1(k1.order[k1.order.length - 1]);
+  const big = k1.desc ? "largest" : "smallest", small = k1.desc ? "smallest" : "largest";
+  const passes = i => k1.ret.indexOf(i) >= 0;
+  const opts1 = rows.map(x => ["r" + x.i, "Row " + x.i + " · " + x.so + " line " + x.ln + " · " + x.sku]);
+  const n1 = k1.ret.length;
+  let rowTraps;
+  if (k1.tpl === "T1") rowTraps = [
+    { v: k1.traps[0], m: "With AND a row must meet both conditions. Row " + k1.miss + ' matches LIKE "' + k1.P + '*" but fails the other one.' },
+    { v: k1.traps[1], m: "Row " + k1.edge + " has Quantity " + k1.q + " exactly, and >= includes it." }];
+  else if (k1.tpl === "T2") rowTraps = [
+    { v: k1.traps[0], m: "Row " + k1.eqQ + " has Quantity " + k1.q + ". > leaves out a row equal to " + k1.q + "." },
+    { v: k1.traps[1], m: "With OR a row needs only one condition. Row " + k1.pOnly + " meets UnitPrice >= " + k1.p + " only." },
+    { v: k1.traps[2], m: "Row " + k1.pEdge + "'s UnitPrice is exactly " + money(k1.p) + ", and >= includes it." }];
+  else rowTraps = [
+    { v: k1.traps[0], m: "With AND a row must meet both conditions. Row " + k1.inLow + " is in the IN list but fails the other one." },
+    { v: k1.traps[1], m: "With AND a row must meet both conditions. Row " + k1.outHigh + " has a line total over " + comma(k1.th) + " but isn't in the IN list." }];
+  rowTraps.push({ v: 8, m: "WHERE keeps only the rows that meet its conditions; not every row comes back." });
+  const sortMsg = "Sort the rows that pass by Quantity × UnitPrice, " + big + " first.";
+  const qp = x => "LineTotal is Quantity × UnitPrice: " + x.q + " × " + money(x.p) + ".";
+  const chosen = (vals, id) => { const v = vals[id]; return typeof v === "string" && /^r[1-8]$/.test(v) ? R1(+v.slice(1)) : null; };
+  const f1 = [
+    num("rows", "Rows the query returns", "n", n1, rowsList(k1.ret).replace(/^r/, "R") + " pass WHERE, so the query returns " + n1 + " rows.", rowTraps, "Test each row against WHERE, then count the rows that pass."),
+    sel("first", "First row of the result", opts1, "r" + first.i, "Sorted by Quantity × UnitPrice, " + big + " first, row " + first.i + " comes first.", v => {
+      const i = +v.slice(1);
+      if (i === k1.top) return "Row " + i + " has the largest LineTotal in the table, but it fails the WHERE clause.";
+      if (i === k1.qx) return "ORDER BY sorts on Quantity * UnitPrice, not on Quantity. Row " + i + " has the " + (k1.desc ? "most" : "fewest") + " units but not the " + big + " line total.";
+      if (i === last.i) return k1.desc ? "DESC puts the largest line total first; row " + i + " has the smallest." : "With no DESC, Access sorts smallest first; row " + i + " has the largest.";
+      if (i === k1.ret[0]) return "The result follows ORDER BY, not the order of the rows in the table.";
+      if (!passes(i)) return "Row " + i + " fails the WHERE clause, so it isn't in the result.";
+      return sortMsg;
+    }),
+    num("firstTotal", "LineTotal in the first row", "$", first.t, first.q + " × " + money(first.p) + " = " + money(first.t) + ".", [
+      { v: first.q, m: qp(first) }, first.p !== first.q ? { v: first.p, m: qp(first) } : null,
+      { ft: (v, vals) => { const c = chosen(vals, "first"); return !!c && c !== first && v === c.t; }, m: "Your multiplication is right, but your first row is not. Fix it first." }]
+      .concat(rows.filter(x => x !== first).map(x => ({ v: x.t, m: "That's row " + x.i + "'s line total. Find the first row of the result first." }))),
+      "LineTotal is Quantity × UnitPrice for the first row of the result."),
+    sel("last", "Last row of the result", opts1, "r" + last.i, "Sorted " + big + " first, row " + last.i + " comes last.", v => {
+      const i = +v.slice(1);
+      if (i === first.i) return k1.desc ? "DESC puts the largest line total first, so the last row has the smallest." : "With no DESC, Access sorts smallest first, so the last row has the largest.";
+      if (!passes(i)) return "Row " + i + " fails the WHERE clause, so it isn't in the result.";
+      return sortMsg;
+    }),
+    num("lastTotal", "LineTotal in the last row", "$", last.t, last.q + " × " + money(last.p) + " = " + money(last.t) + ".", [
+      { v: first.t, m: "That's the first row's line total. The last row has the " + small + "." },
+      { v: last.q, m: qp(last) }, last.p !== last.q ? { v: last.p, m: qp(last) } : null,
+      { ft: (v, vals) => { const c = chosen(vals, "last"); return !!c && c !== last && v === c.t; }, m: "Your multiplication is right, but your last row is not. Fix it first." }],
+      "LineTotal is Quantity × UnitPrice for the last row of the result.")];
+  const passRows = k1.ret.map(R1);
+  parts.push({ id: "select", phase: "select", tick: "1", title: "What does this query return?", layout: "list",
+    desc: "From Marcus Oyelaran, Controller: In the SQL labs you'll query Trailhead's Access database. Before you trust a query, read it. Predict what a few queries return, turn my requests into criteria, count what joins and totals give back, and tie one query total to the trial balance.\n\n" +
+      "The data panel shows eight SalesOrderLine rows and one query. Without running it, work out what the query returns. The rows are numbered so you can name them.",
+    fields: f1,
+    hint: "Test every row against WHERE first. Then sort only the rows that pass. DESC means largest first; with no DESC, Access sorts smallest first.",
+    why: "Predicting what a query should return is how you catch a wrong result before it reaches a report.",
+    walk: [
+      { keys: ["rows"], text: "Test each row against WHERE: " + rowsList(k1.ret) + " pass." },
+      { keys: [], text: "LineTotal for those rows: " + passRows.map(x => "row " + x.i + ": " + x.q + " × " + money(x.p) + " = " + money(x.t)).join("; ") + "." },
+      { keys: ["first", "firstTotal", "last", "lastTotal"], text: "Sorted " + big + " first: " + rowsList(k1.order) + ". The first row is row " + first.i + " (" + money(first.t) + "); the last is row " + last.i + " (" + money(last.t) + ")." }] });
+
+  // Part 2: turn requests into criteria.
+  const f2 = K.k2.map((x, i) => {
+    const w = W2[x.w](x.v), opts = x.order.map((k, j) => ["abcd"[j], w.opts[k]]), ans = "abcd"[x.order.indexOf("ok")];
+    return sel("w" + i, (i + 1) + ". " + w.req, opts, ans, w.work, v => w.msgs[x.order["abcd".indexOf(v)]], { sub: "SELECT * FROM " + w.table + " WHERE …" });
+  });
+  parts.push({ id: "criteria", phase: "select", tick: "2", title: "Turn requests into criteria", layout: "list",
+    desc: "Marcus sent five requests. For each, choose the WHERE clause that returns exactly the rows he asked for. The data panel shows each table's columns and two sample rows.\n\n" + SR,
+    fields: f2,
+    hint: "Turn each phrase of the request into one condition on the right column. 'And' means both must hold. Dates go between # signs and text between double quotes; LIKE needs * for 'starts with'.",
+    why: "Criteria decide which rows stand behind a number. One wrong word, OR for AND or the wrong date column, changes the rows without any error message.",
+    walk: f2.map((f, i) => ({ keys: [f.id], text: "Request " + (i + 1) + ": " + f.work, formula: optLabel(f.opts, f.ans) })) });
+
+  // Part 3: INNER and LEFT joins.
+  const k3 = K.k3, p3 = P.p3, J = PAIRS[p3.pair], pr = p3.parent.rows, ch = p3.child.rows;
+  const fkAt = p3.child.columns.indexOf(J.pk), ckAt = p3.child.columns.indexOf(J.ck);
+  const X = pr[k3.X][0], Xmax = pr[k3.xmax][0], kmax = k3.counts[k3.xmax], c3 = k3.c, u3 = k3.u, n3 = k3.n, m3 = n3 - u3;
+  const findOpts = { ok: "Query 2 with WHERE " + J.C + "." + J.ck + " IS NULL", inner: "Query 1 with WHERE " + J.C + "." + J.ck + " IS NULL",
+    eq: "Query 2 with WHERE " + J.C + "." + J.ck + " = Null", pk: "Query 2 with WHERE " + J.P + "." + J.pk + " IS NULL" };
+  const findMsg = { inner: "An INNER JOIN keeps only matched rows, so " + J.C + "." + J.ck + " is never blank there and the query returns nothing.",
+    eq: "Nothing equals Null, not even Null, so = Null matches no row. Test for a missing match with IS NULL.",
+    pk: "Every row of a LEFT JOIN from " + J.P + " keeps its " + J.pk + ". The " + J.C + " columns are the ones left blank (Null) when there's no match." };
+  const fo = k3.find.map((k, j) => ["abcd"[j], findOpts[k]]);
+  const unmatched = pr.filter((_, i) => k3.counts[i] === 0).map(x => x[0]);
+  const Unm = J.unm.charAt(0).toUpperCase() + J.unm.slice(1);
+  const f3 = [
+    num("inner", "Rows Query 1 returns", "n", c3, "Each of the " + c3 + " " + J.C + " rows matches one " + J.one + ", so the INNER JOIN returns " + c3 + " rows.", [
+      { v: n3, m: "An INNER JOIN returns one row per matching pair, not one per " + J.one + ". " + Xmax + " has " + kmax + " " + J.rows + ", so it appears " + kmax + " times." },
+      { v: m3, m: "An INNER JOIN returns one row per matching pair, not one per " + J.one + ". " + Xmax + " has " + kmax + " " + J.rows + ", so it appears " + kmax + " times." },
+      { v: c3 + u3, m: "That's the LEFT JOIN count. INNER JOIN leaves out " + J.many + " with no match." }],
+      "Count the matching pairs: each " + J.row + " that points to " + (J.one === "invoice" || J.one === "item" ? "an " : "a ") + J.one + " in the table makes one row."),
+    num("left", "Rows Query 2 returns", "n", c3 + u3, "The " + c3 + " matches plus " + u3 + " " + (u3 === 1 ? J.one : J.many) + " with no match make " + (c3 + u3) + " rows.", [
+      { v: n3, m: "A LEFT JOIN keeps every " + J.one + " and still makes one row per match. Count the matched rows, then add the " + J.many + " with no match." },
+      { v: c3, m: "Add the " + J.many + " with no match. A LEFT JOIN keeps them, with blank " + J.C + " columns." }],
+      "LEFT JOIN rows = the INNER JOIN rows plus one row for each " + J.one + " with no match."),
+    num("rep", "Times " + X + " appears in Query 1's result", "n", k3.counts[k3.X], X + " has " + k3.counts[k3.X] + " matching " + (k3.counts[k3.X] === 1 ? J.row : J.rows) + ".", [
+      k3.counts[k3.X] > 1 ? { v: 1, m: "Each matching " + J.row + " makes its own result row, so " + X + " appears once per match." } : null],
+      "Count the " + J.C + " rows whose " + J.pk + " is " + X + "."),
+    sel("find", "To list the " + J.unm + ", use", fo, "abcd"[k3.find.indexOf("ok")], "A LEFT JOIN keeps every " + J.one + "; IS NULL keeps the rows whose " + J.C + " columns are blank.", v => findMsg[k3.find["abcd".indexOf(v)]]),
+    num("unm", Unm + ": how many?", "n", u3, unmatched.join(" and ") + (u3 === 1 ? " has" : " have") + " no " + J.row + ".", [
+      { v: 0, m: "Query 2 keeps each " + J.one + " with no match, with its " + J.C + " columns blank; IS NULL finds those rows." },
+      { v: c3 + u3, m: "IS NULL keeps only the rows with no match, not the whole LEFT JOIN." },
+      { v: m3, m: "Those are the " + J.many + " with a match. Count the ones with no " + J.row + "." }],
+      "Count the " + J.many + " that no " + J.C + " row points to.")];
+  parts.push({ id: "joins", phase: "join", tick: "3", title: "INNER and LEFT joins", layout: "list",
+    desc: "The data panel shows two small tables and two queries that differ only in their join. Suppose each table held only the rows shown.",
+    fields: f3,
+    hint: "INNER JOIN: one row per matching pair. LEFT JOIN: the same rows plus each left-table row with no match, its right-side columns blank (Null).",
+    why: "Exception queries, such as invoices with no payment or items never ordered, are LEFT JOINs that look for Null. An INNER JOIN hides exactly those rows.",
+    walk: [
+      { keys: ["rep"], text: "Match each " + J.C + " row to its " + J.one + ": " + ch.map(y => y[ckAt] + (J.ck === "SalesOrderID" && p3.pair === "J3" ? " line " + y[1] : "") + " → " + y[fkAt]).join("; ") + "." },
+      { keys: ["inner", "left"], text: "Query 1 returns the " + c3 + " matches; Query 2 adds " + u3 + " " + (u3 === 1 ? J.one : J.many) + " with no match: " + unmatched.join(", ") + "." },
+      { keys: ["find", "unm"], text: "Only Query 2 has rows with a blank " + J.C + "." + J.ck + "; IS NULL finds them." }] });
+
+  // Part 4: totals with GROUP BY and HAVING.
+  const k4 = K.k4, D1 = dayName(k4.d1), D2 = dayName(k4.d2), H = k4.H, inside = b => b.d >= k4.d1 && b.d <= k4.d2;
+  const noBills = k4.vs.filter(v => k4.Cn[v] === 0), top = k4.top;
+  const noneMsg = v => v + " has no bills dated " + D1 + " through " + D2 + ", so it isn't in the result.";
+  const allTop = k4.vs.reduce((a, b) => k4.A[b] > k4.A[a] ? b : a);
+  const mostBills = k4.vs.reduce((a, b) => k4.Cn[b] > k4.Cn[a] ? b : a);
+  const smallPass = k4.pass.length > 1 ? k4.pass.find(v => v !== top) : null;
+  const vopts = k4.vs.map(v => [v, v + " " + vname(v)]);
+  const outside = k4.bills.filter(b => b.v === top && !inside(b)).map(b => dayName(b.d));
+  const edge = k4.bills.find(b => b.v === top && (b.d === k4.d1 || b.d === k4.d2));
+  const betweenMsg = edge ? "BETWEEN includes both end dates, so the bill dated " + dayName(edge.d) + " counts." : "";
+  const chosenV = vals => { const v = vals.top; return typeof v === "string" && k4.vs.indexOf(v) >= 0 && v !== top ? v : null; };
+  const wt = k4.wtrap;
+  const f4 = [
+    num("pre", "Vendor groups before HAVING", "n", k4.pre, k4.pre + " vendors have at least one bill dated " + D1 + " through " + D2 + ", so GROUP BY makes " + k4.pre + " groups.", [
+      { v: 9, m: "GROUP BY makes one group per vendor, not one per bill." }, { v: k4.nbin, m: "GROUP BY makes one group per vendor, not one per bill." },
+      { v: k4.groups, m: "That's after HAVING. Count every vendor with a bill inside the dates." },
+      noBills.length ? { v: 4, m: noBills[0] + " has no bills dated " + D1 + " through " + D2 + ", so WHERE leaves it no rows to group." } : null],
+      "Count the vendors that have at least one bill inside the dates."),
+    num("groups", "Rows the query returns", "n", k4.groups, (k4.groups === 1 ? "Only " + k4.pass[0] + "'s total is" : k4.pass.join(" and ") + " have totals") + " at least " + money(H) + " inside the dates.", [
+      { v: k4.groups + 1, m: "Apply WHERE first: only bills dated " + D1 + " through " + D2 + " go into each total" + (k4.Cn[wt] ? ". " + wt + "'s bills in that range add to " + money(k4.S[wt]) + ", under " + money(H) + "." : ", and " + wt + " has none in that range.") },
+      { v: k4.pre, m: "HAVING then keeps only vendors whose total is at least " + money(H) + "." },
+      { v: k4.nbin, m: "GROUP BY returns one row per vendor, not one per bill." }],
+      "Total each vendor's bills inside the dates, then keep the totals of at least " + money(H) + "."),
+    sel("top", "VendorID in the first row", vopts, top, top + "'s total inside the dates, " + money(k4.S[top]) + ", is the largest that passes HAVING.", v => {
+      if (v === allTop) return k4.Cn[v] ? "Apply WHERE first: " + v + "'s total inside the dates is " + money(k4.S[v]) + "." : noneMsg(v);
+      if (v === mostBills) return "ORDER BY sorts on the total, not on the count of bills.";
+      if (v === smallPass) return "DESC puts the largest total first.";
+      if (k4.Cn[v]) return v + "'s total inside the dates, " + money(k4.S[v]) + ", is under " + money(H) + ", so HAVING drops it.";
+      return noneMsg(v);
+    }),
+    num("topSum", "TotalBilled in the first row", "$", k4.S[top], top + "'s bills dated " + D1 + " through " + D2 + " add to " + money(k4.S[top]) + ".", [
+      outside.length ? { v: k4.A[top], m: outside.length === 1 ? "Leave out " + top + "'s bill dated " + outside[0] + ": it's outside the date range." : "Leave out " + top + "'s bills dated " + outside.join(" and ") + ": they're outside the date range." } : null,
+      edge ? { v: k4.S[top] - edge.a, m: betweenMsg } : null,
+      { v: H, m: money(H) + " is the HAVING test, not the total." },
+      { ft: (v, vals) => { const c = chosenV(vals); return !!c && k4.Cn[c] > 0 && v === k4.S[c]; }, m: "Your total is right for " + "{chosen}" + ", but your first row is not. Fix it first." }],
+      "TotalBilled adds the first vendor's bills dated " + D1 + " through " + D2 + "."),
+    num("topCnt", "Bills in the first row", "n", k4.Cn[top], top + " has " + k4.Cn[top] + " bills inside the dates.", [
+      k4.Ca[top] !== k4.Cn[top] ? { v: k4.Ca[top], m: "Count only the bills inside the dates." } : null,
+      { v: 9, m: "Count(*) counts the rows in this vendor's group, not the whole table." },
+      edge ? { v: k4.Cn[top] - 1, m: betweenMsg } : null,
+      { ft: (v, vals) => { const c = chosenV(vals); return !!c && k4.Cn[c] > 0 && v === k4.Cn[c]; }, m: "Your count is right for {chosen}, but your first row is not. Fix it first." }],
+      "Count(*) counts the first vendor's bills inside the dates."),
+    sel("clause", k4.variant === "A" ? "Marcus wants each total to count only bills of " + money(k4.m) + " or more. Where does Amount >= " + k4.m + " go?" :
+      "Marcus wants only vendors with at least " + k4.k + " bills in the date range. Where does Count(*) >= " + k4.k + " go?", CLAUSES, k4.variant === "A" ? "where" : "having",
+      k4.variant === "A" ? "A test on single bills goes in WHERE, before the bills are grouped." : "A test on each vendor's count goes in HAVING, after grouping.", v =>
+        v === "group" || v === "order" ? "GROUP BY sets the groups and ORDER BY sorts them; neither one filters." :
+        v === "having" ? "HAVING tests each vendor's total after grouping. A condition on single bills goes in WHERE, before the bills are grouped." :
+        "WHERE filters single bills before any group exists, so it can't use Count(*). A condition on a group's count or total goes in HAVING.")];
+  // The follow-through messages name the vendor the student chose.
+  ["topSum", "topCnt"].forEach(id => { const f = f4.find(x => x.id === id), w = f.wrong; f.wrong = (v, nums, vals) => w(v, nums, vals).replace("{chosen}", chosenV(vals || {}) || ""); });
+  const winRows = k4.bills.map((b, i) => inside(b) ? i + 1 : 0).filter(Boolean);
+  const grp = k4.vs.filter(v => k4.Cn[v]).sort((a, b) => k4.S[b] - k4.S[a]);
+  parts.push({ id: "totals", phase: "join", tick: "4", title: "Totals with GROUP BY and HAVING", layout: "list",
+    desc: "The data panel shows nine vendor bills and a totals query. Work out what it returns.",
+    fields: f4,
+    hint: "Order of work: WHERE drops bills, GROUP BY makes one row per vendor, HAVING drops vendors, ORDER BY sorts what's left.",
+    why: "Totals by vendor or customer are how query results tie to the ledger. A condition in the wrong clause changes every total.",
+    walk: [
+      { keys: [], text: "Bills inside " + D1 + "–" + D2 + ": " + rowsList(winRows) + "." },
+      { keys: ["pre"], text: "Groups and totals: " + grp.map(v => v + " " + money(k4.S[v]) + " (" + k4.Cn[v] + (k4.Cn[v] === 1 ? " bill)" : " bills)")).join("; ") + ". That's " + k4.pre + " groups." },
+      { keys: ["groups", "clause"], text: "HAVING keeps totals of at least " + money(H) + ": " + k4.pass.join(" and ") + "." },
+      { keys: ["top", "topSum", "topCnt"], text: "DESC puts " + top + " first." }] });
+
+  // Part 5: tie a query total to the trial balance.
+  const k5 = K.k5, CM = {
+    timing: { criteria: "Jan 29 is inside the query's dates. The invoice is missing because it was entered after the noon refresh, so it's timing: the next refresh brings it into the copy.",
+      joinout: "The invoice isn't in the Access copy at all, so no join can find it. It was entered after the refresh: timing.",
+      none: "It's a January invoice, so it's in the trial balance but not in the query. It explains part of the difference." },
+    criteria: { timing: "This invoice is in the Access copy. The query's date criteria leave out invoices dated Jan " + k5.d + "; that's a query error.",
+      joinout: "It was paid once, so the join treats it normally. The dates are what leave it out." },
+    joinout: { joinrep: "Rows left out make the query total too small; repeated rows make it too big. Unpaid invoices have no ReceiptApplication row, so they're left out.",
+      timing: "These invoices are in the copy and inside the dates. The INNER JOIN to ReceiptApplication keeps only invoices with a payment row, so unpaid ones drop out." },
+    joinrep: { joinout: "Rows left out make the query total too small; repeated rows make it too big. Each payment is a ReceiptApplication row, so this invoice comes back twice and Sum adds its amount twice.",
+      timing: "Each payment is a ReceiptApplication row, so the join returns this invoice twice and Sum adds its amount twice." }};
+  CM.timing.joinrep = CM.timing.joinout; CM.criteria.none = CM.criteria.timing; CM.criteria.joinrep = CM.criteria.joinout;
+  CM.joinout.criteria = CM.joinout.none = CM.joinout.timing; CM.joinrep.criteria = CM.joinrep.none = CM.joinrep.timing;
+  const AW = { timing: "Entered after the noon refresh, so it's in NetSuite but not yet in the Access copy: add it.", criteria: "The query's dates start after Jan " + k5.d + ", so this invoice is left out: add it.",
+    joinout: "Unpaid invoices have no ReceiptApplication row, so the INNER JOIN drops them: add them.", joinrep: "Two payment rows bring this invoice back twice, so Sum counts it once too often: subtract one copy." };
+  const CW = { timing: "It was entered after the noon refresh, so the Access copy doesn't have it yet: timing.",
+    criteria: "It's in the copy and paid once, but the query's dates leave out Jan " + k5.d + ": a query error.",
+    joinout: "They're in the copy and inside the dates, but with no payment row the INNER JOIN drops them.",
+    joinrep: "Each payment is a ReceiptApplication row, so the join returns this invoice twice." };
+  const f5 = [];
+  k5.items.forEach((it, i) => {
+    f5.push(sel("cause" + i, "Item " + (i + 1) + ": cause", CAUSES, it.kind, CW[it.kind], v => CM[it.kind][v], { row: i, col: "cause" }));
+    const add = it.adj > 0;
+    f5.push(num("adj" + i, "Item " + (i + 1) + ": add to the query total", "$", it.adj, AW[it.kind], [
+      { v: -it.adj, m: "Right amount, wrong direction. " + (add ? "The query is missing it, so add it." : "The query counts it an extra time, so subtract it.") },
+      it.kind === "joinrep" ? { v: -k5.pa, m: "The join repeats the whole invoice amount, " + money(k5.B) + ", not one payment." } : null,
+      it.kind === "joinrep" ? { v: -k5.pb, m: "The join repeats the whole invoice amount, " + money(k5.B) + ", not one payment." } : null,
+      it.kind === "joinrep" ? { v: -2 * k5.B, m: "One copy of the invoice belongs in the total. Subtract only the extra copy." } : null,
+      { v: 0, m: "Each of these items changes the difference. Ask whether the query is missing the amount or counts it too often." }],
+      "Ask whether the query is missing this amount (add it) or counts it too often (subtract it).", { row: i, col: "adj" }));
+  });
+  const Q = k5.Q, G = k5.G;
+  f5.push(num("fixed", "Query total once the query errors are fixed", "$", k5.fixed, "Fixing the dates and dropping the join bring back everything in the copy: " + money(G) + " − " + money(k5.T) + " = " + money(k5.fixed) + ".", [
+    { v: G, m: "Fixing the query can't bring in an invoice the Access copy doesn't have yet. The " + money(k5.T) + " timing item stays until the next refresh." },
+    { v: Q + k5.A + k5.D, m: "A LEFT JOIN still returns this invoice once per payment. Drop the join, and the repeated " + money(k5.B) + " goes too." },
+    { v: Q + k5.D - k5.B, m: "Fixing the dates brings back the Jan " + k5.d + " invoice, " + money(k5.A) + "." },
+    { v: Q + k5.A - k5.B, m: "Without the INNER JOIN, the unpaid invoices come back: " + money(k5.D) + "." },
+    { v: Q, m: "Two query errors change the total once fixed: the join and the dates." }],
+    "Start from the query total and apply only the query-error items."));
+  parts.push({ id: "recon", phase: "recon", tick: "5", title: "Tie a query total to the trial balance", layout: "table",
+    desc: "For this practice scenario, suppose Trailhead keeps an Access copy of its NetSuite records, refreshed at noon each Friday. Marcus wants January's wholesale sales from the query in the data panel in a report, but first the total has to tie to the trial balance. " +
+      "You traced every January invoice in NetSuite and in the Access copy, and the four items below are everything that differs. For each item, choose its cause and enter what it adds to the query total. Use a minus sign to subtract.\n\n" +
+      "These are practice scenarios written for this lab. They are not part of Trailhead's 2026 records or the evidence for Labs C1 and C2 or Project M3, and they don't describe how Trailhead's NetSuite account or company is actually set up.",
+    itemLabel: "What you found", cols: [{ key: "cause", label: "Cause" }, { key: "adj", label: "Add to the query total" }], numbered: true,
+    items: k5.items.map(it => ({ text: it.text })),
+    fields: f5,
+    hint: "Ask two questions about each item: is the invoice in the Access copy, and do the query's dates and join treat it right? Missing from the query: add. Counted too often: subtract.",
+    why: "A query total is evidence only after it ties to the ledger. Explaining every difference, and fixing the ones that are query errors, is what makes the number reliable.",
+    walk: [
+      { keys: [], text: "The trial balance is " + money(G) + "; the query found " + money(Q) + ", a difference of " + money(G - Q) + "." },
+      { keys: f5.filter(f => f.id !== "fixed").map(f => f.id), text: "Items: " + k5.items.map((it, i) => "item " + (i + 1) + ", " + optLabel(CAUSES, it.kind) + ", " + (it.adj < 0 ? "−" : "+") + money(Math.abs(it.adj))).join("; ") + ". They add to " + money(G - Q) + "." },
+      { keys: ["fixed"], text: "Fixing the dates and dropping the join leaves only the timing item: " + money(G) + " − " + money(k5.T) + " = " + money(k5.fixed) + "." }] });
+  return parts;
+}
+
+// Part 2's requests: the table, Marcus's words, the four clauses (by kind), the reason for each wrong one, and the work line.
+const W2 = {
+  W1: v => { const D = dayName(v.d), L = lit(v.d); return { table: "Invoice", req: "Every invoice to " + v.name + " (" + v.c + ") dated " + D + " or later.",
+    opts: { ok: 'CustomerID = "' + v.c + '" AND InvoiceDate >= ' + L, or: 'CustomerID = "' + v.c + '" OR InvoiceDate >= ' + L, name: 'CustomerName = "' + v.name + '" AND InvoiceDate >= ' + L, due: 'CustomerID = "' + v.c + '" AND DueDate >= ' + L },
+    msgs: { or: "OR returns every invoice for " + v.name + " plus every invoice dated " + D + " or later from any customer. Both must hold, so use AND.",
+      name: "The Invoice table has no CustomerName column, so Access would ask for it as a parameter. Filter on CustomerID, or join Customer to use the name.",
+      due: "DueDate is when payment is due, 30 days after the invoice date. The request is about the invoice date." },
+    work: "Both conditions must hold, so AND joins them; InvoiceDate is the invoice's own date; Invoice stores the customer's ID." }; },
+  W2: v => { const n1 = vname(v.v1), n2 = vname(v.v2), X = v.X; return { table: "VendorBill", req: "Bills of " + money(X) + " or more from " + n1 + " (" + v.v1 + ") or " + n2 + " (" + v.v2 + ").",
+    opts: { ok: 'VendorID IN ("' + v.v1 + '", "' + v.v2 + '") AND Amount >= ' + X, prec: 'VendorID = "' + v.v1 + '" OR VendorID = "' + v.v2 + '" AND Amount >= ' + X,
+      both: 'VendorID = "' + v.v1 + '" AND VendorID = "' + v.v2 + '" AND Amount >= ' + X, inor: 'VendorID IN ("' + v.v1 + '", "' + v.v2 + '") OR Amount >= ' + X },
+    msgs: { prec: "AND is evaluated before OR, so this returns every " + v.v1 + " bill at any amount. Group the vendors with IN or parentheses.",
+      both: "A bill has only one vendor, so no row equals both IDs and the query returns nothing.",
+      inor: "OR returns every bill from these two vendors at any amount, plus every bill of " + money(X) + " or more from anyone. Both must hold, so use AND." },
+    work: "IN groups the two vendors, and AND applies the amount test to both; >= keeps a bill of exactly " + money(X) + "." }; },
+  W3: v => { const ex = ITEMS.find(x => x[0].indexOf(v.P) === 0)[1]; return { table: "Item", req: "Every item that is one of our " + v.words + " (SKUs that start with " + v.P + ").",
+    opts: { ok: 'SKU LIKE "' + v.P + '*"', eq: 'SKU = "' + v.P + '*"', desc: 'Description LIKE "' + v.P + '*"', in: 'SKU IN ("' + v.P + '")' },
+    msgs: { eq: "With = the * is an ordinary character, so only a SKU spelled “" + v.P + "*” would match. Wildcards need LIKE.",
+      desc: "Description holds words such as “" + ex + "”; the letters " + v.P + " begin the SKU.",
+      in: "IN looks for exact values, and no SKU is just “" + v.P + "”. To match the start of a SKU, use LIKE with *." },
+    work: "LIKE with * after the letters finds every SKU that starts with " + v.P + "." }; },
+  W4: v => { const nm = STATES[v.st], L = v.st.charAt(0);
+    const others = Object.keys(STATES).filter(s => s !== v.st && s.charAt(0) === L).sort((a, b) => STATES[a] < STATES[b] ? -1 : 1).map(s => STATES[s] + " (" + s + ")");
+    return { table: "Customer", req: "Every customer outside " + nm + ".",
+    opts: { ok: 'State <> "' + v.st + '"', name: 'State <> "' + nm + '"', city: 'City <> "' + nm + '"', like: 'State NOT LIKE "' + L + '*"' },
+    msgs: { name: "The State column holds two-letter codes such as " + v.st + ". No row says “" + nm + ",” so this returns every customer.",
+      city: "City holds the town, such as Lake Placid or Ithaca. The two-letter state code is in State.",
+      like: "“" + L + "*” also leaves out " + others.join(" and ") + ". Name the one state instead." },
+    work: "<> leaves out one value; State holds two-letter codes, written in double quotes." }; },
+  W5: v => { const a = dayName(v.a), b = dayName(v.b), la = lit(v.a), lb = lit(v.b); return { table: "VendorBill", req: "Bills from " + vname(v.v) + " (" + v.v + ") dated " + a + " through " + b + ".",
+    opts: { ok: 'VendorID = "' + v.v + '" AND BillDate BETWEEN ' + la + " AND " + lb, or: 'VendorID = "' + v.v + '" OR BillDate BETWEEN ' + la + " AND " + lb,
+      in: 'VendorID = "' + v.v + '" AND BillDate IN (' + la + ", " + lb + ")", due: 'VendorID = "' + v.v + '" AND DueDate BETWEEN ' + la + " AND " + lb },
+    msgs: { or: "OR returns every " + v.v + " bill plus every bill in those dates from any vendor. Both must hold, so use AND.",
+      in: "IN finds bills dated exactly " + a + " or " + b + ", not the days between. BETWEEN keeps the whole range.",
+      due: "DueDate is when the bill must be paid. The request is about the bill's own date, BillDate." },
+    work: "BETWEEN keeps both end dates and every day between; AND applies both conditions." }; },
+  W6: v => ({ table: "Invoice", req: "Invoices of " + money(v.X) + " to " + money(v.Y) + ", including both amounts.",
+    opts: { ok: "Amount BETWEEN " + v.X + " AND " + v.Y, or: "Amount >= " + v.X + " OR Amount <= " + v.Y, strict: "Amount > " + v.X + " AND Amount < " + v.Y, in: "Amount IN (" + v.X + ", " + v.Y + ")" },
+    msgs: { or: "Every amount is at least " + money(v.X) + " or at most " + money(v.Y) + ", so OR returns every invoice. Use AND or BETWEEN.",
+      strict: "“Including both amounts” means invoices of exactly " + money(v.X) + " and " + money(v.Y) + " count. > and < leave them out; BETWEEN keeps them.",
+      in: "IN finds invoices of exactly " + money(v.X) + " or " + money(v.Y) + ", not the amounts between." },
+    work: "BETWEEN keeps both ends and everything between; numbers go in without $ signs or commas." })};
+
+// ---------- Grading ----------
+// Choices: right, or "Not “label.”" with the reason; a blank or unknown choice reads as unchosen. Numbers: whole numbers,
+// exact; the wrong-answer reason may look at the student's other answers in the part (follow-through).
+function grade(p, vals) {
+  const nums = {}; p.fields.forEach(f => { if (f.kind !== "sel") { const v = parse(vals[f.id]); nums[f.id] = v === null || isNaN(v) ? null : v; } });
+  const res = {}; let all = true;
+  p.fields.forEach(f => {
+    const raw = vals[f.id];
+    if (f.kind === "sel") {
+      const v = typeof raw === "string" ? raw : "";
+      if (!v || !f.opts.some(o => o[0] === v)) res[f.id] = { ok: false, msg: "Choose an answer." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v) };
+    } else {
+      const v = parse(raw);
+      if (v === null) res[f.id] = { ok: false, msg: "Enter an amount." };
+      else if (isNaN(v)) res[f.id] = { ok: false, msg: "Enter a number only, like 2400 or 12.50." };
+      else res[f.id] = v === f.ans ? { ok: true, msg: "Correct." } : { ok: false, msg: f.wrong(v, nums, vals) };
+    }
+    if (!res[f.id].ok) all = false;
+  });
+  return { res, all };
+}
+/* ==== LAB END ==== */
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function bizHTML() { return "<b>Trailhead Outfitters Co.</b> sells camping and hiking gear to outdoor shops and web shoppers, on NetSuite, and keeps a copy of its records in an Access database. You are a staff accountant reporting to Marcus Oyelaran, the controller."; }
+// The data panel reads only the public problem facts (the server's publicInfo keys p1-p5) and the current part's id,
+// so it is the same in both modes.
+const NOTE = "For this part, suppose each table held only the rows shown. Document numbers are made up for practice and don't match your Access data.";
+const SRNOTE = "Screen reader users: set punctuation to All for this lab; the code uses symbols that matter.";
+function dtab(caption, cols, rows, rowHead) {
+  return '<div class="scroll" style="margin-top:12px"><table class="dtab"><caption><div class="cap-name">' + esc(caption) + '</div></caption><thead><tr>' +
+    cols.map(c => '<th scope="col"' + (c.mono ? ' class="mono"' : '') + '>' + esc(c.label) + '</th>').join("") + '</tr></thead><tbody>' +
+    rows.map(row => '<tr>' + row.map((x, i) => rowHead && i === 0 ? '<th scope="row">' + esc(x) + '</th>' : '<td' + (cols[i].mono ? ' class="mono"' : '') + '>' + esc(x) + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+function sqlBlock(part, n, code, name) {
+  const id = part + "-q" + n;
+  return '<figure class="sql"><figcaption id="' + id + '">' + esc(name || "Query " + n) + '</figcaption><pre tabindex="0" role="region" aria-labelledby="' + id + '"><code>' + esc(code) + '</code></pre></figure>';
+}
+const note = t => '<p class="note">' + esc(t) + '</p>';
+const cols = names => names.map(c => ({ label: c, mono: 1 }));
+function dataHTML(c) {
+  const P = c.P || {}, id = c.part ? c.part.id : "select";
+  if (id === "criteria" && P.p2) return { sub: "Columns and sample rows", html: P.p2.tables.map(t => dtab(t.name + ": columns and two sample rows", cols(t.columns), t.sample, true)).join("") +
+    note("Columns used in this lab; Trailhead's tables have a few more.") };
+  if (id === "joins" && P.p3) { const p = P.p3;
+    return { sub: p.parent.table + " and " + p.child.table, html: dtab(p.parent.table + " (" + p.parent.rows.length + " rows)", cols(p.parent.columns), p.parent.rows, true) +
+      dtab(p.child.table + " (" + p.child.rows.length + " rows)", cols(p.child.columns), p.child.rows) + sqlBlock(id, 1, p.q1) + sqlBlock(id, 2, p.q2) + note(NOTE) }; }
+  if (id === "totals" && P.p4) { const p = P.p4;
+    return { sub: "VendorBill and a totals query", html: dtab("Vendors in this part", cols(["VendorID", "VendorName"]), p.vendors) +
+      dtab("VendorBill (" + p.rows.length + " rows)", [{ label: "Row" }].concat(cols(["BillID", "VendorID", "BillDate", "Amount"])), p.rows.map((x, i) => [String(i + 1)].concat(x)), true) +
+      sqlBlock(id, 1, p.sql) + note(NOTE) }; }
+  if (id === "recon" && P.p5) { const p = P.p5;
+    return { sub: "The query and the trial balance", html: sqlBlock(id, 1, p.sql) + '<div class="facts6">' +
+      ['Query result (Access copy): JanuaryInvoices = ' + p.result,
+       'Trial balance (NetSuite, run ' + p.tbRun + '): 4000 Sales - Wholesale at Jan 31, ' + p.tb + ' credit. January is the first month of the fiscal year, so this is January\'s wholesale sales.',
+       'Every invoice posts to 4000, and every January entry to 4000 came from an invoice. Web store sales are cash sales, not invoices. No invoice was voided or credited in January.',
+       'The Access copy was last refreshed ' + p.refreshed.replace(", ", " at ") + '.',
+       'Query total + adjustments = trial balance.'].map(t => '<p>' + esc(t) + '</p>').join("") + '</div>' }; }
+  if (!P.p1) return { sub: "", html: "" };
+  return { sub: "SalesOrderLine and one query", html: dtab("SalesOrderLine (8 rows)", [{ label: "Row" }].concat(cols(["SalesOrderID", "LineNumber", "SKU", "Quantity", "UnitPrice"])), P.p1.rows.map((x, i) => [String(i + 1)].concat(x)), true) +
+    sqlBlock("select", 1, P.p1.sql) + note(NOTE) + note(SRNOTE) +
+    note("In Access, ORDER BY repeats the expression. ORDER BY LineTotal would make Access ask for a parameter value.") };
+}
+
+MAFrame.start({
+  slug: "ais-sql-recon", key: "ais-sql-recon1", module: "IL6", title: "Queries, Joins and Reconciliation",
+  phases: [["select", "Select and filter"], ["join", "Joins and totals"], ["recon", "Reconcile (after S22)"]],
+  dataTitle: "Queries and data",
+  setYear(y) { YEAR = y; }, gen, parts: buildParts, grade, fromInfo: info => info, biz: bizHTML, data: dataHTML
+});
+</script>
+</body>
+</html>
