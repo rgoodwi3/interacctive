@@ -238,7 +238,7 @@ const TOPICS = {
   "ma-foundations": {
     topics: [
       { key: "users", label: "Users of managerial accounting" },
-      { key: "functions", label: "Planning, directing and evaluating" },
+      { key: "functions", label: "Planning, controlling and evaluating" },
       { key: "costs", label: "Classifying costs" },
       { key: "totals", label: "Totaling product and period costs" },
     ],
