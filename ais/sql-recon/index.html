@@ -326,7 +326,7 @@ function gen(seed) {
     if (pa === pb) continue;
     const ftr = [G, Q + A + D, Q + D - B, Q + A - B, Q];
     if (ftr.indexOf(fixed) >= 0 || new Set(ftr).size < ftr.length) continue;
-    if ([Rr, A, T, D, B, Q, G, fixed, pa, pb].concat(ftr).some(bad)) continue;
+    if ([Rr, A, T, D, B, Q, G, fixed, G - Q, pa, pb].concat(ftr).some(bad)) continue;
     if ([A, T, B, pa, pb].some(x => p3amts.has(x))) continue;
     const cs = sample(pool, 3), inv = nums(3, 290000, 299999);
     const dd = one(DAYS.filter(n => n >= 11 && n <= 15)), x1 = one(DAYS.filter(n => n > dd && n <= 26)), x2 = one(DAYS.filter(n => n > x1 && n <= 28));
