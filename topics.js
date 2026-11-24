@@ -414,6 +414,16 @@ const TOPICS = {
     ],
     of: ids([["area", ["area"]], ["deficiency", ["deficiency"]], ["soc", ["soc"]], ["threats", ["threats"]], ["nist", ["nist"]]]),
   },
+  "ais-sql-recon": {
+    topics: [
+      { key: "select", label: "Reading SELECT, WHERE and ORDER BY" },
+      { key: "criteria", label: "Turning requests into criteria" },
+      { key: "joins", label: "INNER and LEFT joins" },
+      { key: "totals", label: "GROUP BY and HAVING" },
+      { key: "recon", label: "Tying a query total to the trial balance" },
+    ],
+    of: ids([["select", ["select"]], ["criteria", ["criteria"]], ["joins", ["joins"]], ["totals", ["totals"]], ["recon", ["recon"]]]),
+  },
 };
 
 // The assigned concepts as a clean list for this lab: only known keys, in catalog order. null means the
