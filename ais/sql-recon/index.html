@@ -71,7 +71,7 @@ const STATES = { NY: "New York", NH: "New Hampshire", NJ: "New Jersey", MA: "Mas
 // The Item table: SKU, Description, WholesalePrice.
 const ITEMS = [
   ["TNT-2P", "Two-person tent", 120], ["TNT-4P", "Four-person tent", 199], ["TRP-UL", "Ultralight tarp", 39],
-  ["SLB-20", "Sleeping bag, 20°F", 99], ["SLB-40", "Sleeping bag, 40°F", 62], ["PAD-IN", "Insulated sleeping pad", 54],
+  ["SLB-20", "Sleeping bag, 20F", 99], ["SLB-40", "Sleeping bag, 40F", 62], ["PAD-IN", "Insulated sleeping pad", 54],
   ["PCK-65", "Backpack, 65 L", 145], ["PCK-28", "Daypack, 28 L", 58], ["DRY-20", "Dry sack, 20 L", 13],
   ["BT-MID", "Mid hiking boot", 108], ["BT-TRL", "Trail shoe", 84], ["SCK-3P", "Merino socks, 3-pack", 17],
   ["STV-1B", "Single-burner stove", 42], ["CKS-2", "Two-person cook set", 34], ["FLT-SQ", "Squeeze water filter", 29],
@@ -297,7 +297,7 @@ function gen(seed) {
     if (Cn[top] < 2) continue;
     const nbin = bills.filter(inw).length, groups = pass.length, pre = inv.length;
     const gt = [groups + 1, pre, nbin], pt = [9, groups, nbin].concat(pre < 4 ? [4] : []);
-    const bnd = bills.filter(b => b.v === top && (b.d === d1 || b.d === d2));
+    const bnd = bills.filter(b => b.v === top && (b.d === d1 || b.d === d2)).sort((a, b) => a.d - b.d);
     const st = (A[top] !== S[top] ? [A[top]] : []).concat(bnd.length ? [S[top] - bnd[0].a] : []).concat([H]);
     const ct = (Ca[top] !== Cn[top] ? [Ca[top]] : []).concat([9]).concat(bnd.length ? [Cn[top] - 1] : []);
     const dist = (a, xs) => xs.indexOf(a) < 0 && new Set(xs).size === xs.length;
@@ -334,7 +334,7 @@ function gen(seed) {
     const where = var5 === "a" ? "WHERE Invoice.InvoiceDate\n  BETWEEN " + lit(d + 1) + " AND " + lit(31) : "WHERE Invoice.InvoiceDate > " + lit(d) + "\n  AND Invoice.InvoiceDate <= " + lit(31);
     const sql = "SELECT Sum(Invoice.Amount) AS JanuaryInvoices\nFROM Invoice INNER JOIN ReceiptApplication\n  ON Invoice.InvoiceID = ReceiptApplication.InvoiceID\n" + where + ";";
     const items = shuffle([
-      { kind: "timing", text: "INV-" + inv[0] + " to " + cs[0][1] + ", " + money(T) + ", dated Jan 29, was entered in NetSuite at " + tm + ", after the noon refresh.", adj: T },
+      { kind: "timing", text: "INV-" + inv[0] + " to " + cs[0][1] + ", " + money(T) + ", dated Jan 29, was entered in NetSuite at " + tm + ".", adj: T },
       { kind: "criteria", text: "INV-" + inv[1] + " to " + cs[1][1] + ", " + money(A) + ", is dated Jan " + d + ". It was paid in one payment on " + dayName(dp) + ".", adj: A },
       { kind: "joinout", text: k + " invoices in the Access copy, dated Jan 11 to Jan 28 and totaling " + money(D) + ", have no payment yet.", adj: D },
       { kind: "joinrep", text: "INV-" + inv[2] + " to " + cs[2][1] + ", " + money(B) + ", dated " + dayName(dd) + ", was paid in two payments: " + money(pa) + " on " + dayName(x1) + " and " + money(pb) + " on " + dayName(x2) + ".", adj: -B }]);
@@ -483,7 +483,9 @@ function buildParts(P) {
   const noBills = k4.vs.filter(v => k4.Cn[v] === 0), top = k4.top;
   const noneMsg = v => v + " has no bills dated " + D1 + " through " + D2 + ", so it isn't in the result.";
   const allTop = k4.vs.reduce((a, b) => k4.A[b] > k4.A[a] ? b : a);
-  const mostBills = k4.vs.reduce((a, b) => k4.Cn[b] > k4.Cn[a] ? b : a);
+  const maxCn = Math.max.apply(null, k4.vs.map(v => k4.Cn[v]));
+  // The sort message is true only of a vendor that passes HAVING and has more bills inside the dates than any other.
+  const mostBills = k4.vs.filter(v => k4.Cn[v] === maxCn).length === 1 ? k4.vs.find(v => k4.Cn[v] === maxCn && k4.S[v] >= H) || null : null;
   const smallPass = k4.pass.length > 1 ? k4.pass.find(v => v !== top) : null;
   const vopts = k4.vs.map(v => [v, v + " " + vname(v)]);
   const outside = k4.bills.filter(b => b.v === top && !inside(b)).map(b => dayName(b.d));
@@ -583,7 +585,7 @@ function buildParts(P) {
     "Start from the query total and apply only the query-error items."));
   parts.push({ id: "recon", phase: "recon", tick: "5", title: "Tie a query total to the trial balance", layout: "table",
     desc: "For this practice scenario, suppose Trailhead keeps an Access copy of its NetSuite records, refreshed at noon each Friday. Marcus wants January's wholesale sales from the query in the data panel in a report, but first the total has to tie to the trial balance. " +
-      "You traced every January invoice in NetSuite and in the Access copy, and the four items below are everything that differs. For each item, choose its cause and enter what it adds to the query total. Use a minus sign to subtract.\n\n" +
+      "You traced every January invoice in NetSuite and in the Access copy, and the four items below are everything that differs. For each item, choose its cause and enter what it adds to the query total. To subtract, use a minus sign or parentheses.\n\n" +
       "These are practice scenarios written for this lab. They are not part of Trailhead's 2026 records or the evidence for Labs C1 and C2 or Project M3, and they don't describe how Trailhead's NetSuite account or company is actually set up.",
     itemLabel: "What you found", cols: [{ key: "cause", label: "Cause" }, { key: "adj", label: "Add to the query total" }], numbered: true,
     items: k5.items.map(it => ({ text: it.text })),
@@ -592,7 +594,7 @@ function buildParts(P) {
     why: "A query total is evidence only after it ties to the ledger. Explaining every difference, and fixing the ones that are query errors, is what makes the number reliable.",
     walk: [
       { keys: [], text: "The trial balance is " + money(G) + "; the query found " + money(Q) + ", a difference of " + money(G - Q) + "." },
-      { keys: f5.filter(f => f.id !== "fixed").map(f => f.id), text: "Items: " + k5.items.map((it, i) => "item " + (i + 1) + ", " + optLabel(CAUSES, it.kind) + ", " + (it.adj < 0 ? "−" : "+") + money(Math.abs(it.adj))).join("; ") + ". They add to " + money(G - Q) + "." },
+      { keys: f5.filter(f => f.id !== "fixed").map(f => f.id), text: "Items: " + k5.items.map((it, i) => "item " + (i + 1) + ", " + optLabel(CAUSES, it.kind) + ", " + (it.adj < 0 ? "(" + money(-it.adj) + ")" : money(it.adj))).join("; ") + ". They add to " + money(G - Q) + "." },
       { keys: ["fixed"], text: "Fixing the dates and dropping the join leaves only the timing item: " + money(G) + " − " + money(k5.T) + " = " + money(k5.fixed) + "." }] });
   return parts;
 }
@@ -625,7 +627,7 @@ const W2 = {
     msgs: { name: "The State column holds two-letter codes such as " + v.st + ". No row says “" + nm + ",” so this returns every customer.",
       city: "City holds the town, such as Lake Placid or Ithaca. The two-letter state code is in State.",
       like: "“" + L + "*” also leaves out " + others.join(" and ") + ". Name the one state instead." },
-    work: "<> leaves out one value; State holds two-letter codes, written in double quotes." }; },
+    work: "<> leaves out one value; State holds two-letter codes, written in double quotes. <> also leaves out rows where State is blank (Null)." }; },
   W5: v => { const a = dayName(v.a), b = dayName(v.b), la = lit(v.a), lb = lit(v.b); return { table: "VendorBill", req: "Bills from " + vname(v.v) + " (" + v.v + ") dated " + a + " through " + b + ".",
     opts: { ok: 'VendorID = "' + v.v + '" AND BillDate BETWEEN ' + la + " AND " + lb, or: 'VendorID = "' + v.v + '" OR BillDate BETWEEN ' + la + " AND " + lb,
       in: 'VendorID = "' + v.v + '" AND BillDate IN (' + la + ", " + lb + ")", due: 'VendorID = "' + v.v + '" AND DueDate BETWEEN ' + la + " AND " + lb },
