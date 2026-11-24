@@ -36,7 +36,7 @@ function parse(v) {
   return (neg ? -1 : 1) * parseFloat(s);
 }
 const MGR = "Managerial accounting", FIN = "Financial accounting";
-const PL = "Planning", DI = "Directing", CO = "Controlling";
+const PL = "Planning", DI = "Directing", EV = "Evaluating";
 const PR = "Product cost", PE = "Period cost";
 const DM = "Direct materials", DL = "Direct labor", OH = "Manufacturing overhead", SE = "Selling expense", AE = "Administrative expense";
 const V = "Variable", F = "Fixed";
@@ -84,15 +84,15 @@ function buildParts(P) {
   const ex = {
     P: "Setting a goal or deciding ahead of time how to reach it is planning.",
     D: "Handling day-to-day operations to carry out the plan is directing.",
-    C: "Comparing actual results with the plan and acting on the difference is controlling."
+    E: "Comparing actual results with the plan and acting on the difference is evaluating."
   };
   const acts = [
     [`The CEO sets a goal of ${money(P.goal)} in guidebook sales for the year.`, PL, ex.P],
     [`The print shop supervisor schedules press operators for this week's run of ${num(P.run)} guidebooks.`, DI, ex.D],
-    [`Actual paper cost was ${money(P.paperAct)} against a budget of ${money(P.paperBud)}. Management investigates why and switches to a cheaper supplier.`, CO, ex.C],
+    [`Actual paper cost was ${money(P.paperAct)} against a budget of ${money(P.paperBud)}. Management investigates why and switches to a cheaper supplier.`, EV, ex.E],
     ["The Binding department manager prepares next quarter's budget.", PL, "A budget is a plan for the future, so preparing one is planning."],
     [`The operations manager adds an extra shift today to finish a rush order of ${num(P.rush)} guidebooks.`, DI, ex.D],
-    [`Consultants billed ${num(P.hrsActual)} hours this month against a target of ${num(P.hrsTarget)}, so the consulting manager adjusts staffing.`, CO, ex.C],
+    [`Consultants billed ${num(P.hrsActual)} hours this month against a target of ${num(P.hrsTarget)}, so the consulting manager adjusts staffing.`, EV, ex.E],
     ["Management decides to start printing guidebooks in-house and lays out the steps to open the print shop.", PL, ex.P],
     ["The binding supervisor moves two workers to packing to meet today's shipping deadline.", DI, ex.D]
   ];
@@ -141,9 +141,9 @@ function buildParts(P) {
       itemLabel: "Report or information", cols: [{ key: "type", label: "Type of accounting" }], items: reports.map(r => ({ text: r[0] })),
       fields: reports.map((r, i) => selField("type" + i, i, "type", [MGR, FIN], r[1], r[2])) },
     { id: "functions", phase: "role", tick: "2", layout: "table", title: "What are managers doing?",
-      desc: "Managers use accounting information to plan, direct, and control. Match each activity to the function it shows.",
+      desc: "Managers use accounting information to plan, direct, and evaluate. Match each activity to the function it shows.",
       itemLabel: "Manager activity", cols: [{ key: "fn", label: "Management function" }], items: acts.map(r => ({ text: r[0] })),
-      fields: acts.map((r, i) => selField("fn" + i, i, "fn", [PL, DI, CO], r[1], r[2])) },
+      fields: acts.map((r, i) => selField("fn" + i, i, "fn", [PL, DI, EV], r[1], r[2])) },
     { id: "costs", phase: "costs", tick: "3", layout: "table", title: "Classify the print shop's costs",
       desc: "These are some of Problem Solvers' costs for the year. Classify each one three ways. Behavior means how the total cost changes as the number of guidebooks produced and sold changes.",
       itemLabel: "Cost", amountLabel: "Amount", cols: [{ key: "pp", label: "Product or period" }, { key: "cat", label: "Category" }, { key: "beh", label: "Behavior" }],
@@ -199,7 +199,7 @@ function dataHTML(c) {
   if (id === "functions") return { title: "What managers do", html:
     '<div class="defs"><div class="def"><b>Planning</b>Choosing goals and deciding how to reach them.</div>' +
     '<div class="def"><b>Directing</b>Running day-to-day operations to carry out the plan.</div>' +
-    '<div class="def"><b>Controlling</b>Comparing actual results with the plan and taking corrective action.</div></div>' };
+    '<div class="def"><b>Evaluating</b>Comparing actual results with the plan, finding the reasons for any difference, and taking corrective action.</div></div>' };
   if (id === "costs") return { title: "Product and period costs", html:
     '<div class="defs"><div class="def"><b>Product costs</b>Direct materials, direct labor, manufacturing overhead</div>' +
     '<div class="def"><b>Period costs</b>Selling and administrative expenses</div></div>' };
