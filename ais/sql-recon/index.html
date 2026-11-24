@@ -30,6 +30,8 @@
 /* Part 2: each request's clause choices sit under the request, in the code font. */
 [data-wrap^="w"] .frow.sel{grid-template-columns:minmax(0,1fr)}
 [data-wrap^="w"] select{font-family:var(--f-num);font-size:13px;max-width:100%}
+/* Where two columns would leave Part 2's choices too narrow to show a whole clause, it stacks as at 1,024 px. */
+@media (min-width:1061px) and (max-width:1399px){.grid-top:has([data-wrap^="w"]){grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
