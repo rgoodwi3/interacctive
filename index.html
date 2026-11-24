@@ -94,6 +94,7 @@ fieldset.subjects{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:4p
 .flags td{vertical-align:top}.flags ul{margin:0;padding-left:18px}
 .dates{display:grid;gap:4px}.dates label{display:grid;grid-template-columns:40px auto;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
 .dates input{width:205px;padding:4px 6px;font-size:14px}
+.dt{display:inline-flex;gap:4px}.dt input[type=date]{width:140px}.dt input[type=time]{width:105px}
 table.assign td{vertical-align:top}table.assign tr.dirty td{background:var(--gold-tint)}
 fieldset.bulk{border:1px solid var(--line);border-radius:8px;padding:10px 14px 12px;margin:0 0 14px}fieldset.bulk legend{font-weight:600;padding:0 4px}
 .bulkgrid{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end;margin:10px 0}.bulkgrid label{font-size:14px}
@@ -757,7 +758,27 @@ ${each.join('\n')}
     const TAG = { financial: 'Financial', managerial: 'Managerial', ais: 'AIS', games: 'Game' };
     const subjTag = a => subs.length > 1 ? ` <span class="tag">${TAG[a.subject || 'financial']}</span>` : '';
     const DATES = [['start', 'Start'], ['due', 'Due'], ['end', 'End']];
-    const dateBox = (a, x) => `<div class="dates">${DATES.map(([n, l]) => `<label>${l}<input type="datetime-local" name="${n}" value="${toLocalInput(x[n + '_at'])}" aria-label="${l} date for ${esc(a.title)}"></label>`).join('')}</div>`;
+    // Each date is a date box and a time box; a hidden input carries the combined local value (YYYY-MM-DDTHH:MM)
+    // under the field's name, so the rest of this pane reads one value. Picking a date with no time fills the
+    // default time: Start 12:00 AM, Due and End 11:59 PM. No date means no value, whatever the time box says.
+    const DT_DEFAULT = { start: '00:00', due: '23:59', end: '23:59' };
+    const dtField = (n, attr, value, label, disabled = false) => {
+      const [d, t] = value ? value.split('T') : ['', ''];
+      const off = disabled ? ' disabled' : '';
+      return `<span class="dt" data-dt="${n}"><input type="date" value="${d}" aria-label="${label} date"${off}><input type="time" value="${t || ''}" aria-label="${label} time"${off}><input type="hidden" ${attr} value="${value || ''}"></span>`;
+    };
+    const dtSync = box => {   // a date or time box changed: fill the default time if needed, update the hidden value
+      const w = box.closest('.dt'), [d, t, h] = w.querySelectorAll('input');
+      if (d.value && !t.value) t.value = DT_DEFAULT[w.dataset.dt];
+      if (!d.value && box === d) t.value = '';
+      h.value = d.value ? `${d.value}T${t.value}` : '';
+    };
+    const dtSet = (hidden, value) => {   // set a field from code (the bulk editor)
+      const [d, t] = hidden.closest('.dt').querySelectorAll('input');
+      [d.value, t.value] = value ? value.split('T') : ['', ''];
+      hidden.value = value || '';
+    };
+    const dateBox = (a, x) => `<div class="dates">${DATES.map(([n, l]) => `<label>${l}${dtField(n, `name="${n}"`, toLocalInput(x[n + '_at']), `${l} for ${esc(a.title)}`)}</label>`).join('')}</div>`;
     pane.innerHTML = `<p class="lead">This class includes <b>${esc(subjectsText(subs))}</b> content. Check an activity to assign it, set its options, and click <b>Save changes</b>.
         <b>Start</b> is when students can open it (blank: right away). <b>Due</b> is the deadline: graded work after it is marked late. <b>End</b> is when graded work closes (blank: at the due date). A graded lab still open when it closes is scored on the steps submitted so far.
         Each assigned lab has a <b>Copy for Canvas</b> button: it copies instructions for the Canvas assignment, in your school's name and colors, with the link that opens the lab for this class.</p>
@@ -765,7 +786,7 @@ ${each.join('\n')}
         <p class="small muted" style="margin:0">Select activities with the boxes in the first column, choose what to change, and click <b>Apply</b>. Then check the highlighted rows and click <b>Save changes</b>.</p>
         <div class="bulkgrid">
           <label>Mode<select id="bmode"><option value="">Leave as is</option><option value="practice">Practice</option><option value="graded">Graded</option></select></label>
-          ${DATES.map(([n, l]) => `<label>${l}<span class="bset"><select data-bwhat="${n}" aria-label="${l} date: what to do"><option value="">Leave as is</option><option value="set">Set to</option><option value="clear">Clear</option></select><input type="datetime-local" data-bval="${n}" disabled aria-label="New ${l.toLowerCase()} date"></span></label>`).join('')}
+          ${DATES.map(([n, l]) => `<label>${l}<span class="bset"><select data-bwhat="${n}" aria-label="${l} date: what to do"><option value="">Leave as is</option><option value="set">Set to</option><option value="clear">Clear</option></select>${dtField(n, `data-bval="${n}"`, '', `New ${l.toLowerCase()}`, true)}</span></label>`).join('')}
           <label>Attempts<span class="bset"><select data-bwhat="max" aria-label="Attempt limit: what to do"><option value="">Leave as is</option><option value="set">Set to</option><option value="clear">No limit</option></select><input type="number" min="1" data-bval="max" disabled aria-label="New attempt limit"></span></label>
         </div>
         <div class="row"><button class="btn" type="button" id="bapply" disabled>Apply to selected</button><button class="btn danger" type="button" id="bremove" disabled>Unassign selected</button><span class="small muted" id="bcount">None selected</span></div>
@@ -804,13 +825,19 @@ ${each.join('\n')}
       document.getElementById('bapply').disabled = document.getElementById('bremove').disabled = !n;
       document.getElementById('bcount').textContent = n ? `${n} selected` : 'None selected';
     }
+    const dtEvent = e => { if (e.target.closest && e.target.closest('.dt') && e.target.type !== 'hidden') dtSync(e.target); };
+    pane.addEventListener('input', dtEvent, true);    // capture: runs before refresh reads the hidden values
+    pane.addEventListener('change', dtEvent, true);
     pane.addEventListener('input', refresh);
     pane.addEventListener('change', refresh);
     pane.addEventListener('click', () => setTimeout(refresh, 0));   // after buttons that set boxes, such as All concepts
 
     document.getElementById('pickall').addEventListener('change', e => { rows.forEach(tr => { tr.querySelector('[data-pick]').checked = e.target.checked; }); refresh(); });
     pane.querySelectorAll('[data-bwhat]').forEach(s => s.addEventListener('change', () => {
-      const box = pane.querySelector(`[data-bval="${s.dataset.bwhat}"]`); box.disabled = s.value !== 'set'; if (!box.disabled) box.focus();
+      const box = pane.querySelector(`[data-bval="${s.dataset.bwhat}"]`), w = box.closest('.dt');
+      const ins = w ? [...w.querySelectorAll('input:not([type=hidden])')] : [box];
+      ins.forEach(i => { i.disabled = s.value !== 'set'; });
+      if (s.value === 'set') ins[0].focus();
     }));
     document.getElementById('bapply').addEventListener('click', () => {
       const what = n => pane.querySelector(`[data-bwhat="${n}"]`).value, val = n => pane.querySelector(`[data-bval="${n}"]`).value;
@@ -823,7 +850,7 @@ ${each.join('\n')}
         const a = actOf(tr), v = n => tr.querySelector(`[name="${n}"]`);
         v('on').checked = true;
         if (mode && v('mode')) v('mode').value = mode;
-        DATES.forEach(([n]) => { if (what(n) === 'set') v(n).value = val(n); else if (what(n) === 'clear') v(n).value = ''; });
+        DATES.forEach(([n]) => { if (what(n) === 'set') dtSet(v(n), val(n)); else if (what(n) === 'clear') dtSet(v(n), ''); });
         if (what('max') === 'set') v('max').value = Math.max(1, parseInt(val('max'), 10)); else if (what('max') === 'clear') v('max').value = '';
         const dp = datesProblem(v('start').value, v('due').value, v('end').value);
         if (dp) problems.push(`${esc(a.title)}: ${dp}`);
